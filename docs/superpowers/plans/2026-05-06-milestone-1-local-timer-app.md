@@ -57,21 +57,21 @@ src/
 **Files:**
 - Create: `package.json`, `vite.config.ts`, `vitest.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/test/setup.ts`
 
-- [ ] **Step 1: Initialise project**
+- [x] **Step 1: Initialise project**
 
 ```bash
 npm create vite@latest . -- --template react-ts
 npm install
 ```
 
-- [ ] **Step 2: Install dependencies**
+- [x] **Step 2: Install dependencies**
 
 ```bash
 npm install dexie dexie-react-hooks zustand
 npm install -D vitest @vitest/ui jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event fake-indexeddb vite-plugin-pwa @tailwindcss/vite tailwindcss
 ```
 
-- [ ] **Step 3: Configure Vite**
+- [x] **Step 3: Configure Vite**
 
 `vite.config.ts`:
 ```ts
@@ -100,7 +100,7 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 4: Configure Vitest**
+- [x] **Step 4: Configure Vitest**
 
 `vitest.config.ts`:
 ```ts
@@ -120,21 +120,21 @@ export default defineConfig({
 import '@testing-library/jest-dom'
 ```
 
-- [ ] **Step 5: Add test script to package.json**
+- [x] **Step 5: Add test script to package.json**
 
 In `package.json`, add to `"scripts"`:
 ```json
 "test": "vitest"
 ```
 
-- [ ] **Step 6: Replace index.css**
+- [x] **Step 6: Replace index.css**
 
 `src/index.css`:
 ```css
 @import "tailwindcss";
 ```
 
-- [ ] **Step 7: Verify scaffold**
+- [x] **Step 7: Verify scaffold**
 
 ```bash
 npm run dev
@@ -146,7 +146,7 @@ npm run test
 ```
 Expected: "No test files found", exits cleanly.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
