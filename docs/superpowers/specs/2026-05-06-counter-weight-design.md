@@ -23,9 +23,9 @@ A set-and-forget countdown app that treats time as data. Every event in your lif
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| Frontend framework | React + Vite + TypeScript | Ecosystem, TypeScript-native |
+| Frontend framework | React 19 + Vite 6 + TypeScript | Ecosystem, TypeScript-native |
 | PWA | vite-plugin-pwa | Service worker, Web App Manifest |
-| Styling | Tailwind CSS | Mobile-first responsive |
+| Styling | Tailwind CSS 4 | Mobile-first responsive |
 | Local database | Dexie.js (IndexedDB) | Lightweight, reactive (`useLiveQuery`), works in service worker |
 | Server sync | TanStack Query | Background sync, optimistic updates, retry/backoff |
 | API layer | tRPC | End-to-end type safety without codegen |
@@ -180,12 +180,12 @@ The client and server have distinct roles:
   - _Critical mutations_ (create, reschedule, cancel): server sync fires immediately and in parallel with the local write. The UI does not block — Dexie is updated instantly. The server sync runs concurrently; if it fails it retries with exponential backoff. EventBridge schedule creation depends on the server receiving these, so deferring or batching them is not acceptable.
   - _Non-critical mutations_ (rename, tag, flag, priority, emoji): server sync deferred and batched in background. Fully optimistic, rollback on persistent failure.
 - **On-open reconciliation** — on every app open, the client sends its list of active timer IDs and `target_datetimes` to the server. The server checks for any missing EventBridge schedules (e.g. created while offline and never synced) and creates them. This is the safety net for the gap between local write and server confirmation.
-- A global `TimerManager` (singleton) reads active timers from Dexie.js on app load, maintains a single `setTimeout` chain targeting the nearest `target_datetime`, and fires in-app notifications (toast/alert) when a timer ends
+- **Client-side timer scheduler** (Zustand store singleton) — reads active timers from Dexie.js on app load, maintains a single `setTimeout` chain targeting the nearest `target_datetime`, and fires in-app notifications (toast/alert) when a timer ends
 
 **Server (EventBridge + Notify Lambda)**
 - Handles notifications when the app is closed and the service worker has been killed
 - Server push wakes the service worker, which displays an OS-level notification
-- The server always sends push on timer fire — no attempt to detect whether the service worker is alive (not reliably knowable). Deduplication handled by the service worker: on receiving a push, the SW checks Dexie.js for whether the timer's `status` is already `fired` or `completed` (set by the in-app TimerManager). If so, it suppresses the OS notification silently.
+- The server always sends push on timer fire — no attempt to detect whether the service worker is alive (not reliably knowable). Deduplication handled by the service worker: on receiving a push, the SW checks Dexie.js for whether the timer's `status` is already `fired` or `completed` (set by the client-side timer scheduler). If so, it suppresses the OS notification silently.
 
 **Push relay**
 Web Push is a W3C standard. The browser provides an endpoint URL pointing to its vendor's relay (Google for Chrome, Mozilla for Firefox, Apple for Safari). No Firebase account or Apple Developer account required — VAPID keys are sufficient for all three.
