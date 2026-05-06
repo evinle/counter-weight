@@ -176,8 +176,10 @@ The client and server have distinct roles:
 
 **Client (Dexie.js + TanStack Query)**
 - Dexie.js is the primary read source — all timer display reads from IndexedDB, no network
-- Writes hit IndexedDB immediately (instant UI), then sync to server in background via TanStack Query
-- Offline writes are queued and replayed via Background Sync API when connectivity returns
+- **Tiered sync strategy** — all mutations write to Dexie immediately; the difference is when the server sync fires:
+  - _Critical mutations_ (create, reschedule, cancel): server sync fires immediately and in parallel with the local write. The UI does not block — Dexie is updated instantly. The server sync runs concurrently; if it fails it retries with exponential backoff. EventBridge schedule creation depends on the server receiving these, so deferring or batching them is not acceptable.
+  - _Non-critical mutations_ (rename, tag, flag, priority, emoji): server sync deferred and batched in background. Fully optimistic, rollback on persistent failure.
+- **On-open reconciliation** — on every app open, the client sends its list of active timer IDs and `target_datetimes` to the server. The server checks for any missing EventBridge schedules (e.g. created while offline and never synced) and creates them. This is the safety net for the gap between local write and server confirmation.
 - A global `TimerManager` (singleton) reads active timers from Dexie.js on app load, maintains a single `setTimeout` chain targeting the nearest `target_datetime`, and fires in-app notifications (toast/alert) when a timer ends
 
 **Server (EventBridge + Notify Lambda)**
@@ -198,7 +200,7 @@ iOS only grants push permission to PWAs installed to the Home Screen (iOS 16.4+)
 
 ## Metrics & Export
 
-**In-app metrics** — derived from `timer_events` queries: completion rate, missed rate, average delay before completion, breakdown by tag and group. Queries run against the RDS read replica once one is provisioned. No separate analytics store needed initially.
+**In-app metrics** — derived from `timer_events` queries: completion rate, missed rate, average delay before completion, breakdown by tag and group. Queries run against the primary RDS instance initially. A read replica is a future scaling addition, not in initial scope.
 
 **User export** — on-demand. API Lambda queries `timer_events` for the requesting user and returns CSV/JSON directly in the response body. Lambda's 6MB synchronous response limit is sufficient for personal datasets. S3 is not required for this path.
 
