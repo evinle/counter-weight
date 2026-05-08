@@ -160,7 +160,7 @@ git commit -m "feat: project scaffold — React + Vite + Tailwind + Dexie + Vite
 **Files:**
 - Create: `src/db/schema.ts`, `src/db/index.ts`, `src/test/db.test.ts`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 `src/test/db.test.ts`:
 ```ts
@@ -214,14 +214,14 @@ describe('db', () => {
 })
 ```
 
-- [ ] **Step 2: Run — verify fails**
+- [x] **Step 2: Run — verify fails**
 
 ```bash
 npm run test -- db.test.ts
 ```
 Expected: FAIL — `../db` not found.
 
-- [ ] **Step 3: Define schema types**
+- [x] **Step 3: Define schema types**
 
 `src/db/schema.ts`:
 ```ts
@@ -244,7 +244,7 @@ export interface Timer {
 }
 ```
 
-- [ ] **Step 4: Create Dexie instance**
+- [x] **Step 4: Create Dexie instance**
 
 `src/db/index.ts`:
 ```ts
@@ -265,14 +265,14 @@ class CounterWeightDB extends Dexie {
 export const db = new CounterWeightDB()
 ```
 
-- [ ] **Step 5: Run — verify passes**
+- [x] **Step 5: Run — verify passes**
 
 ```bash
 npm run test -- db.test.ts
 ```
 Expected: 2 tests PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/db/ src/test/db.test.ts
