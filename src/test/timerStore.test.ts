@@ -73,4 +73,11 @@ describe('timerStore', () => {
     useTimerStore.getState().dismissFired()
     expect(useTimerStore.getState().firedTimer).toBeNull()
   })
+
+  it('fires immediately for past timers', () => {
+    const past = makeTimer({ id: 1, targetDatetime: new Date(Date.now() - 1000) })
+    useTimerStore.getState().sync([past])
+    vi.advanceTimersByTime(1)
+    expect(useTimerStore.getState().firedTimer?.id).toBe(1)
+  })
 })

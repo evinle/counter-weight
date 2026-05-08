@@ -15,15 +15,16 @@ export const useTimerStore = create<TimerState>((set, get) => {
     if (timeout) clearTimeout(timeout)
 
     const { activeTimers } = get()
-    const now = new Date()
     const next = activeTimers
-      .filter((t) => t.targetDatetime > now)
       .sort((a, b) => a.targetDatetime.getTime() - b.targetDatetime.getTime())[0]
 
     if (!next) return
 
     timeout = setTimeout(() => {
-      set({ firedTimer: next })
+      set({ 
+        firedTimer: next,
+        activeTimers: get().activeTimers.filter(t => t.id !== next.id)
+      })
       scheduleNext()
     }, Math.max(0, next.targetDatetime.getTime() - Date.now()))
   }
