@@ -3,6 +3,7 @@ import type { Timer } from '../db/schema'
 
 interface TimerState {
   firedTimer: Timer | null
+  activeTimers: Timer[]
   sync: (activeTimers: Timer[]) => void
   dismissFired: () => void
 }
@@ -10,24 +11,30 @@ interface TimerState {
 export const useTimerStore = create<TimerState>((set, get) => {
   let timeout: ReturnType<typeof setTimeout> | null = null
 
-  function scheduleNext(timers: Timer[]) {
+  function scheduleNext() {
     if (timeout) clearTimeout(timeout)
 
-    const next = timers
-      .filter((t) => t.targetDatetime > new Date())
+    const { activeTimers } = get()
+    const now = new Date()
+    const next = activeTimers
+      .filter((t) => t.targetDatetime > now)
       .sort((a, b) => a.targetDatetime.getTime() - b.targetDatetime.getTime())[0]
 
     if (!next) return
 
     timeout = setTimeout(() => {
       set({ firedTimer: next })
-      scheduleNext(timers.filter((t) => t.id !== next.id))
-    }, next.targetDatetime.getTime() - Date.now())
+      scheduleNext()
+    }, Math.max(0, next.targetDatetime.getTime() - Date.now()))
   }
 
   return {
     firedTimer: null,
-    sync(activeTimers) { scheduleNext(activeTimers) },
+    activeTimers: [],
+    sync(activeTimers) {
+      set({ activeTimers })
+      scheduleNext()
+    },
     dismissFired() { set({ firedTimer: null }) },
   }
 })
