@@ -31,8 +31,8 @@ export function EmojiButton({ value, onChange }: Props) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full right-0 z-50 mt-1 bg-slate-800 border border-slate-600 rounded-xl p-2 shadow-xl overflow-x-auto max-w-[90vw]">
-            <div className="flex gap-1" style={{ width: 'max-content' }}>
+          <div className="absolute top-full right-0 z-50 mt-1 bg-slate-800 border border-slate-600 rounded-xl p-2 shadow-xl overflow-x-auto" style={{ maxWidth: 'calc(100vw - 1rem)' }}>
+            <div className="flex gap-1 w-max">
               {CURATED_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}

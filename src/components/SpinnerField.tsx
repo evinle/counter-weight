@@ -16,7 +16,7 @@ interface SpinnerFieldProps {
 }
 
 export function SpinnerField({ value, onChange, min, max, clamp = false, label }: SpinnerFieldProps) {
-  const dragRef = useRef<{ y: number; value: number } | null>(null)
+  const dragRef = useRef<{ y: number; value: number; moved: boolean } | null>(null)
 
   const apply = (v: number) => onChange(applyBounds(v, min, max, clamp))
 
@@ -40,18 +40,25 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label }
           if (!isNaN(raw)) apply(raw)
         }}
         onPointerDown={(e) => {
-          dragRef.current = { y: e.clientY, value }
+          e.preventDefault() // block browser text-drag so pointer capture works cleanly
+          dragRef.current = { y: e.clientY, value, moved: false }
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
         onPointerMove={(e) => {
           if (!dragRef.current) return
           const delta = Math.round((dragRef.current.y - e.clientY) / 8)
           if (delta !== 0) {
-            e.currentTarget.blur()
+            dragRef.current.moved = true
             apply(dragRef.current.value + delta)
           }
         }}
-        onPointerUp={() => { dragRef.current = null }}
+        onPointerUp={(e) => {
+          if (dragRef.current && !dragRef.current.moved) {
+            e.currentTarget.focus()
+            e.currentTarget.select()
+          }
+          dragRef.current = null
+        }}
         onPointerCancel={() => { dragRef.current = null }}
         aria-label={label}
         className="w-full text-center text-2xl font-mono text-white bg-slate-700 rounded-lg py-3 cursor-ns-resize select-none"
