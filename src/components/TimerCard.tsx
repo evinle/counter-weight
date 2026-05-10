@@ -49,7 +49,6 @@ export function TimerCard({ timer, onEdit }: Props) {
         >
           Edit
         </button>
-        {timer.isFlagged && <span className="text-amber-400 text-xl">⚑</span>}
       </div>
     </div>
   )

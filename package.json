@@ -13,7 +13,6 @@
   "dependencies": {
     "dexie": "^4.4.2",
     "dexie-react-hooks": "^4.4.0",
-    "emoji-picker-react": "^4.19.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zustand": "^5.0.13"
