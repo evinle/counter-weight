@@ -8,13 +8,12 @@ import {
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import type { PrecacheEntry } from 'workbox-precaching'
 
-declare const self: ServiceWorkerGlobalScope
-declare const __WB_MANIFEST: Array<PrecacheEntry>
+declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<PrecacheEntry> }
 
 self.skipWaiting()
 clientsClaim()
 
-precacheAndRoute(__WB_MANIFEST)
+precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
 
