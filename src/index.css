@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+body {
+  background-color: oklch(37.2% 0.044 257.287) 
+}
+
+html {
+  overscroll-behavior: none;
+  overflow: hidden;
+}

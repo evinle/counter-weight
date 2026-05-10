@@ -49,7 +49,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white max-w-lg mx-auto">
+    <div className="min-h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
       {firedTimer && (
         <ToastNotification timer={firedTimer} onDismiss={dismissFired} />
       )}
