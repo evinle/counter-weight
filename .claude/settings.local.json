@@ -3,6 +3,7 @@
     "allow": [
       "Bash(git init *)",
       "Bash(git add *)",
+      "Bash(git log *)",
       "Bash(npx vitest *)",
       "Bash(npm run *)"
     ]
