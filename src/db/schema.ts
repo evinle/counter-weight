@@ -1,5 +1,14 @@
-export type TimerStatus = 'active' | 'fired' | 'completed' | 'missed' | 'cancelled'
-export type Priority = 'low' | 'medium' | 'high' | 'critical'
+export const TIMER_STATUSES = ['active', 'fired', 'completed', 'missed', 'cancelled'] as const
+export type TimerStatus = typeof TIMER_STATUSES[number]
+export function isTimerStatus(v: string): v is TimerStatus {
+  return (TIMER_STATUSES as readonly string[]).includes(v)
+}
+
+export const PRIORITIES = ['low', 'medium', 'high', 'critical'] as const
+export type Priority = typeof PRIORITIES[number]
+export function isPriority(v: string): v is Priority {
+  return (PRIORITIES as readonly string[]).includes(v)
+}
 
 export interface Timer {
   id?: number
