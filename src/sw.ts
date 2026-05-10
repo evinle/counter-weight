@@ -25,16 +25,24 @@ type SyncTimerEntry = {
   targetDatetime: string  // ISO string
 }
 
+function parseSyncTimers(data: unknown): SyncTimerEntry[] | null {
+  if (!data || typeof data !== 'object') return null
+  if (!('type' in data) || (data as { type: unknown }).type !== 'SYNC_TIMERS') return null
+  const timers = (data as { timers?: unknown }).timers
+  if (!Array.isArray(timers)) return null
+  return timers as SyncTimerEntry[]
+}
+
 const handles = new Map<number, ReturnType<typeof setTimeout>>()
 
 self.addEventListener('message', event => {
-  const data = event.data as { type: string; timers?: SyncTimerEntry[] }
-  if (data.type !== 'SYNC_TIMERS' || !data.timers) return
+  const timers = parseSyncTimers(event.data)
+  if (!timers) return
 
   for (const handle of handles.values()) clearTimeout(handle)
   handles.clear()
 
-  for (const timer of data.timers) {
+  for (const timer of timers) {
     const delay = Math.max(0, new Date(timer.targetDatetime).getTime() - Date.now())
     const handle = setTimeout(() => {
       handles.delete(timer.id)
@@ -49,7 +57,8 @@ function notifyTimer(timer: SyncTimerEntry): void {
     .matchAll({ type: 'window', includeUncontrolled: true })
     .then(clients => {
       if (clients.some(c => c.visibilityState === 'visible')) return
-      self.registration.showNotification(timer.title, {
+      const title = timer.emoji ? `${timer.emoji} ${timer.title}` : timer.title
+      self.registration.showNotification(title, {
         body: 'Timer complete',
         icon: '/icon-192.png',
         tag: String(timer.id),
