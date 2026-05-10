@@ -22,7 +22,22 @@ export function App() {
     []
   ) ?? []
 
-  useEffect(() => { sync(activeTimers) }, [activeTimers])
+  useEffect(() => {
+    sync(activeTimers)
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SYNC_TIMERS',
+        timers: activeTimers
+          .filter((t): t is typeof t & { id: number } => t.id !== undefined)
+          .map(t => ({
+            id: t.id,
+            title: t.title,
+            emoji: t.emoji ?? undefined,
+            targetDatetime: t.targetDatetime.toISOString(),
+          })),
+      })
+    }
+  }, [activeTimers])
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -33,9 +48,12 @@ export function App() {
   useEffect(() => {
     if (!firedTimer) return
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(firedTimer.title, {
-        body: 'Timer complete',
-        icon: '/icon-192.png',
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(firedTimer.title, {
+          body: 'Timer complete',
+          icon: '/icon-192.png',
+          tag: String(firedTimer.id),
+        })
       })
     }
     if (firedTimer.id !== undefined) {
@@ -49,7 +67,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
+    <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
       {firedTimer && (
         <ToastNotification timer={firedTimer} onDismiss={dismissFired} />
       )}
@@ -73,7 +91,7 @@ export function App() {
         )}
       </header>
 
-      <main>
+      <main className='h-full'>
         {view === 'feed'
           ? <FeedView onEdit={handleEdit} />
           : <CreateEditView existing={editTimer} onDone={() => setView('feed')} />
