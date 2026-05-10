@@ -25,8 +25,8 @@ export function DateTimeInput({ value, onChange }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        <SpinnerField value={month}                    onChange={(v) => emit(v, day, year, hour, minute, second)}  min={1} max={12}                          label="Month" />
         <SpinnerField value={Math.min(day, daysInMonth)} onChange={(v) => emit(month, v, year, hour, minute, second)} min={1} max={daysInMonth}                   label="Day"   />
+        <SpinnerField value={month}                    onChange={(v) => emit(v, day, year, hour, minute, second)}  min={1} max={12}                          label="Month" />
         <SpinnerField value={year}                     onChange={(v) => emit(month, day, v, hour, minute, second)} min={currentYear} max={currentYear + 10} clamp label="Year"  />
       </div>
       <div className="flex gap-2">
