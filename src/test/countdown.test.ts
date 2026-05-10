@@ -6,9 +6,9 @@ describe('timeRemaining', () => {
     expect(timeRemaining(target)).toBeGreaterThan(0)
   })
 
-  it('returns 0 when target is in the past', () => {
+  it('returns negative ms when target is in the past', () => {
     const target = new Date(Date.now() - 1000)
-    expect(timeRemaining(target)).toBe(0)
+    expect(timeRemaining(target)).toBeLessThan(0)
   })
 })
 
@@ -31,5 +31,13 @@ describe('formatDuration', () => {
 
   it('returns 00:00:00 for zero', () => {
     expect(formatDuration(0)).toBe('00:00:00')
+  })
+
+  it('formats negative sub-day duration', () => {
+    expect(formatDuration(-75_000)).toBe('-00:01:15')
+  })
+
+  it('formats negative multi-day duration', () => {
+    expect(formatDuration(-90_061_000)).toBe('-1d 01:01:01')
   })
 })

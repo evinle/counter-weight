@@ -17,10 +17,10 @@ interface Props {
 
 export function TimerCard({ timer, onEdit }: Props) {
   const remaining = useAnimatedCountdown(timer.targetDatetime)
-  const isExpired = remaining === 0
+  const isOverdue = remaining <= 0
 
   return (
-    <div className={`rounded-xl p-4 bg-slate-800 flex flex-col gap-2 ${isExpired ? 'opacity-60' : ''}`}>
+    <div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-lg font-medium text-white truncate">
           {timer.emoji && <span className="mr-2">{timer.emoji}</span>}
@@ -31,7 +31,7 @@ export function TimerCard({ timer, onEdit }: Props) {
         </span>
       </div>
 
-      <span className="text-4xl font-mono text-white tabular-nums tracking-tight">
+      <span className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? 'text-red-400' : 'text-white'}`}>
         {formatDuration(remaining)}
       </span>
 
@@ -44,7 +44,7 @@ export function TimerCard({ timer, onEdit }: Props) {
         </button>
         <button
           onClick={() => onEdit(timer)}
-          disabled={isExpired}
+          disabled={isOverdue}
           className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
         >
           Edit
