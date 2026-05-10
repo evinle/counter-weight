@@ -286,7 +286,7 @@ git commit -m "feat: Dexie schema and db instance"
 **Files:**
 - Create: `src/lib/countdown.ts`, `src/test/countdown.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/test/countdown.test.ts`:
 ```ts
@@ -327,14 +327,14 @@ describe('formatDuration', () => {
 })
 ```
 
-- [ ] **Step 2: Run — verify fails**
+- [x] **Step 2: Run — verify fails**
 
 ```bash
 npm run test -- countdown.test.ts
 ```
 Expected: FAIL — `../lib/countdown` not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/lib/countdown.ts`:
 ```ts
@@ -357,14 +357,14 @@ export function formatDuration(ms: number): string {
 }
 ```
 
-- [ ] **Step 4: Run — verify passes**
+- [x] **Step 4: Run — verify passes**
 
 ```bash
 npm run test -- countdown.test.ts
 ```
 Expected: 7 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/countdown.ts src/test/countdown.test.ts
@@ -380,7 +380,7 @@ git commit -m "feat: countdown utility functions with tests"
 
 The Zustand store is a module-level singleton — any component accesses it via `useTimerStore()` with no prop drilling or ref management. The setTimeout chain lives inside the store's `sync` action alongside the `firedTimer` state, keeping all timer-firing logic in one place.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `src/test/timerStore.test.ts`:
 ```ts
@@ -462,14 +462,14 @@ describe('timerStore', () => {
 })
 ```
 
-- [ ] **Step 2: Run — verify fails**
+- [x] **Step 2: Run — verify fails**
 
 ```bash
 npm run test -- timerStore.test.ts
 ```
 Expected: FAIL — `../store/timerStore` not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/store/timerStore.ts`:
 ```ts
@@ -508,14 +508,14 @@ export const useTimerStore = create<TimerState>((set, get) => {
 })
 ```
 
-- [ ] **Step 4: Run — verify passes**
+- [x] **Step 4: Run — verify passes**
 
 ```bash
 npm run test -- timerStore.test.ts
 ```
 Expected: 5 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/store/timerStore.ts src/test/timerStore.test.ts
