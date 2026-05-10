@@ -11,7 +11,7 @@ export function FeedView({ onEdit }: Props) {
 
   if (timers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+      <div className="flex flex-col items-center justify-center h-full text-slate-500">
         <span className="text-5xl mb-3">⏳</span>
         <p className="text-sm">No active timers. Create one to get started.</p>
       </div>

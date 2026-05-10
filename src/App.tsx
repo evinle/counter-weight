@@ -12,6 +12,7 @@ type View = 'feed' | 'create'
 export function App() {
   const [view, setView] = useState<View>('feed')
   const [editTimer, setEditTimer] = useState<Timer | undefined>()
+  const [swDebug, setSwDebug] = useState<string | null>(null)
 
   const sync = useTimerStore((s) => s.sync)
   const firedTimer = useTimerStore((s) => s.firedTimer)
@@ -39,10 +40,22 @@ export function App() {
     }
   }, [activeTimers])
 
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
+
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
+    if ('Notification' in window) setNotifPermission(Notification.permission)
+  }, [])
+
+  function requestNotifPermission() {
+    Notification.requestPermission().then(p => setNotifPermission(p))
+  }
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    navigator.serviceWorker.ready.then(reg => {
+      setSwDebug(`SW ready · ${reg.scope}`)
+      setTimeout(() => setSwDebug(null), 4000)
+    })
   }, [])
 
   useEffect(() => {
@@ -70,6 +83,22 @@ export function App() {
     <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
       {firedTimer && (
         <ToastNotification timer={firedTimer} onDismiss={dismissFired} />
+      )}
+      {swDebug && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+          {swDebug}
+        </div>
+      )}
+      {notifPermission === 'default' && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl">
+          <p className="text-sm text-slate-300">Enable notifications for timer alerts</p>
+          <button
+            onClick={requestNotifPermission}
+            className="shrink-0 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer"
+          >
+            Enable
+          </button>
+        </div>
       )}
 
       <header className="flex items-center justify-between p-4 border-b border-slate-700">
