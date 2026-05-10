@@ -59,14 +59,14 @@ export function App() {
         {view === 'feed' ? (
           <button
             onClick={() => { setEditTimer(undefined); setView('create') }}
-            className="bg-blue-600 text-white px-5 py-3 rounded-xl text-base font-semibold min-h-[48px] hover:bg-blue-500 active:scale-95 transition-all"
+            className="bg-blue-600 text-white px-5 py-3 rounded-xl text-base font-semibold min-h-[48px] hover:bg-blue-500 active:scale-95 transition-all cursor-pointer"
           >
             + New
           </button>
         ) : (
           <button
             onClick={() => setView('feed')}
-            className="text-slate-400 text-base min-h-[44px] px-3 active:opacity-60 transition-opacity"
+            className="text-slate-400 text-base min-h-[44px] px-3 active:opacity-60 transition-opacity cursor-pointer"
           >
             Cancel
           </button>

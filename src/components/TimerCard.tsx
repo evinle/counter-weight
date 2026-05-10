@@ -38,14 +38,14 @@ export function TimerCard({ timer, onEdit }: Props) {
       <div className="flex items-center gap-3 mt-1">
         <button
           onClick={() => { if (timer.id !== undefined) completeTimer(timer.id) }}
-          className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all"
+          className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all cursor-pointer"
         >
           Done
         </button>
         <button
           onClick={() => onEdit(timer)}
           disabled={isExpired}
-          className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+          className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
         >
           Edit
         </button>

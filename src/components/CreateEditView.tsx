@@ -85,7 +85,7 @@ export function CreateEditView({ existing, onDone }: Props) {
           <button
             type="button"
             onClick={() => setShowPicker(true)}
-            className="rounded-lg p-3 bg-slate-700 text-white text-base text-left min-h-[52px] hover:bg-slate-600 active:scale-95 transition-all"
+            className="rounded-lg p-3 bg-slate-700 text-white text-base text-left min-h-[52px] hover:bg-slate-600 active:scale-95 transition-all cursor-pointer"
           >
             {emoji
               ? <span className="text-2xl">{emoji}</span>
@@ -125,7 +125,7 @@ export function CreateEditView({ existing, onDone }: Props) {
 
         <button
           type="submit"
-          className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all"
+          className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all cursor-pointer"
         >
           {existing ? 'Update Timer' : 'Create Timer'}
         </button>

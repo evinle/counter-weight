@@ -16,7 +16,7 @@ export function ToastNotification({ timer, onDismiss }: Props) {
       <button
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="text-slate-400 text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center active:opacity-60 transition-opacity"
+        className="text-slate-400 text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center active:opacity-60 transition-opacity cursor-pointer"
       >
         ✕
       </button>
