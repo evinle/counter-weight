@@ -12,7 +12,7 @@ export function useActiveTimers(): Timer[] {
 
 export async function createTimer(
   data: Omit<Timer, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<number> {
+): Promise<number | undefined> {
   const now = new Date()
   return db.timers.add({ ...data, createdAt: now, updatedAt: now })
 }
