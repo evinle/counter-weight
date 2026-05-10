@@ -10,6 +10,14 @@ export function useActiveTimers(): Timer[] {
   ) ?? []
 }
 
+export function useFeedTimers(): Timer[] {
+  return useLiveQuery(
+    () => db.timers.where('status').anyOf('active', 'fired').sortBy('targetDatetime'),
+    [],
+    []
+  ) ?? []
+}
+
 export async function createTimer(
   data: Omit<Timer, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<number | undefined> {

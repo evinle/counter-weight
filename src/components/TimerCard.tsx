@@ -38,8 +38,7 @@ export function TimerCard({ timer, onEdit }: Props) {
       <div className="flex items-center gap-3 mt-1">
         <button
           onClick={() => { if (timer.id !== undefined) completeTimer(timer.id) }}
-          disabled={isExpired}
-          className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+          className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all"
         >
           Done
         </button>

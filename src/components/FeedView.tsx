@@ -1,4 +1,4 @@
-import { useActiveTimers } from '../hooks/useTimers'
+import { useFeedTimers } from '../hooks/useTimers'
 import { TimerCard } from './TimerCard'
 import type { Timer } from '../db/schema'
 
@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function FeedView({ onEdit }: Props) {
-  const timers = useActiveTimers()
+  const timers = useFeedTimers()
 
   if (timers.length === 0) {
     return (
