@@ -5,7 +5,10 @@
       "Bash(git add *)",
       "Bash(git log *)",
       "Bash(npx vitest *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(grep -E '\\\\.\\(ts|tsx|js|json|html|toml\\)$')",
+      "Bash(grep -E '\\\\.\\(md|txt\\)$')",
+      "Bash(npx tsc *)"
     ]
   }
 }
