@@ -32,10 +32,10 @@ export default defineConfig({
   ],
   server: {
     host: true,
-    https: true,
+    https: {},
   },
   preview: {
     host: true,
-    https: true,
+    https: {},
   },
 })
