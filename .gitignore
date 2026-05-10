@@ -25,3 +25,6 @@ dist-ssr
 
 # Git worktrees
 .worktrees
+
+# mkcert local certs
+*.pem

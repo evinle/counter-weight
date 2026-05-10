@@ -2,13 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
@@ -35,10 +33,16 @@ export default defineConfig({
   ],
   server: {
     host: true,
-    https: {},
+    https: {
+      key: './localhost+2-key.pem',
+      cert: './localhost+2.pem',
+    },
   },
   preview: {
     host: true,
-    https: {},
+    https: {
+      key: './localhost+2-key.pem',
+      cert: './localhost+2.pem',
+    },
   },
 })
