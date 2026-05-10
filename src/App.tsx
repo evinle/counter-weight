@@ -30,6 +30,19 @@ export function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!firedTimer) return
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(firedTimer.title, {
+        body: 'Timer complete',
+        icon: '/icon-192.png',
+      })
+    }
+    if (firedTimer.id !== undefined) {
+      db.timers.update(firedTimer.id, { status: 'fired', updatedAt: new Date() })
+    }
+  }, [firedTimer])
+
   const handleEdit = (timer: Timer) => {
     setEditTimer(timer)
     setView('create')
@@ -46,12 +59,15 @@ export function App() {
         {view === 'feed' ? (
           <button
             onClick={() => { setEditTimer(undefined); setView('create') }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+            className="bg-blue-600 text-white px-5 py-3 rounded-xl text-base font-semibold min-h-[48px] hover:bg-blue-500 active:scale-95 transition-all"
           >
             + New
           </button>
         ) : (
-          <button onClick={() => setView('feed')} className="text-slate-400 text-sm">
+          <button
+            onClick={() => setView('feed')}
+            className="text-slate-400 text-base min-h-[44px] px-3 active:opacity-60 transition-opacity"
+          >
             Cancel
           </button>
         )}
