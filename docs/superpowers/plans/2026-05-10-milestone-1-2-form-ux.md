@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the number inputs, emoji library, and datetime field with a drag spinner, inline emoji row, and mode toggle between "From now" and "At time".
+**Goal:** Replace the number inputs, emoji library, and datetime field with a drag spinner, inline emoji row, and mode toggle between "From now" and "At time"; add overdue countdown (negative display with red highlight).
 
-**Architecture:** `SpinnerField` is the new primitive — a text input with drag-to-change, chevron tap targets, and focus-select-all. `DurationInput` and `DateTimeInput` both compose it. `EmojiButton` owns an inline emoji popup anchored below itself. `CreateEditView` adds a mode toggle and wires everything together. No schema or store changes — UI only.
+**Architecture:** `SpinnerField` is the new primitive — a text input with drag-to-change, chevron tap targets, and focus-select-all. `DurationInput` and `DateTimeInput` both compose it. `DateTimeInput` is fully controlled (no local state — derives all values from `value: Date`). `EmojiButton` owns an inline emoji popup anchored below itself. `CreateEditView` adds a mode toggle and wires everything together. `countdown.ts` gains a negative path so overdue timers count up past zero; `TimerCard` highlights them in red. No schema or store changes — UI only.
 
 **Tech Stack:** React 19, Tailwind CSS 4, existing Dexie/Zustand/Vitest stack. Remove `emoji-picker-react`.
 
@@ -17,15 +17,153 @@ src/
 ├── components/
 │   ├── SpinnerField.tsx       # NEW: drag+chevron numeric input; exports applyBounds
 │   ├── EmojiButton.tsx        # NEW: emoji trigger button + inline scrollable popup
-│   ├── DateTimeInput.tsx      # NEW: two rows of SpinnerFields for date and time
+│   ├── DateTimeInput.tsx      # NEW: two rows of SpinnerFields, fully controlled
 │   ├── DurationInput.tsx      # MODIFY: rewire to use SpinnerField × 4
 │   ├── CreateEditView.tsx     # MODIFY: mode toggle, new components, no flag field
-│   └── TimerCard.tsx          # MODIFY: remove ⚑ flag display
+│   └── TimerCard.tsx          # MODIFY: overdue countdown (Task 0) + remove flag (Task 7)
 ├── lib/
+│   ├── countdown.ts           # MODIFY: remove clamp, add negative formatDuration
 │   └── duration.ts            # MODIFY: add seconds to DurationValue + functions
 └── test/
+    ├── countdown.test.ts      # MODIFY: update past-target test, add negative format tests
     ├── duration.test.ts       # MODIFY: update for seconds signature
     └── spinnerField.test.ts   # NEW: tests for applyBounds
+```
+
+---
+
+### Task 0: Overdue countdown (TDD)
+
+**Files:**
+- Modify: `src/lib/countdown.ts`
+- Modify: `src/test/countdown.test.ts`
+- Modify: `src/components/TimerCard.tsx`
+
+- [ ] **Step 1: Update the failing tests**
+
+Replace `src/test/countdown.test.ts` entirely:
+
+```ts
+import { timeRemaining, formatDuration } from '../lib/countdown'
+
+describe('timeRemaining', () => {
+  it('returns positive ms when target is in the future', () => {
+    const target = new Date(Date.now() + 5000)
+    expect(timeRemaining(target)).toBeGreaterThan(0)
+  })
+
+  it('returns negative ms when target is in the past', () => {
+    const target = new Date(Date.now() - 1000)
+    expect(timeRemaining(target)).toBeLessThan(0)
+  })
+})
+
+describe('formatDuration', () => {
+  it('formats seconds only', () => {
+    expect(formatDuration(45_000)).toBe('00:00:45')
+  })
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(125_000)).toBe('00:02:05')
+  })
+
+  it('formats hours', () => {
+    expect(formatDuration(3_661_000)).toBe('01:01:01')
+  })
+
+  it('formats days', () => {
+    expect(formatDuration(90_061_000)).toBe('1d 01:01:01')
+  })
+
+  it('returns 00:00:00 for zero', () => {
+    expect(formatDuration(0)).toBe('00:00:00')
+  })
+
+  it('formats negative sub-day duration', () => {
+    expect(formatDuration(-75_000)).toBe('-00:01:15')
+  })
+
+  it('formats negative multi-day duration', () => {
+    expect(formatDuration(-90_061_000)).toBe('-1d 01:01:01')
+  })
+})
+```
+
+- [ ] **Step 2: Run — verify fails**
+
+```bash
+npx vitest run src/test/countdown.test.ts
+```
+Expected: FAIL — `timeRemaining` past-target test expects negative, gets 0; negative `formatDuration` tests return wrong strings.
+
+- [ ] **Step 3: Update `src/lib/countdown.ts`**
+
+```ts
+export function timeRemaining(target: Date): number {
+  return target.getTime() - Date.now()
+}
+
+export function formatDuration(ms: number): string {
+  if (ms < 0) return '-' + formatDuration(-ms)
+  const totalSeconds = Math.floor(ms / 1000)
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  const hms = [hours, minutes, seconds]
+    .map((v) => String(v).padStart(2, '0'))
+    .join(':')
+
+  return days > 0 ? `${days}d ${hms}` : hms
+}
+```
+
+- [ ] **Step 4: Run — verify passes**
+
+```bash
+npx vitest run src/test/countdown.test.ts
+```
+Expected: 9 tests PASS.
+
+- [ ] **Step 5: Update `src/components/TimerCard.tsx`**
+
+Make these three changes to the existing file:
+
+1. Replace `const isExpired = remaining === 0` with:
+```tsx
+const isOverdue = remaining <= 0
+```
+
+2. Replace the card container opening tag (the one with `opacity-60`) with:
+```tsx
+<div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
+```
+
+3. Replace the countdown `<span>` with:
+```tsx
+<span className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? 'text-red-400' : 'text-white'}`}>
+  {formatDuration(remaining)}
+</span>
+```
+
+4. Replace `disabled={isExpired}` on the Edit button with:
+```tsx
+disabled={isOverdue}
+```
+
+- [ ] **Step 6: Run all tests — verify no regressions**
+
+```bash
+npx vitest run
+```
+Expected: all tests PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/lib/countdown.ts src/test/countdown.test.ts src/components/TimerCard.tsx
+git commit -m "feat: overdue countdown — negative display with red highlight"
 ```
 
 ---
@@ -192,6 +330,8 @@ Expected: FAIL — `applyBounds` not found.
 
 - [ ] **Step 3: Create `src/components/SpinnerField.tsx`**
 
+Note: `▲` and `▼` are used for chevrons (U+25B2/U+25BC) — universally supported across system fonts, unlike the alternative arrow head characters.
+
 ```tsx
 import { useRef } from 'react'
 
@@ -223,7 +363,7 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label }
         aria-label={`Increase ${label}`}
         className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none"
       >
-        ⌃
+        ▲
       </button>
       <input
         type="text"
@@ -257,7 +397,7 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label }
         aria-label={`Decrease ${label}`}
         className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none"
       >
-        ⌄
+        ▼
       </button>
       <span className="text-xs text-slate-500 mt-0.5">{label}</span>
     </div>
@@ -423,47 +563,51 @@ git commit -m "feat: EmojiButton — inline emoji popup with curated scrollable 
 
 ---
 
-### Task 5: DateTimeInput component
+### Task 5: DateTimeInput component — fully controlled + day clamping
 
 **Files:**
 - Create: `src/components/DateTimeInput.tsx`
 
+The component is **fully controlled**: it derives all 6 display values (month, day, year, hour, minute, second) directly from the `value: Date` prop on every render. It holds no local state. When the user changes a spinner, `emit()` computes the new `Date`, clamps day to the valid range for the selected month/year, and calls `onChange`. Because day is always clamped in `emit`, the displayed day will never exceed the month's actual length (e.g. switching from Jan 31 → Feb automatically snaps day to 28/29).
+
 - [ ] **Step 1: Create `src/components/DateTimeInput.tsx`**
 
 ```tsx
-import { useState } from 'react'
 import { SpinnerField } from './SpinnerField'
 
 interface Props {
-  initial: Date
+  value: Date
   onChange: (date: Date) => void
 }
 
-export function DateTimeInput({ initial, onChange }: Props) {
+export function DateTimeInput({ value, onChange }: Props) {
   const currentYear = new Date().getFullYear()
 
-  const [month, setMonth] = useState(initial.getMonth() + 1)
-  const [day, setDay] = useState(initial.getDate())
-  const [year, setYear] = useState(initial.getFullYear())
-  const [hour, setHour] = useState(initial.getHours())
-  const [minute, setMinute] = useState(initial.getMinutes())
-  const [second, setSecond] = useState(initial.getSeconds())
+  const month = value.getMonth() + 1
+  const day = value.getDate()
+  const year = value.getFullYear()
+  const hour = value.getHours()
+  const minute = value.getMinutes()
+  const second = value.getSeconds()
+
+  const daysInMonth = new Date(year, month, 0).getDate()
 
   const emit = (m: number, d: number, y: number, h: number, min: number, s: number) => {
-    onChange(new Date(y, m - 1, d, h, min, s))
+    const maxDay = new Date(y, m, 0).getDate()
+    onChange(new Date(y, m - 1, Math.min(d, maxDay), h, min, s))
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        <SpinnerField value={month} onChange={(v) => { setMonth(v); emit(v, day, year, hour, minute, second) }} min={1} max={12} label="Month" />
-        <SpinnerField value={day}   onChange={(v) => { setDay(v);   emit(month, v, year, hour, minute, second) }} min={1} max={31} label="Day"   />
-        <SpinnerField value={year}  onChange={(v) => { setYear(v);  emit(month, day, v, hour, minute, second) }} min={currentYear} max={currentYear + 10} clamp label="Year"  />
+        <SpinnerField value={month}               onChange={(v) => emit(v, day, year, hour, minute, second)}  min={1} max={12}                          label="Month" />
+        <SpinnerField value={Math.min(day, daysInMonth)} onChange={(v) => emit(month, v, year, hour, minute, second)} min={1} max={daysInMonth}                   label="Day"   />
+        <SpinnerField value={year}                onChange={(v) => emit(month, day, v, hour, minute, second)} min={currentYear} max={currentYear + 10} clamp label="Year"  />
       </div>
       <div className="flex gap-2">
-        <SpinnerField value={hour}   onChange={(v) => { setHour(v);   emit(month, day, year, v, minute, second) }} min={0} max={23} label="Hour"   />
-        <SpinnerField value={minute} onChange={(v) => { setMinute(v); emit(month, day, year, hour, v, second) }} min={0} max={59} label="Min"    />
-        <SpinnerField value={second} onChange={(v) => { setSecond(v); emit(month, day, year, hour, minute, v) }} min={0} max={59} label="Sec"    />
+        <SpinnerField value={hour}   onChange={(v) => emit(month, day, year, v, minute, second)}  min={0} max={23} label="Hour" />
+        <SpinnerField value={minute} onChange={(v) => emit(month, day, year, hour, v, second)}    min={0} max={59} label="Min"  />
+        <SpinnerField value={second} onChange={(v) => emit(month, day, year, hour, minute, v)}    min={0} max={59} label="Sec"  />
       </div>
     </div>
   )
@@ -481,7 +625,7 @@ Expected: all tests PASS.
 
 ```bash
 git add src/components/DateTimeInput.tsx
-git commit -m "feat: DateTimeInput — date and time spinner rows using SpinnerField"
+git commit -m "feat: DateTimeInput — fully controlled date/time spinners with day clamping"
 ```
 
 ---
@@ -492,6 +636,11 @@ git commit -m "feat: DateTimeInput — date and time spinner rows using SpinnerF
 - Modify: `src/components/CreateEditView.tsx`
 
 - [ ] **Step 1: Rewrite `src/components/CreateEditView.tsx`**
+
+Key wiring notes:
+- `atTime` lives in `CreateEditView` state; it is passed as `value={atTime}` to `DateTimeInput`. Because `DateTimeInput` is fully controlled, switching modes and switching back does **not** reset the user's "At time" input — the `atTime` state in the parent persists across renders.
+- `duration` initialises with seconds: `{ days: 0, hours: 0, minutes: 5, seconds: 0 }`.
+- `durationToMs` now takes 4 args: days, hours, minutes, seconds.
 
 ```tsx
 import { useState } from 'react'
@@ -580,7 +729,7 @@ export function CreateEditView({ existing, onDone }: Props) {
 
       {mode === 'from-now'
         ? <DurationInput value={duration} onChange={setDuration} />
-        : <DateTimeInput initial={atTime} onChange={setAtTime} />
+        : <DateTimeInput value={atTime} onChange={setAtTime} />
       }
 
       <div className="flex flex-col gap-1">
@@ -624,37 +773,22 @@ git commit -m "feat: CreateEditView — mode toggle, SpinnerField inputs, inline
 
 ---
 
-### Task 7: TimerCard cleanup + remove emoji-picker-react
+### Task 7: TimerCard flag cleanup + remove emoji-picker-react
 
 **Files:**
 - Modify: `src/components/TimerCard.tsx`
 - Modify: `package.json` (via npm uninstall)
 
+Note: `TimerCard.tsx` was already updated in Task 0 (overdue countdown). This task only removes the flag display line left over from before.
+
 - [ ] **Step 1: Remove flag display from `src/components/TimerCard.tsx`**
 
-Remove the line:
+Remove this line from inside the button row `<div>`:
 ```tsx
 {timer.isFlagged && <span className="text-amber-400 text-xl">⚑</span>}
 ```
 
-The button row becomes:
-```tsx
-<div className="flex items-center gap-3 mt-1">
-  <button
-    onClick={() => { if (timer.id !== undefined) completeTimer(timer.id) }}
-    className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all"
-  >
-    Done
-  </button>
-  <button
-    onClick={() => onEdit(timer)}
-    disabled={isExpired}
-    className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
-  >
-    Edit
-  </button>
-</div>
-```
+After removal the button row `<div>` contains only the Done and Edit buttons.
 
 - [ ] **Step 2: Uninstall emoji-picker-react**
 
@@ -701,14 +835,16 @@ Start `npm run dev` and verify:
 
 1. **Title + emoji button** — emoji button sits flush to the right of the title field; default shows `🙂+`
 2. **Emoji popup** — tapping the button opens a single-row scrollable emoji strip below it; tapping outside closes it; selecting an emoji replaces the button label
-3. **Mode toggle** — "From now" / "At time" pill toggle works; switching swaps the input area
-4. **From now spinners** — Days / Hours / Mins / Secs fields show with ⌃ / ⌄ chevrons; dragging up increases value, down decreases; hours/mins/secs wrap, days clamp ≥ 0; tapping the number focuses it and selects all
-5. **At time spinners** — Month / Day / Year row and Hour / Min / Sec row; year clamps ≥ current year
-6. **No flag field** — flag checkbox is gone from the form; ⚑ is gone from timer cards
+3. **Mode toggle** — "From now" / "At time" pill toggle works; switching swaps the input area; switching back to "At time" retains previously entered values (not reset)
+4. **From now spinners** — Days / Hours / Mins / Secs fields show with ▲ / ▼ chevrons; dragging up increases value, down decreases; hours/mins/secs wrap, days clamp ≥ 0; tapping the number focuses it and selects all
+5. **At time spinners** — Month / Day / Year row and Hour / Min / Sec row; year clamps ≥ current year; setting Day=31 then switching Month to February snaps Day to 28 or 29
+6. **At time end-to-end** — create a timer set to "At time" 1 minute in the future; confirm the feed shows a countdown of ~60s
+7. **No flag field** — flag checkbox is gone from the form; ⚑ is gone from timer cards
+8. **Overdue countdown** — let a short timer expire without tapping Done; confirm the countdown goes negative (e.g. `-00:00:05`) in red; confirm the card is not dimmed; confirm Edit is disabled
 
-- [ ] **Step 4: Final commit**
+- [ ] **Step 4: Final commit (if any files unstaged)**
 
 ```bash
 git add -A
-git commit -m "chore: milestone 1.2 complete — SpinnerField, emoji row, mode toggle"
+git commit -m "chore: milestone 1.2 complete — SpinnerField, emoji row, mode toggle, overdue countdown"
 ```
