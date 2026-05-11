@@ -32,7 +32,7 @@ export function DateTimeInput({ value, onChange }: Props) {
       <div className="flex gap-2">
         <SpinnerField value={hour}   onChange={(v) => emit(month, day, year, v, minute, second)}  min={0} max={23} label="Hour" />
         <SpinnerField value={minute} onChange={(v) => emit(month, day, year, hour, v, second)}    min={0} max={59} label="Min"  />
-        <SpinnerField value={second} onChange={(v) => emit(month, day, year, hour, minute, v)}    min={0} max={59} label="Sec"  />
+        <SpinnerField value={second} onChange={(v) => emit(month, day, year, hour, minute, v)}    min={0} max={59} label="Sec" step={5}  />
       </div>
     </div>
   )

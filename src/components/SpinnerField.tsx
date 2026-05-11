@@ -13,9 +13,10 @@ interface SpinnerFieldProps {
   max: number
   clamp?: boolean
   label: string
+  step?: number
 }
 
-export function SpinnerField({ value, onChange, min, max, clamp = false, label }: SpinnerFieldProps) {
+export function SpinnerField({ value, onChange, min, max, clamp = false, label, step = 1 }: SpinnerFieldProps) {
   const dragRef = useRef<{ y: number; value: number; moved: boolean } | null>(null)
 
   const apply = (v: number) => onChange(applyBounds(v, min, max, clamp))
@@ -49,7 +50,7 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label }
           const delta = Math.round((dragRef.current.y - e.clientY) / 8)
           if (delta !== 0) {
             dragRef.current.moved = true
-            apply(dragRef.current.value + delta)
+            apply(dragRef.current.value + Math.ceil(delta / step) * step)
           }
         }}
         onPointerUp={(e) => {

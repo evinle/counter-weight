@@ -32,6 +32,7 @@ export function DurationInput({ value, onChange }: Props) {
         onChange={(seconds) => onChange({ ...value, seconds })}
         min={0} max={59}
         label="Secs"
+        step={5}
       />
     </div>
   )
