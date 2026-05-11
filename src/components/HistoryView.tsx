@@ -41,6 +41,7 @@ export function HistoryView() {
       <div className="flex flex-col gap-3 p-4 box-border">
         {timers.map((timer) => {
           const { text, timing } = getHistoryAnnotation(timer.targetDatetime, timer.updatedAt)
+          // useHistoryTimers() guarantees status ∈ HISTORY_STATUSES via Dexie query filter
           const status = timer.status as HistoryStatus
 
           return (

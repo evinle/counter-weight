@@ -26,7 +26,10 @@ interface TabButtonProps {
 function TabButton({ active, label, icon, onClick }: TabButtonProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
       className={`flex-1 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors ${
         active ? 'text-blue-400' : 'text-slate-500'
       }`}
@@ -40,6 +43,7 @@ function TabButton({ active, label, icon, onClick }: TabButtonProps) {
 export function BottomTabBar({ activeTab, onTabChange, onCreateNew }: Props) {
   return (
     <nav
+      aria-label="Tab navigation"
       className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-slate-900 border-t border-slate-700 flex items-center"
       style={{ height: 'var(--bottom-tab-bar-height)' }}
     >
