@@ -1,5 +1,6 @@
 import { useFeedTimers } from '../hooks/useTimers'
 import { TimerCard } from './TimerCard'
+import { ScreenTitle } from './ScreenTitle'
 import type { Timer } from '../db/schema'
 
 interface Props {
@@ -11,7 +12,7 @@ export function FeedView({ onEdit }: Props) {
 
   if (timers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+      <div className="flex flex-col items-center justify-center h-full text-slate-500 pb-tab-bar">
         <span className="text-5xl mb-3">⏳</span>
         <p className="text-sm">No active timers. Create one to get started.</p>
       </div>
@@ -19,10 +20,13 @@ export function FeedView({ onEdit }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4 box-border pb-20">
-      {timers.map((timer) => (
-        <TimerCard key={timer.id} timer={timer} onEdit={onEdit} />
-      ))}
+    <div className="flex flex-col pb-tab-bar">
+      <ScreenTitle title="Timers" />
+      <div className="flex flex-col gap-3 p-4 box-border">
+        {timers.map((timer) => (
+          <TimerCard key={timer.id} timer={timer} onEdit={onEdit} />
+        ))}
+      </div>
     </div>
   )
 }
