@@ -66,7 +66,7 @@ export function CreateEditView({ existing, onDone }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4 box-border">
       <div className="flex gap-2 items-center">
         <input
           id="timer-title"

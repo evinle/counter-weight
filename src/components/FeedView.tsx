@@ -19,7 +19,7 @@ export function FeedView({ onEdit }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3 p-4 box-border pb-20">
       {timers.map((timer) => (
         <TimerCard key={timer.id} timer={timer} onEdit={onEdit} />
       ))}

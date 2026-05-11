@@ -120,7 +120,7 @@ export function App() {
         )}
       </header>
 
-      <main className='h-full'>
+      <main className='h-full overflow-auto box-border py-2'>
         {view === 'feed'
           ? <FeedView onEdit={handleEdit} />
           : <CreateEditView existing={editTimer} onDone={() => setView('feed')} />
