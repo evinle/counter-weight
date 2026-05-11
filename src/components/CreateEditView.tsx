@@ -70,7 +70,7 @@ export function CreateEditView({ existing, onDone }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4 box-border">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 pt-4 box-border pb-tab-bar">
       <div className="flex gap-2 items-center">
         <input
           id="timer-title"
@@ -87,14 +87,18 @@ export function CreateEditView({ existing, onDone }: Props) {
         <button
           type="button"
           onClick={() => setMode(TimerMode.FromNow)}
-          className={`flex-1 py-3 text-base font-medium transition-colors ${mode === TimerMode.FromNow ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'}`}
+          className={`flex-1 py-3 text-base font-medium transition-colors ${
+            mode === TimerMode.FromNow ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
+          }`}
         >
           From now
         </button>
         <button
           type="button"
           onClick={() => setMode(TimerMode.AtTime)}
-          className={`flex-1 py-3 text-base font-medium transition-colors ${mode === TimerMode.AtTime ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'}`}
+          className={`flex-1 py-3 text-base font-medium transition-colors ${
+            mode === TimerMode.AtTime ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
+          }`}
         >
           At time
         </button>
@@ -108,7 +112,9 @@ export function CreateEditView({ existing, onDone }: Props) {
           id="timer-priority"
           className="rounded-lg p-3 bg-slate-700 text-white text-base min-h-[52px]"
           value={priority}
-          onChange={(e) => { if (isPriority(e.target.value)) setPriority(e.target.value) }}
+          onChange={(e) => {
+            if (isPriority(e.target.value)) setPriority(e.target.value)
+          }}
         >
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>{p}</option>
@@ -121,6 +127,14 @@ export function CreateEditView({ existing, onDone }: Props) {
         className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all"
       >
         {existing ? 'Update Timer' : 'Create Timer'}
+      </button>
+
+      <button
+        type="button"
+        onClick={onDone}
+        className="rounded-lg p-3 text-slate-400 text-base font-medium active:opacity-60 transition-opacity cursor-pointer"
+      >
+        Cancel
       </button>
     </form>
   )
