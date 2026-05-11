@@ -24,3 +24,6 @@ export interface Timer {
   createdAt: Date
   updatedAt: Date
 }
+
+export const HISTORY_STATUSES = ['completed', 'missed', 'cancelled'] as const satisfies ReadonlyArray<TimerStatus>
+export type HistoryStatus = typeof HISTORY_STATUSES[number]
