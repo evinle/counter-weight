@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 body {
-  background-color: oklch(37.2% 0.044 257.287) 
+  /* slate-900 */
+  background-color: var(--color-slate-900)
 }
+
 
 html {
   overscroll-behavior: none;
