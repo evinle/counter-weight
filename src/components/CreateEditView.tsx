@@ -30,7 +30,11 @@ export function CreateEditView({ existing, onDone }: Props) {
     if (existing) return msToDuration(timeRemaining(existing.targetDatetime))
     return { days: 0, hours: 0, minutes: 5, seconds: 0 }
   })
-  const [atTime, setAtTime] = useState<Date>(existing?.targetDatetime ?? new Date())
+  const [atTime, setAtTime] = useState<Date>(() => {
+    const nextHourTarget = existing?.targetDatetime ?? new Date()
+    nextHourTarget.setHours(nextHourTarget.getHours() + 1, 0, 0,0) 
+    return nextHourTarget
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
