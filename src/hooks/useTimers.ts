@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { Timer } from '../db/schema'
+import { HISTORY_STATUSES } from '../db/schema'
 
 export function useActiveTimers(): Timer[] {
   return useLiveQuery(
@@ -16,6 +17,23 @@ export function useFeedTimers(): Timer[] {
     [],
     []
   ) ?? []
+}
+
+export function useHistoryTimers(): Timer[] {
+  return (
+    useLiveQuery(
+      () =>
+        db.timers
+          .where('status')
+          .anyOf(...HISTORY_STATUSES)
+          .toArray()
+          .then((arr) =>
+            arr.sort((a, b) => b.targetDatetime.getTime() - a.targetDatetime.getTime())
+          ),
+      [],
+      []
+    ) ?? []
+  )
 }
 
 export async function createTimer(
