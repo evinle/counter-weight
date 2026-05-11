@@ -5,8 +5,11 @@ body {
   background-color: var(--color-slate-900)
 }
 
-
 html {
   overscroll-behavior: none;
   overflow: hidden;
+}
+
+@utility pb-tab-bar {
+  padding-bottom: var(--bottom-tab-bar-height);
 }
