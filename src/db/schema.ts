@@ -27,3 +27,6 @@ export interface Timer {
 
 export const HISTORY_STATUSES = ['completed', 'missed', 'cancelled'] as const satisfies ReadonlyArray<TimerStatus>
 export type HistoryStatus = typeof HISTORY_STATUSES[number]
+export function isHistoryStatus(value: unknown): value is HistoryStatus{
+  return typeof value === 'string' && HISTORY_STATUSES.some(historyStatus => historyStatus === (value))
+}

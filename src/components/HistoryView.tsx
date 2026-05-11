@@ -1,7 +1,7 @@
 import { useHistoryTimers } from '../hooks/useTimers'
 import { ScreenTitle } from './ScreenTitle'
 import { getHistoryAnnotation, HistoryTiming } from '../lib/countdown'
-import type { HistoryStatus } from '../db/schema'
+import { isHistoryStatus, type HistoryStatus } from '../db/schema'
 
 const STATUS_LABELS: Record<HistoryStatus, string> = {
   completed: 'Completed',
@@ -42,7 +42,12 @@ export function HistoryView() {
         {timers.map((timer) => {
           const { text, timing } = getHistoryAnnotation(timer.targetDatetime, timer.updatedAt)
           // useHistoryTimers() guarantees status ∈ HISTORY_STATUSES via Dexie query filter
-          const status = timer.status as HistoryStatus
+          const status = timer.status 
+          if(!isHistoryStatus(status)) return  <div key={timer.id} className="bg-slate-800 rounded-xl p-4 flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-red-500">Invalid timer data: {status}</span>
+              </div>
+            </div>
 
           return (
             <div key={timer.id} className="bg-slate-800 rounded-xl p-4 flex flex-col gap-1">
