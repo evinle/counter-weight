@@ -1,19 +1,66 @@
-# Drop Button Design
+# Drop Button & Early History Timing Design
 
 **Date:** 2026-05-12
 
 ## Overview
 
-Add a "Drop" button to `TimerCard` that cancels a timer and records it in history as `cancelled`. Uses an inline two-step confirmation pattern to prevent accidental taps. When a timer is overdue, the Edit button is hidden and only Done and Drop remain.
+Two related features:
 
-## Data Layer
+1. **Drop button** — adds a cancel action to `TimerCard` with an inline two-step confirmation. When overdue, Edit is hidden and only Done and Drop remain.
+2. **Early timing rule** — replaces the binary "any ms early = early" rule with a proportional threshold: completing a timer with >10% of its original duration remaining counts as early. Deadline extensions (allowed once) are surfaced transparently in the history annotation.
 
-Add `cancelTimer(id: number)` to `src/hooks/useTimers.ts`:
+## Schema Changes (`src/db/schema.ts`)
 
-- Sets `status: "cancelled"` and `updatedAt: new Date()`
-- Identical shape to `completeTimer`
+Add `originalTargetDatetime: Date` to the `Timer` interface. This field is set equal to `targetDatetime` at creation and **never updated** by edits. It is the permanent record of the original commitment.
 
-No schema changes required — `cancelled` is already a valid `HistoryStatus`.
+## Data Layer (`src/hooks/useTimers.ts`)
+
+**`createTimer`** — sets `originalTargetDatetime: data.targetDatetime` alongside `createdAt`/`updatedAt`. Update the `Omit` type to exclude `originalTargetDatetime` from the caller-supplied fields.
+
+**`cancelTimer(id)`** — new function, identical shape to `completeTimer`, sets `status: "cancelled"` and `updatedAt: new Date()`.
+
+**`editTimer`** — enforce the one-extension rule: if `newTargetDatetime > current.targetDatetime` and `current.targetDatetime > current.originalTargetDatetime`, reject the update (already extended once). Reducing the deadline is always allowed. The function must read the current timer from Dexie before writing to perform this check.
+
+## `getHistoryAnnotation` (`src/lib/countdown.ts`)
+
+**Signature change** — add `originalTargetDatetime: Date` and `createdAt: Date` parameters:
+
+```ts
+getHistoryAnnotation(
+  targetDatetime: Date,
+  updatedAt: Date,
+  originalTargetDatetime: Date,
+  createdAt: Date,
+): { text: string; timing: HistoryTiming; extensionText?: string }
+```
+
+**Logic:**
+
+```
+diffMs          = targetDatetime - updatedAt          // time vs current deadline
+totalDuration   = originalTargetDatetime - createdAt  // original intended duration
+extensionMs     = targetDatetime - originalTargetDatetime  // >0 if deadline was extended
+
+timing:
+  diffMs > totalDuration * 0.10  → Early
+  diffMs < 0                     → Overdue
+  otherwise                      → OnTime
+
+text:
+  Early   → formatDuration(diffMs) + " remaining"
+  OnTime  → "On time"
+  Overdue → formatDuration(-diffMs) + " overdue"
+
+extensionText (only when extensionMs > 0):
+  "after " + formatDuration(extensionMs) + " extension"
+```
+
+Edge case: if `totalDuration <= 0` (timer target set at or before creation), fall back to `diffMs > 0` for the Early check.
+
+## `HistoryView` (`src/components/HistoryView.tsx`)
+
+- Pass `timer.originalTargetDatetime` and `timer.createdAt` to `getHistoryAnnotation`.
+- When `extensionText` is present, render it as a secondary line below the timing annotation (e.g. `text-xs text-slate-500`).
 
 ## `TimerCard` Layout
 
@@ -39,6 +86,7 @@ The button row has four states:
 
 ## Out of Scope
 
-- No confirmation dialog.
+- No confirmation dialog for Drop.
 - No undo / restore after drop.
 - Edit button behaviour for non-overdue timers is unchanged.
+- The 10% threshold is not user-configurable.
