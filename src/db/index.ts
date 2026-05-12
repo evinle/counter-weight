@@ -9,6 +9,15 @@ class CounterWeightDB extends Dexie {
     this.version(1).stores({
       timers: '++id, status, targetDatetime, priority, isFlagged, groupId',
     })
+    this.version(2).stores({
+      timers: '++id, status, targetDatetime, priority, isFlagged, groupId',
+    }).upgrade(tx =>
+      tx.table('timers').toCollection().modify((timer: Timer) => {
+        if (!timer.originalTargetDatetime) {
+          timer.originalTargetDatetime = timer.targetDatetime
+        }
+      })
+    )
   }
 }
 

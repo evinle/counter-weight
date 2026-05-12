@@ -10,6 +10,7 @@ describe('db', () => {
     const id = await db.timers.add({
       title: 'Test timer',
       targetDatetime: new Date(Date.now() + 60_000),
+      originalTargetDatetime: new Date(Date.now() + 60_000),
       status: 'active',
       priority: 'medium',
       isFlagged: false,
@@ -30,6 +31,7 @@ describe('db', () => {
     const id = await db.timers.add({
       title: 'Test timer',
       targetDatetime: new Date(Date.now() + 60_000),
+      originalTargetDatetime: new Date(Date.now() + 60_000),
       status: 'active',
       priority: 'medium',
       isFlagged: false,
@@ -60,6 +62,7 @@ describe('history query', () => {
       description: null,
       groupId: null,
       recurrenceRule: null,
+      originalTargetDatetime: new Date('2026-01-01'),
       createdAt: new Date(),
       updatedAt: new Date(),
     }

@@ -16,6 +16,7 @@ export interface Timer {
   description: string | null
   emoji: string | null
   targetDatetime: Date
+  originalTargetDatetime: Date
   status: TimerStatus
   priority: Priority
   isFlagged: boolean
