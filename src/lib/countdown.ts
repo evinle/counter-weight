@@ -26,12 +26,32 @@ export const HistoryTiming = {
 } as const satisfies Record<string, typeof ALL_HISTORY_TIMINGS[number]>
 export type HistoryTiming = typeof HistoryTiming[keyof typeof HistoryTiming]
 
+const EARLY_THRESHOLD = 0.10
+
 export function getHistoryAnnotation(
   targetDatetime: Date,
-  updatedAt: Date
-): { text: string; timing: HistoryTiming } {
+  updatedAt: Date,
+  originalTargetDatetime: Date,
+  createdAt: Date,
+): { text: string; timing: HistoryTiming; extensionText?: string } {
   const diffMs = targetDatetime.getTime() - updatedAt.getTime()
-  if (diffMs > 0) return { text: formatDuration(diffMs), timing: HistoryTiming.Early }
-  if (diffMs < 0) return { text: formatDuration(-diffMs), timing: HistoryTiming.Overdue }
-  return { text: formatDuration(0), timing: HistoryTiming.OnTime }
+  const totalDuration = originalTargetDatetime.getTime() - createdAt.getTime()
+  const extensionMs = targetDatetime.getTime() - originalTargetDatetime.getTime()
+
+  const earlyThresholdMs = totalDuration > 0 ? totalDuration * EARLY_THRESHOLD : 0
+
+  let timing: HistoryTiming
+  if (diffMs > earlyThresholdMs) {
+    timing = HistoryTiming.Early
+  } else if (diffMs < 0) {
+    timing = HistoryTiming.Overdue
+  } else {
+    timing = HistoryTiming.OnTime
+  }
+
+  const extensionText = extensionMs > 0
+    ? `after ${formatDuration(extensionMs)} extension`
+    : undefined
+
+  return { text: formatDuration(Math.abs(diffMs)), timing, extensionText }
 }
