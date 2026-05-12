@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-13
 
-**Goal:** Add a rolling minimum to `DateTimeInput` so the selected time can never be less than 60 seconds from now. If the user leaves the form open and the selected time drifts into the forbidden zone, the value auto-jumps to `now + 60s`.
+**Goal:** Add a rolling minimum to `DateTimeInput` so the selected time can never be less than 60 seconds from now. If the user leaves the form open and the selected time drifts into the forbidden zone, the value auto-jumps to `now + 60s`. A submit-time guard also catches any past datetime that slips through and shows a toast error.
 
 ---
 
@@ -15,7 +15,8 @@ Three small changes, each with one clear responsibility:
 | `src/hooks/useMinDate.ts` | New hook — owns the 60-second tick, exposes a live `minDate` |
 | `src/hooks/useDatetimeConstraints.ts` | Extended — adds `minDate` param, per-field `*Min` outputs, `constrainMin`, renames `constrain` → `constrainMax` |
 | `src/components/DateTimeInput.tsx` | Consumes `minDate` prop, passes per-field mins to `SpinnerField`, applies `constrainMin` in `emit` |
-| `src/components/CreateEditView.tsx` | Calls `useMinDate()`, passes result to `DateTimeInput`, snaps `atTime` in a `useEffect` |
+| `src/components/Toast.tsx` | New generic toast component — `message` + `onDismiss`, auto-dismisses after 4s |
+| `src/components/CreateEditView.tsx` | Calls `useMinDate()`, passes result to `DateTimeInput`, snaps `atTime` in a `useEffect`, guards submit with a past-datetime check |
 
 ---
 
@@ -109,10 +110,43 @@ No changes to the `FromNow` / `DurationInput` path.
 
 ---
 
+## `Toast` component
+
+**File:** `src/components/Toast.tsx`
+
+A generic floating message toast, styled consistently with `ToastNotification`. Props:
+
+```ts
+interface Props {
+  message: string;
+  onDismiss: () => void;
+}
+```
+
+Fixed position (top-centre), auto-dismisses after 4 seconds via `setTimeout` in a `useEffect`. Also has a dismiss button. Used by `CreateEditView` for the validation error.
+
+---
+
+## Submit-time guard
+
+In `CreateEditView.handleSubmit`, immediately before the DB call, check:
+
+```ts
+if (targetDatetime <= new Date()) {
+  setToastMessage("Target time cannot be in the past");
+  return;
+}
+```
+
+`toastMessage` is a `string | null` state; when non-null, renders `<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />`. The check applies to both `FromNow` and `AtTime` modes (a very short "from now" duration could also produce a past time on slow devices).
+
+---
+
 ## Testing
 
 - **`useMinDate`**: unit-test with fake timers — verify initial value is ~60s from now, verify it updates after 60s tick.
 - **`useDatetimeConstraints`**: extend existing tests with `minDate` cases — per-field min values, `constrainMin` cascade raising, no-minDate defaults.
 - **`constrainMax` rename**: existing tests pass with the rename (no behaviour change).
+- **Submit guard**: no dedicated test — the guard is a one-liner; covered by manual QA.
 
-No UI tests — constraint logic is fully covered by unit tests.
+No UI tests for layout — constraint logic is fully covered by unit tests.
