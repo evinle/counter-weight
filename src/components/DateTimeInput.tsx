@@ -52,7 +52,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, day: v })}
           min={1}
           max={dayMax}
-          clamp={!!maxDate}
           label="Day"
         />
         <SpinnerField
@@ -60,7 +59,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, month: v })}
           min={1}
           max={monthMax}
-          clamp={!!maxDate}
           label="Month"
         />
         <SpinnerField
@@ -68,7 +66,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, year: v })}
           min={currentYear}
           max={yearMax}
-          clamp
           label="Year"
         />
       </div>
@@ -78,7 +75,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, hour: v })}
           min={0}
           max={hourMax}
-          clamp={!!maxDate}
           label="Hour"
         />
         <SpinnerField
@@ -86,7 +82,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, minute: v })}
           min={0}
           max={minuteMax}
-          clamp={!!maxDate}
           label="Min"
         />
         <SpinnerField
@@ -94,7 +89,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
           onChange={(v) => emit({ ...fields, second: v })}
           min={0}
           max={secondMax}
-          clamp={!!maxDate}
           label="Sec"
           step={5}
         />
