@@ -729,3 +729,193 @@ Check:
 git add src/components/TimerCard.tsx
 git commit -m "feat: Drop button with two-step confirmation, hide Edit when overdue"
 ```
+
+---
+
+### Task 7: Disable spinner increase when timer already extended
+
+**Files:**
+- Modify: `src/components/SpinnerField.tsx`
+- Modify: `src/components/DurationInput.tsx`
+- Modify: `src/components/CreateEditView.tsx`
+
+**Context:** When a timer has already been extended once (`targetDatetime > originalTargetDatetime`), `editTimer` silently blocks further extensions. The `DurationInput` spinner's `▲` buttons must be disabled to make the UI honest.
+
+- [ ] **Step 1: Add `disableIncrease` prop to `SpinnerField`**
+
+Replace `src/components/SpinnerField.tsx` with:
+
+```tsx
+import { useRef } from 'react'
+
+export function applyBounds(value: number, min: number, max: number, clamp: boolean): number {
+  if (clamp) return Math.min(max, Math.max(min, value))
+  const range = max - min + 1
+  return ((value - min) % range + range) % range + min
+}
+
+interface SpinnerFieldProps {
+  value: number
+  onChange: (v: number) => void
+  min: number
+  max: number
+  clamp?: boolean
+  label: string
+  step?: number
+  disableIncrease?: boolean
+}
+
+export function SpinnerField({ value, onChange, min, max, clamp = false, label, step = 1, disableIncrease = false }: SpinnerFieldProps) {
+  const dragRef = useRef<{ y: number; value: number; moved: boolean } | null>(null)
+
+  const apply = (v: number) => onChange(applyBounds(v, min, max, clamp))
+
+  return (
+    <div className="flex flex-col items-center flex-1">
+      <button
+        type="button"
+        onClick={() => apply(value + 1)}
+        aria-label={`Increase ${label}`}
+        disabled={disableIncrease}
+        className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none disabled:opacity-30 disabled:pointer-events-none"
+      >
+        ▲
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={String(value).padStart(2, '0')}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => {
+          const raw = parseInt(e.target.value.replace(/\D/g, ''), 10)
+          if (!isNaN(raw)) apply(raw)
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          dragRef.current = { y: e.clientY, value, moved: false }
+          e.currentTarget.setPointerCapture(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          if (!dragRef.current) return
+          const delta = Math.round((dragRef.current.y - e.clientY) / 8)
+          if (delta !== 0) {
+            dragRef.current.moved = true
+            const clamped = disableIncrease ? Math.min(0, delta) : delta
+            apply(dragRef.current.value + Math.ceil(clamped / step) * step)
+          }
+        }}
+        onPointerUp={(e) => {
+          if (dragRef.current && !dragRef.current.moved) {
+            e.currentTarget.focus()
+            e.currentTarget.select()
+          }
+          dragRef.current = null
+        }}
+        onPointerCancel={() => { dragRef.current = null }}
+        aria-label={label}
+        className="w-full text-center text-2xl font-mono text-white bg-slate-700 rounded-lg py-3 cursor-ns-resize select-none"
+      />
+      <button
+        type="button"
+        onClick={() => apply(value - 1)}
+        aria-label={`Decrease ${label}`}
+        className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none"
+      >
+        ▼
+      </button>
+      <span className="text-xs text-slate-500 mt-0.5">{label}</span>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 2: Add `disableIncrease` prop to `DurationInput`**
+
+Replace `src/components/DurationInput.tsx` with:
+
+```tsx
+import { SpinnerField } from './SpinnerField'
+import type { DurationValue } from '../lib/duration'
+
+interface Props {
+  value: DurationValue
+  onChange: (v: DurationValue) => void
+  disableIncrease?: boolean
+}
+
+export function DurationInput({ value, onChange, disableIncrease = false }: Props) {
+  return (
+    <div className="flex gap-2">
+      <SpinnerField
+        value={value.days}
+        onChange={(days) => onChange({ ...value, days })}
+        min={0} max={999} clamp
+        label="Days"
+        disableIncrease={disableIncrease}
+      />
+      <SpinnerField
+        value={value.hours}
+        onChange={(hours) => onChange({ ...value, hours })}
+        min={0} max={23}
+        label="Hours"
+        disableIncrease={disableIncrease}
+      />
+      <SpinnerField
+        value={value.minutes}
+        onChange={(minutes) => onChange({ ...value, minutes })}
+        min={0} max={59}
+        label="Mins"
+        disableIncrease={disableIncrease}
+      />
+      <SpinnerField
+        value={value.seconds}
+        onChange={(seconds) => onChange({ ...value, seconds })}
+        min={0} max={59}
+        label="Secs"
+        step={5}
+        disableIncrease={disableIncrease}
+      />
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Wire `disableIncrease` in `CreateEditView`**
+
+In `src/components/CreateEditView.tsx`, derive `isAlreadyExtended` and pass it to `DurationInput`.
+
+After the `[mode, setMode]` state line, add:
+
+```ts
+const isAlreadyExtended = existing
+  ? existing.targetDatetime > existing.originalTargetDatetime
+  : false
+```
+
+Then update the `renderModeInput` function to pass the prop:
+
+```ts
+function renderModeInput() {
+  switch (mode) {
+    case TimerMode.FromNow:
+      return <DurationInput value={duration} onChange={setDuration} disableIncrease={isAlreadyExtended} />;
+    case TimerMode.AtTime:
+      return <DateTimeInput value={atTime} onChange={setAtTime} />;
+  }
+}
+```
+
+- [ ] **Step 4: Run full test suite**
+
+```bash
+npx vitest run
+```
+
+Expected: all 47 tests pass (no new tests needed — `SpinnerField` is a UI component; the `applyBounds` pure function is already tested and unchanged).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/components/SpinnerField.tsx src/components/DurationInput.tsx src/components/CreateEditView.tsx
+git commit -m "feat: disable spinner increase when timer already extended"
+```

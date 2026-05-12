@@ -84,9 +84,28 @@ The button row has four states:
 - Second tap on `DROP?` within 2s → calls `cancelTimer(timer.id)`, clears the timeout.
 - Timeout ref cleaned up on unmount via `useEffect` return.
 
+## Spinner Disable on Already-Extended Timer (`src/components/SpinnerField.tsx`, `DurationInput.tsx`, `CreateEditView.tsx`)
+
+When editing a timer that has already been extended (`existing.targetDatetime > existing.originalTargetDatetime`), increasing the duration is a silent no-op (blocked by `editTimer`). Make the UI honest:
+
+- Add `disableIncrease?: boolean` prop to `SpinnerField`:
+  - Disables the `▲` button (`disabled` attribute + visual dimming)
+  - Blocks drag-up in `onPointerMove` (ignore positive delta when `disableIncrease` is true)
+- Add `disableIncrease?: boolean` prop to `DurationInput`, passed through to all four `SpinnerField` instances
+- In `CreateEditView`, derive `isAlreadyExtended` from `existing` when in edit mode:
+  ```ts
+  const isAlreadyExtended = existing
+    ? existing.targetDatetime > existing.originalTargetDatetime
+    : false
+  ```
+  Pass `disableIncrease={isAlreadyExtended}` to `DurationInput`
+
+Scope: "From now" mode only. `DateTimeInput` ("At time" mode) is out of scope.
+
 ## Out of Scope
 
 - No confirmation dialog for Drop.
 - No undo / restore after drop.
 - Edit button behaviour for non-overdue timers is unchanged.
 - The 10% threshold is not user-configurable.
+- `DateTimeInput` ("At time" mode) spinner disable is out of scope.
