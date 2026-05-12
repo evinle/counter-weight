@@ -1,13 +1,18 @@
 @import "tailwindcss";
 
+* {
+  touch-action: pan-x pan-y; /* allows scrolling, blocks pinch-zoom */
+}
+
 body {
   /* slate-900 */
-  background-color: var(--color-slate-900)
+  background-color: var(--color-slate-900);
 }
 
 html {
   overscroll-behavior: none;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @utility pb-tab-bar {
