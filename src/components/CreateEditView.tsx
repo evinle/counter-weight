@@ -28,6 +28,9 @@ export function CreateEditView({ existing, onDone }: Props) {
     existing?.priority ?? "medium",
   );
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
+  const isAlreadyExtended = existing
+    ? existing.targetDatetime > existing.originalTargetDatetime
+    : false
   const [duration, setDuration] = useState<DurationValue>(() => {
     if (existing) return msToDuration(timeRemaining(existing.targetDatetime));
     return { days: 0, hours: 0, minutes: 5, seconds: 0 };
@@ -74,7 +77,7 @@ export function CreateEditView({ existing, onDone }: Props) {
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
-        return <DurationInput value={duration} onChange={setDuration} />;
+        return <DurationInput value={duration} onChange={setDuration} maxValue={isAlreadyExtended ? duration : undefined} />;
       case TimerMode.AtTime:
         return <DateTimeInput value={atTime} onChange={setAtTime} />;
     }
