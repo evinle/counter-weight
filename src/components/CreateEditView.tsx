@@ -90,7 +90,13 @@ export function CreateEditView({ existing, onDone }: Props) {
           />
         );
       case TimerMode.AtTime:
-        return <DateTimeInput value={atTime} onChange={setAtTime} />;
+        return (
+          <DateTimeInput
+            value={atTime}
+            onChange={setAtTime}
+            maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
+          />
+        );
     }
   }
 

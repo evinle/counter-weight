@@ -1,39 +1,104 @@
-import { SpinnerField } from './SpinnerField'
+import { SpinnerField } from "./SpinnerField";
+import { useDatetimeConstraints } from "../hooks/useDatetimeConstraints";
+import type { DateFields } from "../hooks/useDatetimeConstraints";
 
 interface Props {
-  value: Date
-  onChange: (date: Date) => void
+  value: Date;
+  onChange: (date: Date) => void;
+  maxDate?: Date;
 }
 
-export function DateTimeInput({ value, onChange }: Props) {
-  const currentYear = new Date().getFullYear()
+export function DateTimeInput({ value, onChange, maxDate }: Props) {
+  const currentYear = new Date().getFullYear();
 
-  const month = value.getMonth() + 1
-  const day = value.getDate()
-  const year = value.getFullYear()
-  const hour = value.getHours()
-  const minute = value.getMinutes()
-  const second = value.getSeconds()
+  const fields: DateFields = {
+    year: value.getFullYear(),
+    month: value.getMonth() + 1,
+    day: value.getDate(),
+    hour: value.getHours(),
+    minute: value.getMinutes(),
+    second: value.getSeconds(),
+  };
 
-  const daysInMonth = new Date(year, month, 0).getDate()
+  const {
+    yearMax,
+    monthMax,
+    dayMax,
+    hourMax,
+    minuteMax,
+    secondMax,
+    constrain,
+  } = useDatetimeConstraints(fields, maxDate);
 
-  const emit = (m: number, d: number, y: number, h: number, min: number, s: number) => {
-    const maxDay = new Date(y, m, 0).getDate()
-    onChange(new Date(y, m - 1, Math.min(d, maxDay), h, min, s))
-  }
+  const emit = (updated: DateFields) => {
+    const naturalDayMax = new Date(updated.year, updated.month, 0).getDate();
+    const safeDay = Math.min(updated.day, naturalDayMax);
+    const raw = new Date(
+      updated.year,
+      updated.month - 1,
+      safeDay,
+      updated.hour,
+      updated.minute,
+      updated.second,
+    );
+    onChange(constrain(raw));
+  };
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        <SpinnerField value={Math.min(day, daysInMonth)} onChange={(v) => emit(month, v, year, hour, minute, second)} min={1} max={daysInMonth}                   label="Day"   />
-        <SpinnerField value={month}                    onChange={(v) => emit(v, day, year, hour, minute, second)}  min={1} max={12}                          label="Month" />
-        <SpinnerField value={year}                     onChange={(v) => emit(month, day, v, hour, minute, second)} min={currentYear} max={currentYear + 10} clamp label="Year"  />
+        <SpinnerField
+          value={Math.min(fields.day, dayMax)}
+          onChange={(v) => emit({ ...fields, day: v })}
+          min={1}
+          max={dayMax}
+          clamp={!!maxDate}
+          label="Day"
+        />
+        <SpinnerField
+          value={fields.month}
+          onChange={(v) => emit({ ...fields, month: v })}
+          min={1}
+          max={monthMax}
+          clamp={!!maxDate}
+          label="Month"
+        />
+        <SpinnerField
+          value={fields.year}
+          onChange={(v) => emit({ ...fields, year: v })}
+          min={currentYear}
+          max={yearMax}
+          clamp
+          label="Year"
+        />
       </div>
       <div className="flex gap-2">
-        <SpinnerField value={hour}   onChange={(v) => emit(month, day, year, v, minute, second)}  min={0} max={23} label="Hour" />
-        <SpinnerField value={minute} onChange={(v) => emit(month, day, year, hour, v, second)}    min={0} max={59} label="Min"  />
-        <SpinnerField value={second} onChange={(v) => emit(month, day, year, hour, minute, v)}    min={0} max={59} label="Sec" step={5}  />
+        <SpinnerField
+          value={fields.hour}
+          onChange={(v) => emit({ ...fields, hour: v })}
+          min={0}
+          max={hourMax}
+          clamp={!!maxDate}
+          label="Hour"
+        />
+        <SpinnerField
+          value={fields.minute}
+          onChange={(v) => emit({ ...fields, minute: v })}
+          min={0}
+          max={minuteMax}
+          clamp={!!maxDate}
+          label="Min"
+        />
+        <SpinnerField
+          value={fields.second}
+          onChange={(v) => emit({ ...fields, second: v })}
+          min={0}
+          max={secondMax}
+          clamp={!!maxDate}
+          label="Sec"
+          step={5}
+        />
       </div>
     </div>
-  )
+  );
 }
