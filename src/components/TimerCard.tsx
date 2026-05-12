@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useAnimatedCountdown } from '../hooks/useAnimatedCountdown'
 import { formatDuration } from '../lib/countdown'
 import { completeTimer, cancelTimer } from '../hooks/useTimers'
@@ -32,6 +32,12 @@ export function TimerCard({ timer, onEdit }: Props) {
     setDropArmed(false)
     if (timer.id !== undefined) cancelTimer(timer.id)
   }
+
+  useEffect(() => {
+    return () => {
+      if (dropTimeoutRef.current) clearTimeout(dropTimeoutRef.current)
+    }
+  }, [])
 
   return (
     <div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
