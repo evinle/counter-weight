@@ -15,6 +15,12 @@ const STATUS_COLORS: Record<HistoryStatus, string> = {
   cancelled: "text-slate-400",
 };
 
+const TIMING_COLORS: Record<HistoryTiming, string> = {
+  "on-time": "text-slate-400",
+  early: "text-green-400",
+  overdue: "text-red-400",
+};
+
 function formatAnnotation(text: string, timing: HistoryTiming): string {
   switch (timing) {
     case HistoryTiming.Early:
@@ -74,7 +80,7 @@ export function HistoryView() {
                   {STATUS_LABELS[status]}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className={`text-xs ${TIMING_COLORS[timing]}`}>
                 {formatAnnotation(text, timing)}
               </p>
             </div>
