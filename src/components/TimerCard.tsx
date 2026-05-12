@@ -1,6 +1,7 @@
+import { useRef, useState } from 'react'
 import { useAnimatedCountdown } from '../hooks/useAnimatedCountdown'
 import { formatDuration } from '../lib/countdown'
-import { completeTimer } from '../hooks/useTimers'
+import { completeTimer, cancelTimer } from '../hooks/useTimers'
 import type { Timer, Priority } from '../db/schema'
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
@@ -18,6 +19,19 @@ interface Props {
 export function TimerCard({ timer, onEdit }: Props) {
   const remaining = useAnimatedCountdown(timer.targetDatetime)
   const isOverdue = remaining <= 0
+  const [dropArmed, setDropArmed] = useState(false)
+  const dropTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function armDrop() {
+    setDropArmed(true)
+    dropTimeoutRef.current = setTimeout(() => setDropArmed(false), 2000)
+  }
+
+  function confirmDrop() {
+    if (dropTimeoutRef.current) clearTimeout(dropTimeoutRef.current)
+    setDropArmed(false)
+    if (timer.id !== undefined) cancelTimer(timer.id)
+  }
 
   return (
     <div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
@@ -42,13 +56,31 @@ export function TimerCard({ timer, onEdit }: Props) {
         >
           Done
         </button>
-        <button
-          onClick={() => onEdit(timer)}
-          disabled={isOverdue}
-          className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-        >
-          Edit
-        </button>
+
+        {!isOverdue && (
+          <button
+            onClick={() => onEdit(timer)}
+            className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
+          >
+            Edit
+          </button>
+        )}
+
+        {dropArmed ? (
+          <button
+            onClick={confirmDrop}
+            className="flex-1 py-3 rounded-xl bg-red-700 text-white text-base font-medium min-h-[48px] hover:bg-red-600 active:scale-95 transition-all cursor-pointer"
+          >
+            DROP?
+          </button>
+        ) : (
+          <button
+            onClick={armDrop}
+            className="w-12 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
+          >
+            🗑️
+          </button>
+        )}
       </div>
     </div>
   )
