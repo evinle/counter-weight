@@ -47,14 +47,23 @@ export function useHistoryTimers(): Timer[] {
 }
 
 export async function createTimer(
-  data: Omit<Timer, "id" | "createdAt" | "updatedAt">,
+  data: Omit<Timer, "id" | "createdAt" | "updatedAt" | "originalTargetDatetime">,
 ): Promise<number | undefined> {
   const now = new Date();
-  return db.timers.add({ ...data, createdAt: now, updatedAt: now });
+  return db.timers.add({
+    ...data,
+    originalTargetDatetime: data.targetDatetime,
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export async function completeTimer(id: number): Promise<void> {
   await db.timers.update(id, { status: "completed", updatedAt: new Date() });
+}
+
+export async function cancelTimer(id: number): Promise<void> {
+  await db.timers.update(id, { status: "cancelled", updatedAt: new Date() });
 }
 
 export async function editTimer(
