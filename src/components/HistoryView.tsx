@@ -44,11 +44,12 @@ export function HistoryView() {
     ) : (
       <div className="flex flex-col gap-3 p-4 box-border">
         {timers.map((timer) => {
-          const { text, timing } = getHistoryAnnotation(
+          const { text, timing, extensionText } = getHistoryAnnotation(
             timer.targetDatetime,
             timer.updatedAt,
+            timer.originalTargetDatetime,
+            timer.createdAt,
           );
-          // useHistoryTimers() guarantees status ∈ HISTORY_STATUSES via Dexie query filter
           const status = timer.status;
           if (!isHistoryStatus(status))
             return (
@@ -83,6 +84,9 @@ export function HistoryView() {
               <p className={`text-xs ${TIMING_COLORS[timing]}`}>
                 {formatAnnotation(text, timing)}
               </p>
+              {extensionText && (
+                <p className="text-xs text-slate-500">{extensionText}</p>
+              )}
             </div>
           );
         })}
