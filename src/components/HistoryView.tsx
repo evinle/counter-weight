@@ -94,7 +94,7 @@ export function HistoryView() {
     );
 
   return (
-    <div className="flex flex-col pb-tab-bar h-full">
+    <div className="flex flex-col h-full overflow-auto">
       <ScreenTitle title="History" />
       {renderTimersHistoryContent()}
     </div>

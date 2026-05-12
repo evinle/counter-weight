@@ -15,6 +15,10 @@ html {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+@theme {
+  --spacing-bottom-bar: 64px; /* whatever your bottom bar height is */
+}
+
 @utility pb-tab-bar {
-  padding-bottom: var(--bottom-tab-bar-height);
+  padding-bottom: calc(var(--bottom-tab-bar-height));
 }

@@ -25,7 +25,7 @@ export function FeedView({ onEdit }: Props) {
     );
 
   return (
-    <div className="flex flex-col pb-tab-bar h-full">
+    <div className="flex flex-col h-full overflow-auto">
       <ScreenTitle title="Timers" />
       {renderTimersContent()}
     </div>

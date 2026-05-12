@@ -103,7 +103,7 @@ export function CreateEditView({ existing, onDone }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 px-4 pt-4 box-border pb-tab-bar"
+      className="flex flex-col gap-5 px-4 pt-4 box-border overflow-auto"
     >
       <div className="flex gap-2 items-center">
         <input
