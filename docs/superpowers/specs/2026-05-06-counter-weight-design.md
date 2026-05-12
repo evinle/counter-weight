@@ -68,6 +68,42 @@ EventBridge Scheduler → Lambda: Notify
 
 ## Data Model
 
+### Local schema (Dexie — IndexedDB)
+
+The client-side `Timer` interface is the canonical read source for all UI. Fields use camelCase; the server schema uses snake_case equivalents.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | number (auto-increment) | Local-only PK; never sent to server as the timer identifier |
+| title | string | |
+| description | string \| null | |
+| emoji | string \| null | |
+| targetDatetime | Date | The only stored time value |
+| originalTargetDatetime | Date | **Required, non-nullable.** Set to `targetDatetime` on create; never updated on reschedule. Backfilled via Dexie v2 migration. |
+| status | TimerStatus | Const-array enum: `active \| fired \| completed \| missed \| cancelled` |
+| priority | Priority | Const-array enum: `low \| medium \| high \| critical` |
+| isFlagged | boolean | |
+| groupId | number \| null | Local group reference (M4) |
+| recurrenceRule | `{ cron: string; tz: string }` \| null | |
+| createdAt | Date | |
+| updatedAt | Date | |
+
+**Derived types:** `HistoryStatus = completed \| missed \| cancelled` — a typed subset of `TimerStatus` for history views. Defined as `HISTORY_STATUSES` const array with a type guard `isHistoryStatus`.
+
+**Enum pattern:** All status/priority enums are `const` arrays with `as const`, a derived union type, and a type guard function. No plain string unions.
+
+**M2 additions** (not yet in codebase):
+
+| Field | Type | Notes |
+|---|---|---|
+| serverId | string \| null | UUID assigned by server after first sync |
+| userId | string \| null | Cognito sub; null until user logs in |
+| syncStatus | `'pending' \| 'synced' \| 'conflict'` | Tracks whether local changes have reached the server |
+
+Dexie version bumped to `3` with migration: sets `syncStatus: 'synced'`, `serverId: null`, `userId: null` on all existing records.
+
+---
+
 ### users
 | Column | Type | Notes |
 |---|---|---|
@@ -96,6 +132,7 @@ EventBridge Scheduler → Lambda: Notify
 | description | text | nullable |
 | emoji | text | nullable |
 | target_datetime | timestamptz | the only stored time value; countdown = target - now |
+| original_target_datetime | timestamptz | NOT NULL — set to `target_datetime` on create, never updated on reschedule; basis for early/late analytics |
 | status | enum | active, fired, completed, missed, cancelled |
 | priority | enum | low, medium, high, critical |
 | is_flagged | boolean | |

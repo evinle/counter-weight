@@ -84,21 +84,21 @@ The button row has four states:
 - Second tap on `DROP?` within 2s → calls `cancelTimer(timer.id)`, clears the timeout.
 - Timeout ref cleaned up on unmount via `useEffect` return.
 
-## Spinner Disable on Already-Extended Timer (`src/components/SpinnerField.tsx`, `DurationInput.tsx`, `CreateEditView.tsx`)
+## Spinner Cap on Already-Extended Timer (`src/components/DurationInput.tsx`, `CreateEditView.tsx`)
 
-When editing a timer that has already been extended (`existing.targetDatetime > existing.originalTargetDatetime`), increasing the duration is a silent no-op (blocked by `editTimer`). Make the UI honest:
+When editing a timer that has already been extended (`existing.targetDatetime > existing.originalTargetDatetime`), increasing the duration is a silent no-op (blocked by `editTimer`). Make the UI honest by capping each spinner at the current remaining time.
 
-- Add `disableIncrease?: boolean` prop to `SpinnerField`:
-  - Disables the `▲` button (`disabled` attribute + visual dimming)
-  - Blocks drag-up in `onPointerMove` (ignore positive delta when `disableIncrease` is true)
-- Add `disableIncrease?: boolean` prop to `DurationInput`, passed through to all four `SpinnerField` instances
-- In `CreateEditView`, derive `isAlreadyExtended` from `existing` when in edit mode:
+- Add `maxValue?: DurationValue` prop to `DurationInput`. When provided:
+  - Each `SpinnerField` receives `max={maxValue.<field>}` instead of its default max
+  - Each `SpinnerField` receives `clamp={true}` to prevent wrap-around at the cap
+- `SpinnerField` requires no changes — it already supports `max` and `clamp` props
+- In `CreateEditView`, derive `isAlreadyExtended` and capture the initial duration as the cap:
   ```ts
   const isAlreadyExtended = existing
     ? existing.targetDatetime > existing.originalTargetDatetime
     : false
   ```
-  Pass `disableIncrease={isAlreadyExtended}` to `DurationInput`
+  The initial `duration` state (set from `msToDuration(timeRemaining(existing.targetDatetime))`) is already the correct cap value. Pass `maxValue={isAlreadyExtended ? duration : undefined}` to `DurationInput`. Because `duration` is state, this cap reflects the value at form-open and does not change as the user edits.
 
 Scope: "From now" mode only. `DateTimeInput` ("At time" mode) is out of scope.
 
