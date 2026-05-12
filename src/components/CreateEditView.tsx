@@ -1,76 +1,90 @@
-import { useState } from 'react'
-import { createTimer, rescheduleTimer } from '../hooks/useTimers'
-import { DurationInput } from './DurationInput'
-import { DateTimeInput } from './DateTimeInput'
-import { EmojiButton } from './EmojiButton'
-import { durationToMs, msToDuration } from '../lib/duration'
-import type { DurationValue } from '../lib/duration'
-import { timeRemaining } from '../lib/countdown'
-import { PRIORITIES, isPriority } from '../db/schema'
-import type { Timer, Priority } from '../db/schema'
+import { useState } from "react";
+import { createTimer, editTimer } from "../hooks/useTimers";
+import { DurationInput } from "./DurationInput";
+import { DateTimeInput } from "./DateTimeInput";
+import { EmojiButton } from "./EmojiButton";
+import { durationToMs, msToDuration } from "../lib/duration";
+import type { DurationValue } from "../lib/duration";
+import { timeRemaining } from "../lib/countdown";
+import { PRIORITIES, isPriority } from "../db/schema";
+import type { Timer, Priority } from "../db/schema";
 
 const TimerMode = {
-  FromNow: 'from-now',
-  AtTime: 'at-time',
-} as const
+  FromNow: "from-now",
+  AtTime: "at-time",
+} as const;
 
-type TimerMode = typeof TimerMode[keyof typeof TimerMode]
+type TimerMode = (typeof TimerMode)[keyof typeof TimerMode];
 
 interface Props {
-  existing?: Timer
-  onDone: () => void
+  existing?: Timer;
+  onDone: () => void;
 }
 
 export function CreateEditView({ existing, onDone }: Props) {
-  const [title, setTitle] = useState(existing?.title ?? '')
-  const [emoji, setEmoji] = useState(existing?.emoji ?? '')
-  const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium')
-  const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow)
+  const [title, setTitle] = useState(existing?.title ?? "");
+  const [emoji, setEmoji] = useState(existing?.emoji ?? "");
+  const [priority, setPriority] = useState<Priority>(
+    existing?.priority ?? "medium",
+  );
+  const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
   const [duration, setDuration] = useState<DurationValue>(() => {
-    if (existing) return msToDuration(timeRemaining(existing.targetDatetime))
-    return { days: 0, hours: 0, minutes: 5, seconds: 0 }
-  })
+    if (existing) return msToDuration(timeRemaining(existing.targetDatetime));
+    return { days: 0, hours: 0, minutes: 5, seconds: 0 };
+  });
   const [atTime, setAtTime] = useState<Date>(() => {
-    const nextHourTarget = existing?.targetDatetime ?? new Date()
-    nextHourTarget.setHours(nextHourTarget.getHours() + 1, 0, 0,0) 
-    return nextHourTarget
-  })
+    const nextHourTarget = existing?.targetDatetime ?? new Date();
+    nextHourTarget.setHours(nextHourTarget.getHours() + 1, 0, 0, 0);
+    return nextHourTarget;
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const targetDatetime = mode === TimerMode.FromNow
-      ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
-      : atTime
+    e.preventDefault();
+    const targetDatetime =
+      mode === TimerMode.FromNow
+        ? new Date(
+            Date.now() +
+              durationToMs(
+                duration.days,
+                duration.hours,
+                duration.minutes,
+                duration.seconds,
+              ),
+          )
+        : atTime;
 
     if (existing?.id !== undefined) {
-      await rescheduleTimer(existing.id, targetDatetime)
+      await editTimer(existing.id, { targetDatetime, title, emoji, priority });
     } else {
       await createTimer({
         title,
         emoji: emoji || null,
         description: null,
         targetDatetime,
-        status: 'active',
+        status: "active",
         priority,
         isFlagged: false,
         groupId: null,
         recurrenceRule: null,
-      })
+      });
     }
-    onDone()
-  }
+    onDone();
+  };
 
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
-        return <DurationInput value={duration} onChange={setDuration} />
+        return <DurationInput value={duration} onChange={setDuration} />;
       case TimerMode.AtTime:
-        return <DateTimeInput value={atTime} onChange={setAtTime} />
+        return <DateTimeInput value={atTime} onChange={setAtTime} />;
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 pt-4 box-border pb-tab-bar">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-5 px-4 pt-4 box-border pb-tab-bar"
+    >
       <div className="flex gap-2 items-center">
         <input
           id="timer-title"
@@ -88,7 +102,9 @@ export function CreateEditView({ existing, onDone }: Props) {
           type="button"
           onClick={() => setMode(TimerMode.FromNow)}
           className={`flex-1 py-3 text-base font-medium transition-colors ${
-            mode === TimerMode.FromNow ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
+            mode === TimerMode.FromNow
+              ? "bg-blue-600 text-white"
+              : "bg-slate-700 text-slate-400"
           }`}
         >
           From now
@@ -97,7 +113,9 @@ export function CreateEditView({ existing, onDone }: Props) {
           type="button"
           onClick={() => setMode(TimerMode.AtTime)}
           className={`flex-1 py-3 text-base font-medium transition-colors ${
-            mode === TimerMode.AtTime ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
+            mode === TimerMode.AtTime
+              ? "bg-blue-600 text-white"
+              : "bg-slate-700 text-slate-400"
           }`}
         >
           At time
@@ -107,17 +125,21 @@ export function CreateEditView({ existing, onDone }: Props) {
       {renderModeInput()}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="timer-priority" className="text-sm text-slate-400">Priority</label>
+        <label htmlFor="timer-priority" className="text-sm text-slate-400">
+          Priority
+        </label>
         <select
           id="timer-priority"
           className="rounded-lg p-3 bg-slate-700 text-white text-base min-h-[52px]"
           value={priority}
           onChange={(e) => {
-            if (isPriority(e.target.value)) setPriority(e.target.value)
+            if (isPriority(e.target.value)) setPriority(e.target.value);
           }}
         >
           {PRIORITIES.map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
         </select>
       </div>
@@ -126,7 +148,7 @@ export function CreateEditView({ existing, onDone }: Props) {
         type="submit"
         className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all"
       >
-        {existing ? 'Update Timer' : 'Create Timer'}
+        {existing ? "Update Timer" : "Create Timer"}
       </button>
 
       <button
@@ -137,5 +159,5 @@ export function CreateEditView({ existing, onDone }: Props) {
         Cancel
       </button>
     </form>
-  )
+  );
 }
