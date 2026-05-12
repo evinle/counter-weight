@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { createTimer, cancelTimer } from '../hooks/useTimers'
+import { createTimer, cancelTimer, editTimer } from '../hooks/useTimers'
 
 const BASE = {
   title: 'Test',
@@ -40,5 +40,36 @@ describe('cancelTimer', () => {
     await cancelTimer(id!)
     const timer = await db.timers.get(id!)
     expect(timer?.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+  })
+})
+
+describe('editTimer', () => {
+  it('allows first deadline extension', async () => {
+    const id = await createTimer(BASE)
+    const extended = new Date('2026-06-01T14:00:00Z') // 2h later
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    const timer = await db.timers.get(id!)
+    expect(timer?.targetDatetime.getTime()).toBe(extended.getTime())
+  })
+
+  it('blocks a second extension', async () => {
+    const id = await createTimer(BASE)
+    const first = new Date('2026-06-01T14:00:00Z')
+    await editTimer(id!, { targetDatetime: first, title: 'Test', emoji: null, priority: 'medium' })
+    const second = new Date('2026-06-01T16:00:00Z')
+    await editTimer(id!, { targetDatetime: second, title: 'Test', emoji: null, priority: 'medium' })
+    const timer = await db.timers.get(id!)
+    // targetDatetime should still be `first`, not `second`
+    expect(timer?.targetDatetime.getTime()).toBe(first.getTime())
+  })
+
+  it('allows reducing the deadline even after an extension', async () => {
+    const id = await createTimer(BASE)
+    const extended = new Date('2026-06-01T14:00:00Z')
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    const earlier = new Date('2026-06-01T11:00:00Z')
+    await editTimer(id!, { targetDatetime: earlier, title: 'Test', emoji: null, priority: 'medium' })
+    const timer = await db.timers.get(id!)
+    expect(timer?.targetDatetime.getTime()).toBe(earlier.getTime())
   })
 })

@@ -75,5 +75,13 @@ export async function editTimer(
     priority: Priority;
   },
 ) {
+  const current = await db.timers.get(id);
+  if (!current) return;
+
+  const isAlreadyExtended = current.targetDatetime > current.originalTargetDatetime;
+  const isExtending = params.targetDatetime > current.targetDatetime;
+
+  if (isAlreadyExtended && isExtending) return;
+
   await db.timers.update(id, params);
 }
