@@ -129,16 +129,17 @@ Fixed position (top-centre), auto-dismisses after 4 seconds via `setTimeout` in 
 
 ## Submit-time guard
 
-In `CreateEditView.handleSubmit`, immediately before the DB call, check:
+The guard lives in `createTimer` and `editTimer` in `src/hooks/useTimers.ts`, immediately before the Dexie write. Both functions throw a typed error if `targetDatetime <= new Date()`:
 
 ```ts
 if (targetDatetime <= new Date()) {
-  setToastMessage("Target time cannot be in the past");
-  return;
+  throw new Error("TARGET_IN_PAST");
 }
 ```
 
-`toastMessage` is a `string | null` state; when non-null, renders `<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />`. The check applies to both `FromNow` and `AtTime` modes (a very short "from now" duration could also produce a past time on slow devices).
+`CreateEditView.handleSubmit` wraps the DB call in try/catch: on `"TARGET_IN_PAST"` it sets `toastMessage` to "Target time cannot be in the past" and returns. Any other error re-throws.
+
+`toastMessage` is a `string | null` state in `CreateEditView`; when non-null, renders `<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />`. The guard applies to both `FromNow` and `AtTime` modes.
 
 ---
 
