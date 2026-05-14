@@ -27,7 +27,7 @@ Add a cloud backend to the existing local-first PWA. Timers created offline sync
 | Validation | Zod | Shared schemas across tRPC router, Drizzle, and frontend forms |
 | Server sync | TanStack Query | Manages cloud mutations, retry/backoff, pull reconciliation |
 | Auth SDK | plain `fetch` | Cognito Hosted UI redirect + token exchange; no Amplify library needed |
-| JWT verification | `aws-jwt-verify` | Offline verification using bundled JWKS |
+| JWT verification | `aws-jwt-verify` | Caching JWKS fetcher; verifies offline, re-fetches via Cognito VPC endpoint on key rotation |
 | Infrastructure | AWS CDK (TypeScript) | TypeScript-native, two stacks |
 
 ---
@@ -53,7 +53,7 @@ Cognito User Pool              Google + Apple federation, Hosted UI
 
 **No NAT Gateway.** API Lambda needs no internet:
 - DB credentials injected as env var at CDK deploy time (CDK reads from Secrets Manager, passes as `DATABASE_URL`)
-- JWT verification uses Cognito JWKS bundled at deploy time (CDK fetches JWKS, stores as env var); `aws-jwt-verify` verifies offline
+- JWT verification uses `aws-jwt-verify`'s caching JWKS fetcher. On cold start it verifies offline using the cached key set; on verification failure (key rotation) it re-fetches from Cognito's JWKS endpoint via a **Cognito VPC Interface Endpoint (PrivateLink)** in the private subnet. No NAT required; endpoint cost ~$0.01/hr/AZ.
 
 Auth Lambda needs internet to call Cognito's `/oauth2/token` endpoint — it is outside the VPC so internet access is available by default.
 
@@ -65,13 +65,15 @@ Auth Lambda needs internet to call Cognito's `/oauth2/token` endpoint — it is 
 
 - VPC: 2 AZs, private subnets only (no NAT Gateway)
 - RDS: `db.t4g.micro` PostgreSQL, private subnet, no public access, SSL enforced
+- RDS Proxy: sits between API Lambda and RDS, pools connections — prevents connection exhaustion under Lambda concurrency (~$0.015/hr)
 - Secrets Manager: RDS connection string
 - Cognito User Pool: Google + Apple identity providers, Hosted UI domain, app client (auth code flow + PKCE)
+- Cognito VPC Interface Endpoint: allows API Lambda to re-fetch JWKS on key rotation without NAT
 
 ### AppStack (redeployed on code changes, depends on StorageStack)
 
 - Auth Lambda: outside VPC, `DATABASE_URL` not needed, Cognito client ID/secret from env
-- API Lambda: inside VPC, `DATABASE_URL` from Secrets Manager (injected at deploy), `COGNITO_JWKS` env var (bundled at deploy)
+- API Lambda: inside VPC, `DATABASE_URL` from Secrets Manager (injected at deploy); connects to RDS via RDS Proxy endpoint
 - API Gateway HTTP API:
   - `ANY /auth/{proxy+}` → Auth Lambda
   - `ANY /trpc/{proxy+}` → API Lambda
@@ -83,15 +85,16 @@ Auth Lambda needs internet to call Cognito's `/oauth2/token` endpoint — it is 
 
 ### Dexie additions (M2, version 3 migration)
 
-Three new fields on the existing `Timer` interface:
+Four new fields on the existing `Timer` interface:
 
 | Field | Type | Notes |
 |---|---|---|
 | serverId | `string \| null` | UUID assigned by server after first sync |
 | userId | `string \| null` | Cognito sub; null until logged in |
 | syncStatus | `'pending' \| 'synced' \| 'conflict'` | Tracks whether local changes have reached server |
+| lastSyncedAt | `Date \| null` | Timestamp of last successful sync; used to bound `timers.reconcile` calls |
 
-Migration sets `syncStatus: 'synced'`, `serverId: null`, `userId: null` on all existing records.
+Migration sets `syncStatus: 'synced'`, `serverId: null`, `userId: null`, `lastSyncedAt: null` on all existing records.
 
 ### Server schema (Drizzle, M2 subset)
 
@@ -133,7 +136,7 @@ Migration sets `syncStatus: 'synced'`, `serverId: null`, `userId: null` on all e
 | occurred_at | timestamptz | |
 | metadata | jsonb | e.g. `{ previous_target, next_target }` |
 
-**Conflict resolution:** client sends `version` with every update. If server's `version` differs → 409 Conflict. Client pulls server record, overwrites Dexie, marks `syncStatus: 'synced'`. Server always wins.
+**Conflict resolution:** client sends `version` with every update. If server's `version` differs → 409 Conflict. Client pulls server record, overwrites Dexie, marks `syncStatus: 'synced'`. Server always wins. This is a deliberate product decision — the losing device's change is silently discarded. Conflicts are logged to CloudWatch (timer ID, user ID, local version, server version) for observability.
 
 ---
 
@@ -185,7 +188,7 @@ All procedures except `auth.bootstrap` require a valid JWT (`ctx.userId` is set 
 | `timers.upsert` | Create or update; `serverId: null` = new record, UUID = existing. Returns `{ serverId, version }` |
 | `timers.complete` | Set `status = completed`, write `timer_events(completed)` |
 | `timers.cancel` | Set `status = cancelled`, write `timer_events(cancelled)` |
-| `timers.reconcile` | Client sends `[{ serverId, updatedAt }]`; server returns records it considers stale or missing |
+| `timers.reconcile` | Client sends `{ since: lastSyncedAt, records: [{ serverId, updatedAt }] }`; server returns records modified after `since` that it considers stale or missing relative to the client snapshot |
 
 `eventbridge_schedule_id` is not populated in M2 — `timers.upsert` leaves it null. M3 adds schedule creation to this procedure without a schema migration.
 
@@ -211,12 +214,12 @@ All display components (`FeedView`, `TimerCard`, `ToastNotification`, `CreateEdi
 
 **`src/lib/trpc.ts`** — tRPC client + TanStack Query integration. Injects `Authorization: Bearer` header. On 401: calls `/auth/refresh`, retries once with new token.
 
-**`src/hooks/useAuth.ts`** — auth state (`loading | unauthenticated | authenticated`), `idToken` in memory, `userId` from token claims. `login()` redirects to Cognito. On mount: silent refresh attempt.
+**`src/hooks/useAuth.ts`** — auth state (`loading | unauthenticated | authenticated`), `idToken` in memory, `userId` from token claims. `login()` redirects to Cognito. On mount: silent refresh attempt with a 3s timeout — on timeout or network failure, falls back to `unauthenticated` rather than hanging. While `loading`, app renders a minimal spinner; it never blocks on auth indefinitely.
 
 **`src/hooks/useSyncEngine.ts`** — three responsibilities:
 1. **Drain pending queue** — on mount and on `online` event: push all `syncStatus: 'pending'` records via `timers.upsert`. On success: set `syncStatus: 'synced'`, store `serverId`. On 409: overwrite Dexie with server version.
 2. **Pull on reconnect + focus** — on `online` + `visibilitychange` to visible: call `timers.list`, merge into Dexie (server wins on `updatedAt` conflict; server-only records inserted as new).
-3. **On-open reconciliation** — on app open while online: call `timers.reconcile`, update stale Dexie records.
+3. **On-open reconciliation** — on app open while online: call `timers.reconcile` with `since: lastSyncedAt`, update stale Dexie records, update `lastSyncedAt` on success.
 
 **`src/components/LoginView.tsx`** — "Sign in with Google" and "Sign in with Apple" buttons; calls `login()`.
 
@@ -252,6 +255,12 @@ All display components (`FeedView`, `TimerCard`, `ToastNotification`, `CreateEdi
 | Store Apple private key in Secrets Manager | AWS Console or CLI |
 | `npx drizzle-kit migrate` on each deploy | Terminal (until CI/CD in M5) |
 | Stop RDS when not developing | AWS Console or CLI |
+
+**Deploy order (must follow on every release):**
+1. `npx drizzle-kit migrate` — run migrations against the live DB first
+2. `cdk deploy AppStack` — deploy updated Lambda code
+
+Deploying AppStack before migrating will cause Lambda cold-start failures if the new code references schema that doesn't exist yet. There is no automated rollback — if a migration must be reverted, write a down-migration manually.
 
 ---
 
