@@ -356,7 +356,7 @@ export class StorageStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       multiAz: false,
       storageEncrypted: true,
-      deletionProtection: false, // set true before M3
+      deletionProtection: this.node.tryGetContext('env') === 'prod',
     })
 
     this.dbSecret = dbInstance.secret!
@@ -477,9 +477,10 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
         AUTH_CALLBACK_URL_PROD: 'https://counter-weight.app/auth/callback',
         AUTH_CALLBACK_URL_LOCAL: 'http://localhost:5174/auth/callback',
-        // COGNITO_CLIENT_SECRET fetched from Secrets Manager at Lambda init (see routes.ts)
-        COGNITO_CLIENT_SECRET_ARN: storageStack.userPoolClient
-          .userPoolClientSecret.unsafeUnwrap(), // stored as secret ARN via param
+        // COGNITO_CLIENT_SECRET_ARN is the ARN of a Secrets Manager secret you create
+        // manually after deploying StorageStack (see Task 6.2 manual steps).
+        // Pass it as a CDK context value: cdk deploy --context cognitoClientSecretArn=<ARN>
+        COGNITO_CLIENT_SECRET_ARN: this.node.getContext('cognitoClientSecretArn') as string,
       },
     })
 
@@ -892,10 +893,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) return reply.status(400).send({ error: 'Invalid body' })
 
     const { code, origin } = parsed.data
-    const redirectUri =
-      origin === 'http://localhost:5174'
-        ? process.env.AUTH_CALLBACK_URL_LOCAL!
-        : process.env.AUTH_CALLBACK_URL_PROD!
+    const ALLOWED_ORIGINS: Record<string, string | undefined> = {
+      'http://localhost:5174': process.env.AUTH_CALLBACK_URL_LOCAL,
+      'https://counter-weight.app': process.env.AUTH_CALLBACK_URL_PROD,
+    }
+    const redirectUri = ALLOWED_ORIGINS[origin]
+    if (!redirectUri) return reply.status(400).send({ error: 'Invalid origin' })
 
     const tokenRes = await fetch(`${process.env.COGNITO_DOMAIN}/oauth2/token`, {
       method: 'POST',
@@ -1345,6 +1348,16 @@ export const timersRouter = router({
       .where(and(eq(timers.userId, ctx.userId), ne(timers.status, 'cancelled')))
   }),
 
+  get: protectedProcedure
+    .input(z.object({ serverId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [timer] = await ctx.db
+        .select()
+        .from(timers)
+        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
+      return timer ?? null
+    }),
+
   upsert: protectedProcedure
     .input(timerUpsertInput)
     .mutation(async ({ ctx, input }) => {
@@ -1420,7 +1433,7 @@ export const timersRouter = router({
       await ctx.db
         .update(timers)
         .set({ status: 'completed', version: existing.version + 1, updatedAt: new Date() })
-        .where(eq(timers.id, input.serverId))
+        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
 
       await ctx.db.insert(timerEvents).values({
         timerId: input.serverId,
@@ -1445,7 +1458,7 @@ export const timersRouter = router({
       await ctx.db
         .update(timers)
         .set({ status: 'cancelled', version: existing.version + 1, updatedAt: new Date() })
-        .where(eq(timers.id, input.serverId))
+        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
 
       await ctx.db.insert(timerEvents).values({
         timerId: input.serverId,
@@ -1576,6 +1589,8 @@ Expected output: `StorageStack` successfully deployed. Note the outputs:
 
 ### Task 6.2: Configure Cognito federation providers [EXTERNAL]
 
+> **Sequencing note:** `selfSignUpEnabled: false` is set in StorageStack, which means the User Pool has no usable identity providers until this task is complete. No end-to-end auth testing is possible until Task 6.2 is done and AppStack is redeployed (Task 6.4). Complete this task before attempting any login flow.
+
 - [ ] In AWS Console → Cognito → User Pools → your pool → Sign-in experience → Federated identity providers
 - [ ] Add Google: paste Client ID and Client Secret from Task 0.2
 - [ ] (Optional) Add Apple: paste Team ID, Services ID, Key ID, and `.p8` private key from Task 0.3
@@ -1696,7 +1711,7 @@ npx vitest run src/test/db.migration.test.ts
 - [ ] **Update `src/db/schema.ts`** — add M2 fields and SYNC_STATUSES
 
 ```typescript
-export const SYNC_STATUSES = ['pending', 'synced', 'conflict'] as const
+export const SYNC_STATUSES = ['pending', 'synced'] as const
 export type SyncStatus = typeof SYNC_STATUSES[number]
 
 export interface Timer {
@@ -1930,7 +1945,8 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.state).toBe('unauthenticated'))
   })
 
-  it('logout clears user state and calls /auth/logout', async () => {
+  it('logout clears user state, calls /auth/logout, and removes lastSyncedAt', async () => {
+    localStorage.setItem('cw:lastSyncedAt', new Date().toISOString())
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
@@ -1946,6 +1962,7 @@ describe('useAuth', () => {
     expect(result.current.state).toBe('unauthenticated')
     expect(result.current.user).toBeNull()
     expect(mockFetch).toHaveBeenCalledWith('/auth/logout', expect.objectContaining({ method: 'POST' }))
+    expect(localStorage.getItem('cw:lastSyncedAt')).toBeNull()
   })
 })
 ```
@@ -2032,6 +2049,7 @@ export function useAuth(): UseAuth {
     setIdToken(null)
     setUser(null)
     setState('unauthenticated')
+    localStorage.removeItem('cw:lastSyncedAt')
   }
 
   return { state, user, login, logout }
@@ -2159,7 +2177,9 @@ useEffect(() => {
     .then(async (res) => {
       if (!res.ok) return
       const { idToken } = await res.json() as { idToken: string }
-      // Reload to trigger silent refresh → authenticated state
+      // Reload triggers useAuth's silent refresh, which restores authenticated state.
+      // Known limitation (M2): causes a visible roundtrip. Fixing cleanly requires a
+      // shared auth store so the callback can update auth state in place. Defer to M3.
       setIdToken(idToken)
       window.location.reload()
     })
@@ -2311,26 +2331,24 @@ describe('useSyncEngine', () => {
       data: { code: 'CONFLICT' },
     })
     vi.mocked(trpc.timers.upsert.mutate).mockRejectedValueOnce(conflictError)
-    vi.mocked(trpc.timers.list.query).mockResolvedValueOnce([
-      {
-        id: 'existing-srv',
-        title: 'Server version',
-        description: null,
-        emoji: null,
-        targetDatetime: new Date('2026-06-01T12:00:00Z'),
-        originalTargetDatetime: new Date('2026-06-01T12:00:00Z'),
-        status: 'active',
-        priority: 'medium',
-        isFlagged: false,
-        recurrenceRule: null,
-        version: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userId: 'user-1',
-        groupId: null,
-        eventbridgeScheduleId: null,
-      },
-    ])
+    vi.mocked(trpc.timers.get.query).mockResolvedValueOnce({
+      id: 'existing-srv',
+      title: 'Server version',
+      description: null,
+      emoji: null,
+      targetDatetime: new Date('2026-06-01T12:00:00Z'),
+      originalTargetDatetime: new Date('2026-06-01T12:00:00Z'),
+      status: 'active',
+      priority: 'medium',
+      isFlagged: false,
+      recurrenceRule: null,
+      version: 5,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId: 'user-1',
+      groupId: null,
+      eventbridgeScheduleId: null,
+    })
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
 
     renderHook(() => useSyncEngine({ user: USER }))
@@ -2427,10 +2445,9 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
           })
         } catch (err: unknown) {
           const code = (err as { data?: { code?: string } })?.data?.code
-          if (code === 'CONFLICT') {
-            // Server wins: pull and overwrite Dexie record
-            const serverList = await trpc.timers.list.query()
-            const match = serverList.find((t) => t.id === timer.serverId)
+          if (code === 'CONFLICT' && timer.serverId) {
+            // Server wins: fetch the single conflicting record and overwrite Dexie
+            const match = await trpc.timers.get.query({ serverId: timer.serverId })
             if (match) {
               console.warn('[conflict] overwriting local timer', {
                 timerId: timer.id,
