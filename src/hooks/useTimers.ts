@@ -87,5 +87,5 @@ export async function editTimer(
 }
 
 export async function bulkImportTimers(timers: Omit<Timer, 'id'>[]): Promise<void> {
-  await db.timers.bulkAdd(timers as Timer[])
+  await db.timers.bulkAdd(timers)
 }
