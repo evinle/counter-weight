@@ -2,7 +2,7 @@ import type { Timer } from '../db/schema'
 import { isTimerStatus, isPriority } from '../db/schema'
 
 export interface ImportResult {
-  timers: Timer[]
+  timers: Omit<Timer, 'id'>[]
   skipped: number
 }
 
@@ -110,7 +110,7 @@ export function importTimers(json: string): ImportResult {
   }
 
   const rawCount = (envelope.timers as unknown[]).length
-  const timers = parseTimers(envelope.version, envelope.timers as unknown[]) as Timer[]
+  const timers = parseTimers(envelope.version, envelope.timers as unknown[])
 
   return {
     timers,

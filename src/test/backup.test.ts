@@ -60,7 +60,7 @@ describe('importTimers', () => {
   it('strips id from imported timers', () => {
     const json = exportTimers([makeTimer({ id: 99 })])
     const { timers } = importTimers(json)
-    expect(timers[0].id).toBeUndefined()
+    expect('id' in timers[0]).toBe(false)
   })
 
   it('handles unknown version as best-effort with handleDefault', () => {
