@@ -1,59 +1,63 @@
-import { useRef } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db'
-import { exportTimers, importTimers } from '../lib/backup'
-import { bulkImportTimers } from '../hooks/useTimers'
-import { useToast } from '../hooks/useToast'
-import { ScreenTitle } from './ScreenTitle'
+import { useRef } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../db";
+import { exportTimers, importTimers } from "../lib/backup";
+import { bulkImportTimers } from "../hooks/useTimers";
+import { useToast } from "../hooks/useToast";
+import { ScreenTitle } from "./ScreenTitle";
 
 export function SettingsView() {
-  const { show } = useToast()
-  const allTimers = useLiveQuery(() => db.timers.toArray(), [], [])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { show } = useToast();
+  const allTimers = useLiveQuery(() => db.timers.toArray(), [], []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleExport() {
-    const json = exportTimers(allTimers ?? [])
-    const date = new Date().toISOString().slice(0, 10)
-    const filename = `counter-weight-${date}.json`
-    const file = new File([json], filename, { type: 'application/json' })
+    const json = exportTimers(allTimers ?? []);
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = `counter-weight-${date}.json`;
+    const file = new File([json], filename, { type: "application/json" });
     if (navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ files: [file] })
+        await navigator.share({ files: [file] });
       } catch (err) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          show({ message: 'Export failed', variant: 'error', ttl: 0 })
+        if (err instanceof Error && err.name !== "AbortError") {
+          show({
+            message: ` Export failed: ${err.message} `,
+            variant: "error",
+            ttl: 0,
+          });
         }
       }
-      return
+      return;
     }
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const text = await file.text()
-      const { timers, skipped } = importTimers(text)
-      await bulkImportTimers(timers)
+      const text = await file.text();
+      const { timers, skipped } = importTimers(text);
+      await bulkImportTimers(timers);
       const msg =
         skipped > 0
           ? `Imported ${timers.length} timers, ${skipped} could not be read`
-          : `Imported ${timers.length} timers`
-      show({ message: msg, variant: skipped > 0 ? 'default' : 'success' })
+          : `Imported ${timers.length} timers`;
+      show({ message: msg, variant: skipped > 0 ? "default" : "success" });
     } catch (err) {
       show({
-        message: `Import failed: ${err instanceof Error ? err.message : 'unknown error'}`,
-        variant: 'error',
+        message: `Import failed: ${err instanceof Error ? err.message : "unknown error"}`,
+        variant: "error",
         ttl: 0,
-      })
+      });
     }
-    e.target.value = ''
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -83,5 +87,5 @@ export function SettingsView() {
         />
       </div>
     </div>
-  )
+  );
 }
