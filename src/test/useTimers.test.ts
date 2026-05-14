@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { createTimer, cancelTimer, editTimer } from '../hooks/useTimers'
+import { createTimer, cancelTimer, editTimer, bulkImportTimers } from '../hooks/useTimers'
+import type { Timer } from '../db/schema'
 
 const BASE = {
   title: 'Test',
@@ -71,5 +72,29 @@ describe('editTimer', () => {
     await editTimer(id!, { targetDatetime: earlier, title: 'Test', emoji: null, priority: 'medium' })
     const timer = await db.timers.get(id!)
     expect(timer?.targetDatetime.getTime()).toBe(earlier.getTime())
+  })
+})
+
+describe('bulkImportTimers', () => {
+  it('inserts multiple timers and assigns new ids', async () => {
+    const timers: Omit<Timer, 'id'>[] = [
+      {
+        title: 'Imported A',
+        description: null,
+        emoji: null,
+        targetDatetime: new Date('2026-07-01T10:00:00Z'),
+        originalTargetDatetime: new Date('2026-07-01T10:00:00Z'),
+        status: 'active',
+        priority: 'medium',
+        isFlagged: false,
+        groupId: null,
+        recurrenceRule: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+    await bulkImportTimers(timers)
+    const all = await db.timers.toArray()
+    expect(all.some(t => t.title === 'Imported A')).toBe(true)
   })
 })
