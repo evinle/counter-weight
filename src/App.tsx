@@ -8,7 +8,8 @@ import { AnalyticsView } from "./components/AnalyticsView";
 import { SettingsView } from "./components/SettingsView";
 import { CreateEditView } from "./components/CreateEditView";
 import { BottomTabBar } from "./components/BottomTabBar";
-import { ToastNotification } from "./components/ToastNotification";
+import { ToastContainer } from "./components/ToastContainer";
+import { useToast } from "./hooks/useToast";
 import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
 
@@ -23,6 +24,7 @@ export function App() {
   const sync = useTimerStore((s) => s.sync);
   const firedTimer = useTimerStore((s) => s.firedTimer);
   const dismissFired = useTimerStore((s) => s.dismissFired);
+  const { show } = useToast();
 
   const activeTimers =
     useLiveQuery(
@@ -83,6 +85,12 @@ export function App() {
         updatedAt: new Date(),
       });
     }
+    show({
+      message: `${firedTimer.emoji ?? "⏰"} ${firedTimer.title}`,
+      ttl: 0,
+      position: "top",
+    });
+    dismissFired();
   }, [firedTimer]);
 
   const handleEdit = (timer: Timer) => {
@@ -118,9 +126,7 @@ export function App() {
 
   return (
     <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
-      {firedTimer && (
-        <ToastNotification timer={firedTimer} onDismiss={dismissFired} />
-      )}
+      <ToastContainer />
       {swDebug && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
           {swDebug}
