@@ -91,7 +91,7 @@ export function App() {
       position: "top",
     });
     dismissFired();
-  }, [firedTimer]);
+  }, [firedTimer, show, dismissFired]);
 
   const handleEdit = (timer: Timer) => {
     setEditTimer(timer);
