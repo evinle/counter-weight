@@ -8,7 +8,9 @@
       "Bash(npm run *)",
       "Bash(grep -E '\\\\.\\(ts|tsx|js|json|html|toml\\)$')",
       "Bash(grep -E '\\\\.\\(md|txt\\)$')",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git -C /home/rhkfu/projects/counter-weight-claude log --oneline -10)",
+      "Skill(superpowers:writing-plans)"
     ]
   }
 }
