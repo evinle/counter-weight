@@ -143,7 +143,7 @@ export function App() {
         </div>
       )}
 
-      <main className="h-full box-border py-2 pb-bottom-bar">
+      <main className="h-full box-border pt-safe-top pb-bottom-bar">
         {renderContent()}
       </main>
 
