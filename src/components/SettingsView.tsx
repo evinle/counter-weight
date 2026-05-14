@@ -11,13 +11,25 @@ export function SettingsView() {
   const allTimers = useLiveQuery(() => db.timers.toArray(), [], [])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  function handleExport() {
+  async function handleExport() {
     const json = exportTimers(allTimers ?? [])
     const date = new Date().toISOString().slice(0, 10)
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+    const filename = `counter-weight-${date}.json`
+    const file = new File([json], filename, { type: 'application/json' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] })
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          show({ message: 'Export failed', variant: 'error', ttl: 0 })
+        }
+      }
+      return
+    }
+    const url = URL.createObjectURL(file)
     const a = document.createElement('a')
     a.href = url
-    a.download = `counter-weight-${date}.json`
+    a.download = filename
     a.click()
     URL.revokeObjectURL(url)
   }
