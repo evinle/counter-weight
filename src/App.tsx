@@ -129,7 +129,7 @@ export function App() {
       {notifPermission === "default" && activeAction === ActiveAction.None && (
         <div
           className="fixed left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
-          style={{ bottom: "calc(var(--bottom-tab-bar-height) + 1rem)" }}
+          style={{ bottom: "calc(var(--spacing-bottom-bar-inset) + 1rem)" }}
         >
           <p className="text-sm text-slate-300">
             Enable notifications for timer alerts

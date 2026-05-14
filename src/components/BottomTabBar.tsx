@@ -44,8 +44,7 @@ export function BottomTabBar({ activeTab, onTabChange, onCreateNew }: Props) {
   return (
     <nav
       aria-label="Tab navigation"
-      className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-slate-900 border-t border-slate-700 flex items-center"
-      style={{ height: "var(--bottom-tab-bar-height)" }}
+      className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-slate-900 border-t border-slate-700 flex items-center h-bottom-bar-inset pb-safe-bottom"
     >
       {LEFT_TABS.map(({ tab, label, icon }) => (
         <TabButton
