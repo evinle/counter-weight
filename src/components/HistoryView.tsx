@@ -81,12 +81,16 @@ export function HistoryView() {
                   {STATUS_LABELS[status]}
                 </span>
               </div>
+
               <p className={`text-xs ${TIMING_COLORS[timing]}`}>
                 {formatAnnotation(text, timing)}
+                {extensionText && (
+                  <p className="text-xs text-slate-500 inline">
+                    {" "}
+                    {extensionText}
+                  </p>
+                )}
               </p>
-              {extensionText && (
-                <p className="text-xs text-slate-500">{extensionText}</p>
-              )}
             </div>
           );
         })}
