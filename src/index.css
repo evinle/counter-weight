@@ -19,7 +19,9 @@ html {
   --spacing-bottom-bar: 64px;
   --spacing-safe-top: env(safe-area-inset-top);
   --spacing-safe-bottom: env(safe-area-inset-bottom);
-  --spacing-bottom-bar-inset: calc(var(--bottom-tab-bar-height) + env(safe-area-inset-bottom));
+  --spacing-bottom-bar-inset: calc(
+    var(--bottom-tab-bar-height) + env(safe-area-inset-bottom)
+  );
 }
 
 @utility pb-tab-bar {

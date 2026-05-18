@@ -149,7 +149,7 @@ export function App() {
         </div>
       )}
 
-      <main className="h-full box-border pt-safe-top pb-bottom-bar">
+      <main className="h-full box-border pt-safe-top pb-tab-bar">
         {renderContent()}
       </main>
 
