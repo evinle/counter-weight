@@ -87,7 +87,6 @@ export function App() {
     }
     show({
       message: `${firedTimer.emoji ?? "⏰"} ${firedTimer.title}`,
-      ttl: 0,
       position: "top",
     });
     dismissFired();
@@ -125,10 +124,10 @@ export function App() {
   }
 
   return (
-    <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none">
+    <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
       <ToastContainer />
       {swDebug && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+        <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
           {swDebug}
         </div>
       )}
@@ -149,9 +148,7 @@ export function App() {
         </div>
       )}
 
-      <main className="h-full box-border pt-safe-top pb-tab-bar">
-        {renderContent()}
-      </main>
+      <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
 
       {activeAction === ActiveAction.None && (
         <BottomTabBar
