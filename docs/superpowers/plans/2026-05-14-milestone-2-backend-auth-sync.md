@@ -204,6 +204,7 @@ git commit -m "chore: initialise CDK infra package"
     "migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
     "@fastify/aws-lambda": "^4.0.0",
     "@fastify/cookie": "^11.0.0",
     "@fastify/cors": "^10.0.0",
@@ -440,6 +441,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2'
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations'
 import * as ec2 from 'aws-cdk-lib/aws-ec2'
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'
 import * as path from 'path'
 import { Construct } from 'constructs'
 import type { StorageStack } from './storage-stack'
@@ -498,6 +500,13 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
       },
     })
+
+    // Grant Auth Lambda SM read for Cognito client secret
+    const cognitoClientSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this, 'CognitoClientSecret',
+      this.node.getContext('cognitoClientSecretArn') as string,
+    )
+    cognitoClientSecret.grantRead(authLambda)
 
     // Grant API Lambda access to read the DB secret (for DATABASE_URL)
     storageStack.dbSecret.grantRead(apiLambda)
@@ -869,6 +878,7 @@ Expected: FAIL — `Cannot find module './routes.js'`
 - [ ] **Create `server/auth/routes.ts`**
 
 ```typescript
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -881,10 +891,24 @@ const COOKIE_OPTS = {
   maxAge: 30 * 24 * 60 * 60, // 30 days
 }
 
-function cognitoBasicAuth() {
-  return `Basic ${Buffer.from(
-    `${process.env.COGNITO_CLIENT_ID}:${process.env.COGNITO_CLIENT_SECRET}`,
-  ).toString('base64')}`
+// Cached at module level — fetched once per cold start.
+// Falls back to COGNITO_CLIENT_SECRET for local dev and tests.
+let cachedClientSecret: string | undefined
+async function getClientSecret(): Promise<string> {
+  if (cachedClientSecret) return cachedClientSecret
+  const raw = process.env.COGNITO_CLIENT_SECRET
+  if (raw) { cachedClientSecret = raw; return raw }
+  const sm = new SecretsManagerClient({})
+  const { SecretString } = await sm.send(
+    new GetSecretValueCommand({ SecretId: process.env.COGNITO_CLIENT_SECRET_ARN! }),
+  )
+  cachedClientSecret = SecretString!
+  return cachedClientSecret
+}
+
+async function cognitoBasicAuth(): Promise<string> {
+  const secret = await getClientSecret()
+  return `Basic ${Buffer.from(`${process.env.COGNITO_CLIENT_ID}:${secret}`).toString('base64')}`
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
@@ -904,7 +928,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: cognitoBasicAuth(),
+        Authorization: await cognitoBasicAuth(),
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
@@ -933,7 +957,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: cognitoBasicAuth(),
+        Authorization: await cognitoBasicAuth(),
       },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
@@ -1276,17 +1300,19 @@ describe('timers.upsert', () => {
     expect(insertMock).toHaveBeenCalledTimes(2) // timers + timer_events
   })
 
-  it('throws CONFLICT when client version does not match server version', async () => {
-    const existingRow = [{ version: 5 }]
-    const selectMock = vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(existingRow),
+  it('throws CONFLICT when version does not match (atomic UPDATE returns zero rows)', async () => {
+    // Atomic update: WHERE includes version, returns [] when version mismatches
+    const updateMock = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([]), // zero rows → CONFLICT
+        }),
       }),
     })
 
     const caller = createCaller({
       userId: 'u1',
-      db: { select: selectMock } as any,
+      db: { update: updateMock } as any,
     })
 
     await expect(
@@ -1296,14 +1322,16 @@ describe('timers.upsert', () => {
 })
 
 describe('timers.complete', () => {
-  it('throws CONFLICT when version mismatches', async () => {
-    const selectMock = vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([{ version: 2 }]),
+  it('throws CONFLICT when version mismatches (atomic UPDATE returns zero rows)', async () => {
+    const updateMock = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([]),
+        }),
       }),
     })
 
-    const caller = createCaller({ userId: 'u1', db: { select: selectMock } as any })
+    const caller = createCaller({ userId: 'u1', db: { update: updateMock } as any })
     await expect(
       caller.timers.complete({ serverId: 'srv-uuid', version: 1 }),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
@@ -1321,7 +1349,7 @@ cd server && npm test -- server/api/routers/timers.test.ts
 
 ```typescript
 import { z } from 'zod'
-import { and, eq, gt, ne } from 'drizzle-orm'
+import { and, eq, gt, ne, sql } from 'drizzle-orm'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../router.js'
 import { timers, timerEvents } from '../../db/schema.js'
@@ -1362,16 +1390,16 @@ export const timersRouter = router({
     .input(timerUpsertInput)
     .mutation(async ({ ctx, input }) => {
       if (input.serverId) {
-        // Update existing — check version for optimistic concurrency
-        const [existing] = await ctx.db
-          .select({ version: timers.version })
-          .from(timers)
-          .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
-
-        if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
-        if (input.version !== undefined && existing.version !== input.version) {
-          throw new TRPCError({ code: 'CONFLICT', message: 'Version mismatch' })
-        }
+        // Single atomic UPDATE: version check + increment in one query.
+        // If input.version is provided, WHERE clause includes it — zero rows → 409.
+        // No separate SELECT needed; this is safe under Lambda concurrency.
+        const whereClause = input.version !== undefined
+          ? and(
+              eq(timers.id, input.serverId),
+              eq(timers.userId, ctx.userId),
+              eq(timers.version, input.version),
+            )
+          : and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId))
 
         const [updated] = await ctx.db
           .update(timers)
@@ -1384,16 +1412,19 @@ export const timersRouter = router({
             priority: input.priority,
             isFlagged: input.isFlagged,
             recurrenceRule: input.recurrenceRule,
-            version: existing.version + 1,
+            version: sql`${timers.version} + 1`,
             updatedAt: new Date(),
           })
-          .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
+          .where(whereClause)
           .returning({ serverId: timers.id, version: timers.version })
 
+        if (!updated) throw new TRPCError({ code: 'CONFLICT', message: 'Version mismatch or not found' })
         return updated
       }
 
-      // Create new timer
+      // TODO(M3): when clientId is added to the client, add a dedup check here:
+      // SELECT WHERE userId = ctx.userId AND clientId = input.clientId LIMIT 1
+      // Return the existing record if found to make creation idempotent.
       const [created] = await ctx.db
         .insert(timers)
         .values({
@@ -1422,18 +1453,18 @@ export const timersRouter = router({
   complete: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const [existing] = await ctx.db
-        .select({ version: timers.version })
-        .from(timers)
-        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
-
-      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
-      if (existing.version !== input.version) throw new TRPCError({ code: 'CONFLICT' })
-
-      await ctx.db
+      // Atomic: version check in WHERE; zero rows → 409
+      const [updated] = await ctx.db
         .update(timers)
-        .set({ status: 'completed', version: existing.version + 1, updatedAt: new Date() })
-        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
+        .set({ status: 'completed', version: sql`${timers.version} + 1`, updatedAt: new Date() })
+        .where(and(
+          eq(timers.id, input.serverId),
+          eq(timers.userId, ctx.userId),
+          eq(timers.version, input.version),
+        ))
+        .returning({ id: timers.id })
+
+      if (!updated) throw new TRPCError({ code: 'CONFLICT' })
 
       await ctx.db.insert(timerEvents).values({
         timerId: input.serverId,
@@ -1447,18 +1478,18 @@ export const timersRouter = router({
   cancel: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const [existing] = await ctx.db
-        .select({ version: timers.version })
-        .from(timers)
-        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
-
-      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
-      if (existing.version !== input.version) throw new TRPCError({ code: 'CONFLICT' })
-
-      await ctx.db
+      // Atomic: version check in WHERE; zero rows → 409
+      const [updated] = await ctx.db
         .update(timers)
-        .set({ status: 'cancelled', version: existing.version + 1, updatedAt: new Date() })
-        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
+        .set({ status: 'cancelled', version: sql`${timers.version} + 1`, updatedAt: new Date() })
+        .where(and(
+          eq(timers.id, input.serverId),
+          eq(timers.userId, ctx.userId),
+          eq(timers.version, input.version),
+        ))
+        .returning({ id: timers.id })
+
+      if (!updated) throw new TRPCError({ code: 'CONFLICT' })
 
       await ctx.db.insert(timerEvents).values({
         timerId: input.serverId,
@@ -1573,6 +1604,8 @@ git commit -m "feat(server): add API Lambda handler with tRPC adapter"
 ## Phase 6: First Deploy [EXTERNAL + CODEBASE commands]
 
 **Deploy order is strict: migrations before Lambda code.**
+
+> **Runbook note:** `counter-weight-auth` is a globally unique Cognito domain prefix. If another account has already claimed it, `cdk deploy StorageStack` will fail with an opaque `ResourceInUse` or `InvalidParameterException` error. If this happens, change `cognitoDomainPrefix` in `storage-stack.ts` to a unique value (e.g. `counter-weight-auth-<your-aws-account-id>`) before redeploying.
 
 ### Task 6.1: Deploy StorageStack
 
@@ -1830,19 +1863,28 @@ export function setIdToken(token: string | null) {
   idToken = token
 }
 
-async function refreshAndRetry(url: RequestInfo, options: RequestInit): Promise<Response> {
+// Module-level singleton: if 10 tRPC calls all 401 simultaneously, they share
+// one refresh request instead of triggering 10 concurrent Cognito calls
+// (which would each get a rotated refresh token, invalidating all but the last).
+let refreshPromise: Promise<string | null> | null = null
+
+async function doRefresh(): Promise<string | null> {
   const refreshRes = await fetch('/auth/refresh', {
     method: 'POST',
     credentials: 'include',
   })
-
-  if (!refreshRes.ok) {
-    setIdToken(null)
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
+  if (!refreshRes.ok) { setIdToken(null); return null }
   const { idToken: newToken } = (await refreshRes.json()) as { idToken: string }
   setIdToken(newToken)
+  return newToken
+}
+
+async function refreshAndRetry(url: RequestInfo, options: RequestInit): Promise<Response> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => { refreshPromise = null })
+  }
+  const newToken = await refreshPromise
+  if (!newToken) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
 
   const headers = new Headers(options.headers)
   headers.set('Authorization', `Bearer ${newToken}`)
@@ -2202,12 +2244,22 @@ if (state === 'unauthenticated') {
 }
 ```
 
-Also: after login is confirmed, call `auth.bootstrap`:
+Also: after login is confirmed, call `auth.bootstrap`. The `users` row must exist before any timer mutation (FK constraint), so log and retry once on failure:
 
 ```tsx
 useEffect(() => {
   if (state !== 'authenticated' || !user) return
-  trpc.auth.bootstrap.mutate({ email: user.email })
+
+  function bootstrap(attempt = 0) {
+    trpc.auth.bootstrap
+      .mutate({ email: user!.email })
+      .catch((err) => {
+        console.error('[bootstrap] failed:', err)
+        if (attempt < 1) setTimeout(() => bootstrap(attempt + 1), 2000)
+      })
+  }
+
+  bootstrap()
 }, [state, user?.userId])
 ```
 
@@ -2381,12 +2433,16 @@ npx vitest run src/test/useSyncEngine.test.ts
 - [ ] **Create `src/hooks/useSyncEngine.ts`**
 
 ```typescript
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { db } from '../db'
 import { trpc } from '../lib/trpc'
 import type { AuthUser } from './useAuth'
 
 const LAST_SYNCED_KEY = 'cw:lastSyncedAt'
+
+// Module-level lock: survives user changes (logout → login) within the same tab.
+// useRef would reset on unmount/remount, allowing overlapping sync runs.
+let syncRunning = false
 
 type ServerTimer = Awaited<ReturnType<typeof trpc.timers.list.query>>[number]
 
@@ -2411,8 +2467,6 @@ function mapServerTimer(s: ServerTimer) {
 }
 
 export function useSyncEngine({ user }: { user: AuthUser | null }) {
-  const runningRef = useRef(false)
-
   useEffect(() => {
     if (!user) return
 
@@ -2499,13 +2553,13 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
     }
 
     async function sync() {
-      if (runningRef.current) return
-      runningRef.current = true
+      if (syncRunning) return
+      syncRunning = true
       try {
         await drainPending()
         await reconcile()
       } finally {
-        runningRef.current = false
+        syncRunning = false
       }
     }
 
@@ -2640,6 +2694,10 @@ export async function createTimer(
   })
 
   if (userId && id !== undefined) {
+    // TODO(M3): generate a clientId UUID before this write and send it with the upsert
+    // so the server can deduplicate if the app crashes between server create and the
+    // Dexie update below. Without it, drainPending re-sends serverId:null and creates
+    // a duplicate. Low frequency but worth fixing when adding M3 server events.
     // Concurrent server sync — don't block the UI
     trpc.timers.upsert
       .mutate({
@@ -2678,6 +2736,10 @@ export async function completeTimer(id: number): Promise<void> {
       .mutate({ serverId: timer.serverId, version: timer.version })
       .then(() => db.timers.update(id, { syncStatus: 'synced' }))
       .catch(() => db.timers.update(id, { syncStatus: 'pending' }))
+  } else {
+    // Timer is offline-created (no serverId) or partially synced — mark pending
+    // so drainPending will upsert the final status to the server once it syncs.
+    await db.timers.update(id, { syncStatus: 'pending' })
   }
 }
 
@@ -2690,6 +2752,8 @@ export async function cancelTimer(id: number): Promise<void> {
       .mutate({ serverId: timer.serverId, version: timer.version })
       .then(() => db.timers.update(id, { syncStatus: 'synced' }))
       .catch(() => db.timers.update(id, { syncStatus: 'pending' }))
+  } else {
+    await db.timers.update(id, { syncStatus: 'pending' })
   }
 }
 

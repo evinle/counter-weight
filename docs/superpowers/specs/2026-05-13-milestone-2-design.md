@@ -85,16 +85,15 @@ Auth Lambda needs internet to call Cognito's `/oauth2/token` endpoint — it is 
 
 ### Dexie additions (M2, version 3 migration)
 
-Four new fields on the existing `Timer` interface:
+Three new fields on the existing `Timer` interface:
 
 | Field | Type | Notes |
 |---|---|---|
 | serverId | `string \| null` | UUID assigned by server after first sync |
 | userId | `string \| null` | Cognito sub; null until logged in |
 | syncStatus | `'pending' \| 'synced' \| 'conflict'` | Tracks whether local changes have reached server |
-| lastSyncedAt | `Date \| null` | Timestamp of last successful sync; used to bound `timers.reconcile` calls |
 
-Migration sets `syncStatus: 'synced'`, `serverId: null`, `userId: null`, `lastSyncedAt: null` on all existing records.
+Migration sets `syncStatus: 'synced'`, `serverId: null`, `userId: null` on all existing records. The global sync watermark is stored in `localStorage` under `cw:lastSyncedAt` rather than as a per-timer field.
 
 ### Server schema (Drizzle, M2 subset)
 
