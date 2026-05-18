@@ -37,6 +37,7 @@ export class AppStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(10),
+      projectRoot: path.join(__dirname, '../..'),
       environment: {
         COGNITO_DOMAIN: cognitoDomain,
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
@@ -55,6 +56,7 @@ export class AppStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(10),
+      projectRoot: path.join(__dirname, '../..'),
       vpc: storageStack.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [apiLambdaSg],
