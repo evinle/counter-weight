@@ -28,3 +28,6 @@ dist-ssr
 
 # mkcert local certs
 *.pem
+
+# CDK
+infra/cdk.out/
