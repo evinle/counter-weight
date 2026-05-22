@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import { authRoutes } from './routes.js'
+import { mockEnv } from '../test/envHelpers.js'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -15,11 +16,7 @@ function makeApp() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  process.env.COGNITO_DOMAIN = 'https://test.auth.us-east-1.amazoncognito.com'
-  process.env.COGNITO_CLIENT_ID = 'client-id'
-  process.env.COGNITO_CLIENT_SECRET = 'client-secret'
-  process.env.AUTH_CALLBACK_URL_PROD = 'https://counter-weight.app/auth/callback'
-  process.env.AUTH_CALLBACK_URL_LOCAL = 'http://localhost:5174/auth/callback'
+  mockEnv()
 })
 
 describe('POST /auth/callback', () => {
