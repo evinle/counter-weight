@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../router.js'
 import { timers, timerEvents } from '../../db/schema.js'
 
-const timerUpsertInput = z.object({
+export const timerUpsertInput = z.object({
   serverId: z.string().uuid().nullable(),
   title: z.string().min(1),
   description: z.string().nullable(),
