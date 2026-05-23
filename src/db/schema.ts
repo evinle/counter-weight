@@ -24,7 +24,15 @@ export interface Timer {
   recurrenceRule: { cron: string; tz: string } | null
   createdAt: Date
   updatedAt: Date
+  // M2 sync fields
+  serverId: string | null
+  userId: string | null
+  syncStatus: SyncStatus
+  version: number | null
 }
+
+export const SYNC_STATUSES = ['pending', 'synced'] as const
+export type SyncStatus = typeof SYNC_STATUSES[number]
 
 export const HISTORY_STATUSES = ['completed', 'missed', 'cancelled'] as const satisfies ReadonlyArray<TimerStatus>
 export type HistoryStatus = typeof HISTORY_STATUSES[number]

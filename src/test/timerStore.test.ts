@@ -18,6 +18,10 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     recurrenceRule: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    serverId: null,
+    userId: null,
+    syncStatus: 'synced',
+    version: null,
     ...overrides,
   };
 }

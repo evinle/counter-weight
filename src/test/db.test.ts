@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
+import type { Timer } from '../db/schema'
 
 describe('db', () => {
   beforeEach(async () => {
@@ -20,6 +21,10 @@ describe('db', () => {
       recurrenceRule: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      serverId: null,
+      userId: null,
+      syncStatus: 'synced',
+      version: null,
     })
 
     const timer = await db.timers.get(id)
@@ -41,6 +46,10 @@ describe('db', () => {
       recurrenceRule: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      serverId: null,
+      userId: null,
+      syncStatus: 'synced',
+      version: null,
     })
 
     await db.timers.update(id, { status: 'completed' })
@@ -65,7 +74,11 @@ describe('history query', () => {
       originalTargetDatetime: new Date('2026-01-01'),
       createdAt: new Date(),
       updatedAt: new Date(),
-    }
+      serverId: null,
+      userId: null,
+      syncStatus: 'synced',
+      version: null,
+    } satisfies Partial<Timer>
 
     await db.timers.add({ ...base, title: 'Active', targetDatetime: new Date('2026-03-01'), status: 'active' })
     await db.timers.add({ ...base, title: 'Completed', targetDatetime: new Date('2026-01-01'), status: 'completed' })

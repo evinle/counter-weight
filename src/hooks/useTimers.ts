@@ -47,7 +47,7 @@ export function useHistoryTimers(): Timer[] {
 }
 
 export async function createTimer(
-  data: Omit<Timer, "id" | "createdAt" | "updatedAt" | "originalTargetDatetime">,
+  data: Omit<Timer, "id" | "createdAt" | "updatedAt" | "originalTargetDatetime" | "serverId" | "userId" | "syncStatus" | "version">,
 ): Promise<number | undefined> {
   const now = new Date();
   return db.timers.add({
@@ -55,6 +55,10 @@ export async function createTimer(
     originalTargetDatetime: data.targetDatetime,
     createdAt: now,
     updatedAt: now,
+    serverId: null,
+    userId: null,
+    syncStatus: 'synced',
+    version: null,
   });
 }
 

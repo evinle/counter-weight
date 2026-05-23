@@ -13,6 +13,10 @@ const BASE = {
   isFlagged: false,
   groupId: null,
   recurrenceRule: null,
+  serverId: null,
+  userId: null,
+  syncStatus: 'synced',
+  version: null,
 }
 
 beforeEach(async () => {
@@ -91,6 +95,10 @@ describe('bulkImportTimers', () => {
         recurrenceRule: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        serverId: null,
+        userId: null,
+        syncStatus: 'synced',
+        version: null,
       },
     ]
     await bulkImportTimers(timers)
