@@ -26,6 +26,13 @@ class CounterWeightDB extends Dexie {
         timer.version = timer.version ?? null
       })
     )
+
+    this.timers.hook('creating', (_primKey, obj) => {
+      if (obj.serverId === undefined) obj.serverId = null
+      if (obj.userId === undefined) obj.userId = null
+      if (obj.syncStatus === undefined) obj.syncStatus = 'synced'
+      if (obj.version === undefined) obj.version = null
+    })
   }
 }
 

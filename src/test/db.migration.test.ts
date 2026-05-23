@@ -2,9 +2,7 @@ import 'fake-indexeddb/auto'
 import { db } from '../db'
 
 describe('Dexie v3 migration', () => {
-  it('existing timers get M2 default fields after migration', async () => {
-    // Simulate a pre-migration record by writing a raw object
-    // (version 3 migration runs automatically on db open in fake-indexeddb)
+  it('upgrade function backfills M2 defaults on pre-migration records', async () => {
     const id = await db.timers.add({
       title: 'Pre-migration timer',
       description: null,
@@ -18,11 +16,7 @@ describe('Dexie v3 migration', () => {
       recurrenceRule: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-      // M2 fields come from migration defaults
-      serverId: null,
-      userId: null,
-      syncStatus: 'synced',
-      version: null,
+      // No M2 fields — simulates a pre-v3 record
     } as any)
 
     const timer = await db.timers.get(id)

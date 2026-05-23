@@ -8,16 +8,12 @@ const BASE = {
   description: null,
   emoji: null,
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
-  status: 'active' as const,
-  priority: 'medium' as const,
+  status: 'active',
+  priority: 'medium',
   isFlagged: false,
   groupId: null,
   recurrenceRule: null,
-  serverId: null,
-  userId: null,
-  syncStatus: 'synced',
-  version: null,
-}
+} satisfies Omit<Timer, 'id' | 'createdAt' | 'updatedAt' | 'originalTargetDatetime' | 'serverId' | 'userId' | 'syncStatus' | 'version'>
 
 beforeEach(async () => {
   await db.timers.clear()

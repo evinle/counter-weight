@@ -24,7 +24,6 @@ export interface Timer {
   recurrenceRule: { cron: string; tz: string } | null
   createdAt: Date
   updatedAt: Date
-  // M2 sync fields
   serverId: string | null
   userId: string | null
   syncStatus: SyncStatus
