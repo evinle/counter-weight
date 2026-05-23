@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { migrateV1toV2, migrateV2toV3 } from '../db/migrations'
-import type { TimerV1 } from '../db/schema'
+import type { TimerV1, TimerV2 } from '../db/schema'
 
 const V1_FIXTURE = {
   title: 'Test',
@@ -34,7 +34,7 @@ describe('migrateV2toV3', () => {
   const V2_FIXTURE = {
     ...V1_FIXTURE,
     originalTargetDatetime: V1_FIXTURE.targetDatetime,
-  }
+  } satisfies TimerV2
 
   it('sets serverId to null', () => {
     expect(migrateV2toV3(V2_FIXTURE).serverId).toBeNull()
