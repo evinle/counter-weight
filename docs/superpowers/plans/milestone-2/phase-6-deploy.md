@@ -10,10 +10,10 @@
 - Deploy scripts in `infra/package.json`: `npm run deploy:storage`, `npm run deploy:app`
 - `cognitoDomainPrefix` in StorageStack is `'counter-weight-auth'` — globally unique, change if already taken
 
-**From Phase 4 + 5 (Lambda handlers):**
+**From Phase 4 + 5.1 (Lambda handlers + public RDS):**
 - `server/auth/index.ts` — Auth Lambda handler (bundled by AppStack at deploy)
 - `server/api/index.ts` — API Lambda handler (bundled by AppStack at deploy)
-- Migration: `cd server && npm run migrate` — requires `DATABASE_URL` env var pointing to RDS via proxy
+- Migration: `cd server && npm run migrate` — requires `DATABASE_URL` env var pointing directly to the public RDS endpoint (`DbInstanceEndpoint` from StorageStack outputs)
 
 **From Phase 0 (prerequisites):** AWS CLI configured, CDK bootstrapped, Google OAuth client ID and secret noted.
 
@@ -34,7 +34,7 @@ cd infra && npm run deploy:storage
 Expected output: `StorageStack` successfully deployed. Note the outputs:
 - `UserPoolId`
 - `UserPoolClientId`
-- `DbProxyEndpoint`
+- `DbInstanceEndpoint`
 
 ---
 
@@ -69,14 +69,28 @@ aws secretsmanager create-secret \
   --secret-string "<secret from above>"
 ```
 
-- [ ] **Start a bastion or use VPC endpoints** to run migrations. Since RDS is in a private subnet with no public access, use AWS Cloud9, a Lambda invocation, or an SSM port-forward to reach it.
+- [ ] **Run migrations directly from your local machine** (RDS is publicly accessible since Phase 5.1 — no bastion or VPC tunnel needed)
 
-  Simplest approach — SSM port-forward via a temporary EC2 in the VPC:
+  Fetch the DB secret ARN (the secret is auto-created by CDK alongside the RDS instance):
 
 ```bash
-# Or use the RDS Data API if you prefer a serverless alternative
-DATABASE_URL=postgresql://postgres:<password>@<DbProxyEndpoint>:5432/postgres \
-  cd server && npm run migrate
+DB_SECRET_ARN=$(aws secretsmanager list-secrets \
+  --query "SecretList[?starts_with(Name, 'StorageStack/Db/')].ARN | [0]" \
+  --output text)
+```
+
+  Fetch the DB password from that secret:
+
+```bash
+DB_PASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id $DB_SECRET_ARN \
+  --query 'SecretString' --output text | jq -r '.password')
+```
+
+  Then run migrations:
+
+```bash
+cd server && DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@<DbInstanceEndpoint>:5432/postgres npm run migrate
 ```
 
 - [ ] **Verify migration ran**
@@ -85,6 +99,8 @@ DATABASE_URL=postgresql://postgres:<password>@<DbProxyEndpoint>:5432/postgres \
 # Should show tables: users, timers, timer_events
 psql $DATABASE_URL -c "\dt"
 ```
+
+> **Future:** If you want migrations to run automatically on every deploy, replace this manual step with a CDK custom resource — a Lambda-backed `CustomResource` that runs `drizzle-kit migrate` as part of `cdk deploy AppStack`. That would eliminate this manual step but adds a migration Lambda and IAM wiring to the CDK stack.
 
 ---
 
