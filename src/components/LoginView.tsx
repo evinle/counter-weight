@@ -1,8 +1,9 @@
 interface LoginViewProps {
   onLogin: () => void
+  onContinueAsGuest: () => void
 }
 
-export function LoginView({ onLogin }: LoginViewProps) {
+export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-8 px-8">
       <div className="text-center">
@@ -34,6 +35,13 @@ export function LoginView({ onLogin }: LoginViewProps) {
             />
           </svg>
           Sign in with Google
+        </button>
+
+        <button
+          onClick={onContinueAsGuest}
+          className="w-full text-slate-400 text-sm py-2 active:opacity-70 transition-opacity cursor-pointer"
+        >
+          Continue without signing in
         </button>
       </div>
 

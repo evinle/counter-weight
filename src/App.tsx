@@ -27,7 +27,7 @@ export function App() {
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
-  const { state, user, login } = useAuth();
+  const { state, user, login, continueAsGuest } = useAuth();
 
   // Handle Cognito auth callback
   useEffect(() => {
@@ -165,7 +165,7 @@ export function App() {
     }
 
     if (state === "unauthenticated") {
-      return <LoginView onLogin={login} />;
+      return <LoginView onLogin={login} onContinueAsGuest={continueAsGuest} />;
     }
 
     if (activeAction === ActiveAction.CreateEdit) {
@@ -211,7 +211,7 @@ export function App() {
 
       <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
 
-      {activeAction === ActiveAction.None && state === "authenticated" && (
+      {activeAction === ActiveAction.None && (state === "authenticated" || state === "guest") && (
         <BottomTabBar
           activeTab={tab}
           onTabChange={setTab}

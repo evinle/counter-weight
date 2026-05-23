@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { setIdToken } from '../lib/trpc'
 
-export type AuthState = 'loading' | 'unauthenticated' | 'authenticated'
+export type AuthState = 'loading' | 'unauthenticated' | 'authenticated' | 'guest'
 
 export interface AuthUser {
   userId: string
@@ -13,6 +13,7 @@ export interface UseAuth {
   user: AuthUser | null
   login: () => void
   logout: () => Promise<void>
+  continueAsGuest: () => void
 }
 
 function parseJwt(token: string): AuthUser | null {
@@ -66,13 +67,19 @@ export function useAuth(): UseAuth {
     window.location.href = `${import.meta.env.VITE_COGNITO_DOMAIN}/oauth2/authorize?${params}`
   }
 
+  function continueAsGuest() {
+    setState('guest')
+  }
+
   async function logout() {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+    if (state !== 'guest') {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+    }
     setIdToken(null)
     setUser(null)
     setState('unauthenticated')
     localStorage.removeItem('cw:lastSyncedAt')
   }
 
-  return { state, user, login, logout }
+  return { state, user, login, logout, continueAsGuest }
 }
