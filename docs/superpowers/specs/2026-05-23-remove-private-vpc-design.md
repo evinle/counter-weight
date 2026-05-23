@@ -78,6 +78,39 @@ dbSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(5432), 'Postgres public acc
 
 **Auth Lambda:** No changes — was already outside the VPC.
 
+**API Gateway throttling:** Add stage-level rate and burst limits to reject excess requests before Lambda is invoked:
+
+```typescript
+const api = new apigateway.HttpApi(this, 'Api', {
+  ...
+  defaultRouteSettings: {
+    throttlingBurstLimit: 100,
+    throttlingRateLimit: 50,
+  },
+})
+```
+
+**JWT authorizer on `/trpc/*`:** Add a Cognito JWT authorizer so unauthenticated requests are rejected at the gateway without invoking Lambda:
+
+```typescript
+import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers'
+
+const jwtAuthorizer = new HttpJwtAuthorizer('CognitoAuthorizer', cognitoDomain + '/.well-known/jwks.json', {
+  jwtAudience: [storageStack.userPoolClient.userPoolClientId],
+})
+```
+
+Apply `authorizer: jwtAuthorizer` to the `/trpc/{proxy+}` route only. Auth routes (`/auth/{proxy+}`) stay without an authorizer — they are the login endpoints.
+
+**Lambda reserved concurrency:** Cap concurrent executions on both Lambdas to limit blast radius under a flood:
+
+```typescript
+// On both authLambda and apiLambda:
+reservedConcurrentExecutions: 10
+```
+
+10 concurrent executions is well above what a personal app needs and prevents runaway scaling under attack.
+
 ### `server/env.ts`
 
 Rename `DB_PROXY_ENDPOINT` → `DB_ENDPOINT` in the Zod schema.
@@ -94,6 +127,9 @@ Update connection URL: `env.DB_PROXY_ENDPOINT` → `env.DB_ENDPOINT`.
 | Transport | `sslmode=require` in connection string + `rds.force_ssl = 1` in parameter group |
 | Authentication | 32-char random password in Secrets Manager |
 | Authorization | Dedicated limited-privilege app DB user (post-deploy manual step — see below) |
+| API rate limiting | API Gateway stage throttling: 50 RPS steady, 100 burst — 429 before Lambda invoked |
+| Auth enforcement | JWT authorizer on `/trpc/*` — unauthenticated requests rejected at gateway |
+| Concurrency cap | Lambda reserved concurrency: 10 per function — limits scaling under flood |
 | DDoS | AWS Shield Standard (always active, free) covers network/transport layer floods |
 
 ## Post-Deploy Manual Step
