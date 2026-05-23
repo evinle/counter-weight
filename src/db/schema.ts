@@ -10,13 +10,12 @@ export function isPriority(v: string): v is Priority {
   return (PRIORITIES as readonly string[]).includes(v)
 }
 
-export interface Timer {
+export interface TimerV1 {
   id?: number
   title: string
   description: string | null
   emoji: string | null
   targetDatetime: Date
-  originalTargetDatetime: Date
   status: TimerStatus
   priority: Priority
   isFlagged: boolean
@@ -24,11 +23,20 @@ export interface Timer {
   recurrenceRule: { cron: string; tz: string } | null
   createdAt: Date
   updatedAt: Date
+}
+
+export interface TimerV2 extends TimerV1 {
+  originalTargetDatetime: Date
+}
+
+export interface TimerV3 extends TimerV2 {
   serverId: string | null
   userId: string | null
   syncStatus: SyncStatus
   version: number | null
 }
+
+export type Timer = TimerV3
 
 export const SYNC_STATUSES = ['pending', 'synced'] as const
 export type SyncStatus = typeof SYNC_STATUSES[number]
