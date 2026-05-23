@@ -6,7 +6,7 @@ const envSchema = z.object({
   COGNITO_CLIENT_ID: z.string().min(1),
   COGNITO_DOMAIN: z.string().url(),
   DB_SECRET_ARN: z.string().startsWith('arn:'),
-  DB_PROXY_ENDPOINT: z.string().min(1),
+  DB_ENDPOINT: z.string().min(1),
 
   // Supplied manually via `cdk deploy --context` (see infra/lib/app-stack.ts)
   COGNITO_CLIENT_SECRET_ARN: z.string().startsWith('arn:'),
