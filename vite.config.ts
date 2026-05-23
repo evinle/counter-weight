@@ -37,6 +37,10 @@ export default defineConfig({
       key: './localhost+2-key.pem',
       cert: './localhost+2.pem',
     },
+    proxy: process.env.API_URL ? {
+      '/auth': { target: process.env.API_URL, changeOrigin: true },
+      '/trpc': { target: process.env.API_URL, changeOrigin: true },
+    } : undefined,
   },
   preview: {
     host: true,
