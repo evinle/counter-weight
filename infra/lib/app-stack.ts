@@ -79,7 +79,7 @@ export class AppStack extends cdk.Stack {
     // JWT authorizer — validates Cognito id tokens on /trpc/* routes at gateway level
     const jwtAuthorizer = new HttpJwtAuthorizer(
       'CognitoAuthorizer',
-      cognitoDomain + '/.well-known/jwks.json',
+      `https://cognito-idp.${region}.amazonaws.com/${storageStack.userPool.userPoolId}`,
       {
         jwtAudience: [storageStack.userPoolClient.userPoolClientId],
       },
