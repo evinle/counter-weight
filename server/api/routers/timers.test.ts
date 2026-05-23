@@ -91,3 +91,20 @@ describe('timers.complete', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 })
+
+describe('timers.cancel', () => {
+  it('throws CONFLICT when version mismatches (atomic UPDATE returns zero rows)', async () => {
+    const update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    }) satisfies Partial<Db['update']>
+
+    const caller = createCaller(makeCtx('u1', { update }))
+    await expect(
+      caller.timers.cancel({ serverId: '00000000-0000-0000-0000-000000000003', version: 1 }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+})

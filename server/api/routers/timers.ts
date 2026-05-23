@@ -61,6 +61,7 @@ export const timersRouter = router({
             recurrenceRule: input.recurrenceRule,
             version: sql`${timers.version} + 1`,
             updatedAt: new Date(),
+            // originalTargetDatetime intentionally omitted — immutable after creation
           })
           .where(whereClause)
           .returning({ serverId: timers.id, version: timers.version })
@@ -155,6 +156,7 @@ export const timersRouter = router({
       const conditions = [eq(timers.userId, ctx.userId)]
       if (input.since) conditions.push(gt(timers.updatedAt, new Date(input.since)))
 
+      // Cancelled timers are intentionally included — clients need them to tombstone local copies
       const serverRecords = await ctx.db
         .select()
         .from(timers)
