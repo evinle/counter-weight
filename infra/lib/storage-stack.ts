@@ -6,8 +6,7 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
 export class StorageStack extends cdk.Stack {
-  public readonly vpc: ec2.Vpc;
-  public readonly dbProxy: rds.DatabaseProxy;
+  public readonly dbInstanceEndpoint: string;
   public readonly dbSecret: secretsmanager.ISecret;
   public readonly userPool: cognito.UserPool;
   public readonly userPoolClient: cognito.UserPoolClient;
@@ -16,28 +15,34 @@ export class StorageStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // VPC: private subnets only, no NAT
-    this.vpc = new ec2.Vpc(this, "Vpc", {
+    // Minimal public VPC — no NAT, no private subnets, no VPC endpoints
+    const vpc = new ec2.Vpc(this, "Vpc", {
       maxAzs: 2,
       natGateways: 0,
       subnetConfiguration: [
-        {
-          name: "private",
-          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-          cidrMask: 24,
-        },
+        { name: "public", subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
       ],
     });
 
-    // Cognito VPC Interface Endpoint — allows API Lambda to re-fetch JWKS
-    // on key rotation without needing a NAT gateway. Private DNS resolves
-    // cognito-idp.<region>.amazonaws.com to the private endpoint automatically.
-    this.vpc.addInterfaceEndpoint("CognitoEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.COGNITO_IDP,
-      privateDnsEnabled: true,
+    // Security group: allow port 5432 from anywhere; SSL enforced at parameter group level
+    const dbSg = new ec2.SecurityGroup(this, "DbSg", {
+      vpc,
+      description: "RDS public access",
+    });
+    dbSg.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(5432),
+      "Postgres public access",
+    );
+
+    // Parameter group: enforce SSL at the database level, rejecting unencrypted connections
+    const dbParamGroup = new rds.ParameterGroup(this, "DbParamGroup", {
+      engine: rds.DatabaseInstanceEngine.postgres({
+        version: rds.PostgresEngineVersion.VER_16,
+      }),
+      parameters: { "rds.force_ssl": "1" },
     });
 
-    // RDS PostgreSQL
     const dbInstance = new rds.DatabaseInstance(this, "Db", {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
@@ -46,23 +51,18 @@ export class StorageStack extends cdk.Stack {
         ec2.InstanceClass.T4G,
         ec2.InstanceSize.MICRO,
       ),
-      vpc: this.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      securityGroups: [dbSg],
+      parameterGroup: dbParamGroup,
+      publiclyAccessible: true,
       multiAz: false,
       storageEncrypted: true,
       deletionProtection: this.node.tryGetContext("env") === "prod",
     });
 
     this.dbSecret = dbInstance.secret!;
-
-    // RDS Proxy — pools connections, prevents Lambda connection exhaustion
-    this.dbProxy = new rds.DatabaseProxy(this, "DbProxy", {
-      proxyTarget: rds.ProxyTarget.fromInstance(dbInstance),
-      secrets: [dbInstance.secret!],
-      vpc: this.vpc,
-      dbProxyName: "counter-weight-proxy",
-      requireTLS: true,
-    });
+    this.dbInstanceEndpoint = dbInstance.dbInstanceEndpointAddress;
 
     // Cognito User Pool
     this.cognitoDomainPrefix = "counter-weight-auth";
@@ -101,8 +101,8 @@ export class StorageStack extends cdk.Stack {
     new cdk.CfnOutput(this, "UserPoolClientId", {
       value: this.userPoolClient.userPoolClientId,
     });
-    new cdk.CfnOutput(this, "DbProxyEndpoint", {
-      value: this.dbProxy.endpoint,
+    new cdk.CfnOutput(this, "DbInstanceEndpoint", {
+      value: this.dbInstanceEndpoint,
     });
   }
 }
