@@ -3,7 +3,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda'
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2'
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations'
-import * as ec2 from 'aws-cdk-lib/aws-ec2'
+import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers'
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'
 import * as path from 'path'
 import { Construct } from 'constructs'
@@ -23,14 +23,6 @@ export class AppStack extends cdk.Stack {
     const cognitoDomain =
       `https://${storageStack.cognitoDomainPrefix}.auth.${region}.amazoncognito.com`
 
-    // Security group for API Lambda — allows outbound HTTPS to Cognito VPC endpoint
-    const apiLambdaSg = new ec2.SecurityGroup(this, 'ApiLambdaSg', {
-      vpc: storageStack.vpc,
-      allowAllOutbound: false,
-    })
-    apiLambdaSg.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS out')
-    apiLambdaSg.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(5432), 'Postgres out')
-
     // cognitoClientSecretArn is not available until after StorageStack is deployed and
     // the secret is created manually (Task 6.2). Use tryGetContext so bootstrap and
     // StorageStack-only deploys don't fail. AppStack deploy requires it explicitly:
@@ -43,6 +35,7 @@ export class AppStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(10),
+      reservedConcurrentExecutions: 10,
       projectRoot: path.join(__dirname, '../..'),
       environment: {
         COGNITO_DOMAIN: cognitoDomain,
@@ -53,16 +46,14 @@ export class AppStack extends cdk.Stack {
       },
     })
 
-    // API Lambda — inside VPC, reaches RDS via Proxy, reaches Cognito via VPC endpoint
+    // API Lambda — outside VPC, connects to RDS and Cognito over internet
     const apiLambda = new NodejsFunction(this, 'ApiLambda', {
       entry: path.join(__dirname, '../../server/api/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(10),
+      reservedConcurrentExecutions: 10,
       projectRoot: path.join(__dirname, '../..'),
-      vpc: storageStack.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [apiLambdaSg],
       environment: {
         COGNITO_USER_POOL_ID: storageStack.userPool.userPoolId,
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
@@ -80,13 +71,21 @@ export class AppStack extends cdk.Stack {
 
     // Grant API Lambda access to read the DB secret (for DATABASE_URL)
     storageStack.dbSecret.grantRead(apiLambda)
-    storageStack.dbProxy.grantConnect(apiLambda, 'postgres')
 
-    // Inject DATABASE_URL from proxy endpoint (read secret at Lambda init)
-    apiLambda.addEnvironment('DB_PROXY_ENDPOINT', storageStack.dbProxy.endpoint)
+    // Inject DB endpoint (Lambda reads credentials from Secrets Manager at init)
+    apiLambda.addEnvironment('DB_ENDPOINT', storageStack.dbInstanceEndpoint)
     apiLambda.addEnvironment('DB_SECRET_ARN', storageStack.dbSecret.secretArn)
 
-    // API Gateway HTTP API
+    // JWT authorizer — validates Cognito id tokens on /trpc/* routes at gateway level
+    const jwtAuthorizer = new HttpJwtAuthorizer(
+      'CognitoAuthorizer',
+      cognitoDomain + '/.well-known/jwks.json',
+      {
+        jwtAudience: [storageStack.userPoolClient.userPoolClientId],
+      },
+    )
+
+    // API Gateway HTTP API with stage-level throttling (50 RPS / 100 burst)
     const api = new apigateway.HttpApi(this, 'Api', {
       apiName: 'counter-weight-api',
       corsPreflight: {
@@ -97,16 +96,28 @@ export class AppStack extends cdk.Stack {
       },
     })
 
+    // Apply throttling to the default stage via the L1 escape hatch
+    const defaultStage = api.defaultStage?.node.defaultChild as apigateway.CfnStage | undefined
+    if (defaultStage) {
+      defaultStage.defaultRouteSettings = {
+        throttlingBurstLimit: 100,
+        throttlingRateLimit: 50,
+      }
+    }
+
+    // Auth routes — no authorizer (these are the login/callback endpoints)
     api.addRoutes({
       path: '/auth/{proxy+}',
       methods: [apigateway.HttpMethod.ANY],
       integration: new HttpLambdaIntegration('AuthIntegration', authLambda),
     })
 
+    // tRPC routes — JWT authorizer rejects unauthenticated requests before Lambda is invoked
     api.addRoutes({
       path: '/trpc/{proxy+}',
       methods: [apigateway.HttpMethod.ANY],
       integration: new HttpLambdaIntegration('ApiIntegration', apiLambda),
+      authorizer: jwtAuthorizer,
     })
 
     new cdk.CfnOutput(this, 'ApiUrl', { value: api.apiEndpoint })
