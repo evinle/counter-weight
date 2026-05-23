@@ -32,7 +32,8 @@ async function getClientSecret(): Promise<string> {
       SecretId: getTypedEnv().COGNITO_CLIENT_SECRET_ARN,
     }),
   );
-  if (!SecretString) throw new Error("Cognito client secret is not a string secret");
+  if (!SecretString)
+    throw new Error("Cognito client secret is not a string secret");
   cachedClientSecret = SecretString;
   return cachedClientSecret;
 }
@@ -50,25 +51,28 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const { code, origin } = parsed.data;
     const ALLOWED_ORIGINS: Record<string, string> = {
-      "http://localhost:5174": getTypedEnv().AUTH_CALLBACK_URL_LOCAL,
+      "https://localhost:5174": getTypedEnv().AUTH_CALLBACK_URL_LOCAL,
       "https://counter-weight.app": getTypedEnv().AUTH_CALLBACK_URL_PROD,
     };
     const redirectUri = ALLOWED_ORIGINS[origin];
     if (!redirectUri)
       return reply.status(400).send({ error: "Invalid origin" });
 
-    const tokenRes = await fetch(`${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: await cognitoBasicAuth(),
+    const tokenRes = await fetch(
+      `${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: await cognitoBasicAuth(),
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: redirectUri,
+        }),
       },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirectUri,
-      }),
-    });
+    );
 
     if (!tokenRes.ok)
       return reply.status(400).send({ error: "Token exchange failed" });
@@ -88,17 +92,20 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!refreshToken)
       return reply.status(401).send({ error: "No refresh token" });
 
-    const tokenRes = await fetch(`${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: await cognitoBasicAuth(),
+    const tokenRes = await fetch(
+      `${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: await cognitoBasicAuth(),
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
       },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-      }),
-    });
+    );
 
     if (!tokenRes.ok) {
       reply.clearCookie("refresh_token", { path: "/auth" });

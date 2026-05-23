@@ -41,7 +41,7 @@ export class AppStack extends cdk.Stack {
         COGNITO_DOMAIN: cognitoDomain,
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
         AUTH_CALLBACK_URL_PROD: "https://counter-weight.app/auth/callback",
-        AUTH_CALLBACK_URL_LOCAL: "http://localhost:5174/auth/callback",
+        AUTH_CALLBACK_URL_LOCAL: "https://localhost:5174/auth/callback",
         ...(cognitoClientSecretArn && {
           COGNITO_CLIENT_SECRET_ARN: cognitoClientSecretArn,
         }),
@@ -91,7 +91,7 @@ export class AppStack extends cdk.Stack {
     const api = new apigateway.HttpApi(this, "Api", {
       apiName: "counter-weight-api",
       corsPreflight: {
-        allowOrigins: ["http://localhost:5174", "https://counter-weight.app"],
+        allowOrigins: ["https://localhost:5174", "https://counter-weight.app"],
         allowMethods: [apigateway.CorsHttpMethod.ANY],
         allowHeaders: ["content-type", "authorization"],
         allowCredentials: true,

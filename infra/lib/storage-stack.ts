@@ -90,7 +90,7 @@ export class StorageStack extends cdk.Stack {
           cognito.OAuthScope.PROFILE,
         ],
         callbackUrls: [
-          "http://localhost:5174/auth/callback",
+          "https://localhost:5174/auth/callback",
           "https://counter-weight.app/auth/callback",
         ],
         logoutUrls: ["http://localhost:5174", "https://counter-weight.app"],

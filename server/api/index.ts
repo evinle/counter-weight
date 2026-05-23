@@ -20,7 +20,7 @@ export type AppRouter = typeof appRouter;
 const app = Fastify({ logger: true });
 
 app.register(cors, {
-  origin: ["http://localhost:5174", "https://counter-weight.app"],
+  origin: ["https://localhost:5174", "https://counter-weight.app"],
   credentials: true,
 });
 
