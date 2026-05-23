@@ -31,6 +31,12 @@ export class AppStack extends cdk.Stack {
     apiLambdaSg.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS out')
     apiLambdaSg.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(5432), 'Postgres out')
 
+    // cognitoClientSecretArn is not available until after StorageStack is deployed and
+    // the secret is created manually (Task 6.2). Use tryGetContext so bootstrap and
+    // StorageStack-only deploys don't fail. AppStack deploy requires it explicitly:
+    //   cdk deploy AppStack --context cognitoClientSecretArn=<ARN>
+    const cognitoClientSecretArn = this.node.tryGetContext('cognitoClientSecretArn') as string | undefined
+
     // Auth Lambda — outside VPC, internet access for Cognito token endpoint
     const authLambda = new NodejsFunction(this, 'AuthLambda', {
       entry: path.join(__dirname, '../../server/auth/index.ts'),
@@ -43,10 +49,7 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
         AUTH_CALLBACK_URL_PROD: 'https://counter-weight.app/auth/callback',
         AUTH_CALLBACK_URL_LOCAL: 'http://localhost:5174/auth/callback',
-        // COGNITO_CLIENT_SECRET_ARN is the ARN of a Secrets Manager secret you create
-        // manually after deploying StorageStack (see Task 6.2 manual steps).
-        // Pass it as a CDK context value: cdk deploy --context cognitoClientSecretArn=<ARN>
-        COGNITO_CLIENT_SECRET_ARN: this.node.getContext('cognitoClientSecretArn') as string,
+        ...(cognitoClientSecretArn && { COGNITO_CLIENT_SECRET_ARN: cognitoClientSecretArn }),
       },
     })
 
@@ -66,12 +69,14 @@ export class AppStack extends cdk.Stack {
       },
     })
 
-    // Grant Auth Lambda SM read for Cognito client secret
-    const cognitoClientSecret = secretsmanager.Secret.fromSecretCompleteArn(
-      this, 'CognitoClientSecret',
-      this.node.getContext('cognitoClientSecretArn') as string,
-    )
-    cognitoClientSecret.grantRead(authLambda)
+    // Grant Auth Lambda SM read for Cognito client secret (only when ARN is provided)
+    if (cognitoClientSecretArn) {
+      const cognitoClientSecret = secretsmanager.Secret.fromSecretCompleteArn(
+        this, 'CognitoClientSecret',
+        cognitoClientSecretArn,
+      )
+      cognitoClientSecret.grantRead(authLambda)
+    }
 
     // Grant API Lambda access to read the DB secret (for DATABASE_URL)
     storageStack.dbSecret.grantRead(apiLambda)
