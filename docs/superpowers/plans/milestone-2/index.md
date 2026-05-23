@@ -4,7 +4,7 @@
 
 **Goal:** Add a cloud backend with Cognito auth, PostgreSQL storage via RDS, and a bidirectional offline-first sync layer to the existing PWA.
 
-**Architecture:** Auth Lambda (outside VPC) handles token exchange via Cognito's Hosted UI; API Lambda (inside VPC) exposes a tRPC/Fastify router backed by Drizzle + RDS (direct connection, no proxy). Frontend stays fully functional offline; sync happens in a tiered background engine. JWT verification uses `aws-jwt-verify`'s caching JWKS fetcher, re-fetching via a Cognito VPC Interface Endpoint on key rotation — no NAT required.
+**Architecture:** Auth Lambda (outside VPC) handles token exchange via Cognito's Hosted UI; API Lambda (outside VPC) exposes a tRPC/Fastify router backed by Drizzle + RDS (publicly accessible, SSL-enforced, direct connection). Frontend stays fully functional offline; sync happens in a tiered background engine. JWT verification uses `aws-jwt-verify`'s caching JWKS fetcher. API Gateway enforces Cognito JWT on `/trpc/*` routes and rate-limits at 50 RPS.
 
 **Tech Stack:** CDK v2, Drizzle ORM, Zod, tRPC v11, Fastify v5, `@fastify/aws-lambda`, `aws-jwt-verify`, TanStack Query v5, `@trpc/client`, `@trpc/react-query`
 
@@ -82,7 +82,7 @@ package.json              add @tanstack/react-query, @trpc/client, @trpc/react-q
 | [Phase 3: Server Database](phase-3-database.md) | CODEBASE | Drizzle schema, client factory, initial migration | Phase 1 |
 | [Phase 4: Auth Lambda](phase-4-auth-lambda.md) | CODEBASE | Auth routes (TDD), Lambda handler | Phase 1, 2 env context |
 | [Phase 5: API Lambda](phase-5-api-lambda.md) | CODEBASE | tRPC context, router, auth.bootstrap, timers CRUD, API handler | Phase 3, 4 |
-| [Phase 5.1: Remove RDS Proxy](phase-5.1-remove-rds-proxy.md) | CODEBASE | Remove DatabaseProxy, connect Lambda directly to RDS | Phase 5 |
+| [Phase 5.1: Remove Private VPC](phase-5.1-remove-private-vpc.md) | CODEBASE | Public VPC, public RDS (SSL-enforced), Lambdas outside VPC, JWT authorizer + throttling | Phase 5 |
 | [Phase 6: First Deploy](phase-6-deploy.md) | EXTERNAL + CODEBASE | Deploy StorageStack, configure federation, run migrations, deploy AppStack | Phase 0, 2, 5.1 |
 | [Phase 7: Frontend Dexie Migration](phase-7-dexie-migration.md) | CODEBASE | Add M2 fields to Dexie schema (TDD), v3 upgrade migration | Phase 3 schema ref |
 | [Phase 8: Frontend Auth](phase-8-frontend-auth.md) | CODEBASE | tRPC client, useAuth hook (TDD), LoginView, App.tsx auth gate | Phase 5, 7 |
@@ -95,9 +95,11 @@ package.json              add @tanstack/react-query, @trpc/client, @trpc/react-q
 | Spec requirement | Task |
 |---|---|
 | VPC, private subnets, no NAT | 2.1 StorageStack |
-| RDS db.t4g.micro (direct connection) | 2.1 StorageStack + 5.1 |
+| RDS db.t4g.micro (public, SSL-enforced, direct connection) | 2.1 StorageStack + 5.1 |
 | Cognito User Pool + Hosted UI | 2.1 StorageStack |
-| Cognito VPC Interface Endpoint | 2.1 StorageStack |
+| API Gateway JWT authorizer on /trpc/* | 5.1 AppStack |
+| API Gateway throttling (50 RPS / 100 burst) | 5.1 AppStack |
+| Lambda reserved concurrency (10 per function) | 5.1 AppStack |
 | Auth Lambda (callback/refresh/logout) | 4.1–4.2 |
 | API Lambda (tRPC, inside VPC) | 5.1–5.5 |
 | JWKS caching fetcher (key rotation safe) | 5.1 context.ts |
