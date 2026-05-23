@@ -101,7 +101,7 @@ package.json              add @tanstack/react-query, @trpc/client, @trpc/react-q
 | API Gateway throttling (50 RPS / 100 burst) | 5.1 AppStack |
 | Lambda reserved concurrency (10 per function) | 5.1 AppStack |
 | Auth Lambda (callback/refresh/logout) | 4.1–4.2 |
-| API Lambda (tRPC, inside VPC) | 5.1–5.5 |
+| API Lambda (tRPC, outside VPC) | 5.1–5.5 |
 | JWKS caching fetcher (key rotation safe) | 5.1 context.ts |
 | Deploy order runbook | 6.3–6.4 |
 | Google + Apple federation | 6.2 EXTERNAL |
