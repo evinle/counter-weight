@@ -90,7 +90,7 @@ DB_PASSWORD=$(aws secretsmanager get-secret-value \
   Then run migrations:
 
 ```bash
-cd server && DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@<DbInstanceEndpoint>:5432/postgres npm run migrate
+cd server && DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@<DbInstanceEndpoint>:5432/postgres?sslmode=require npm run migrate
 ```
 
 - [ ] **Verify migration ran**
