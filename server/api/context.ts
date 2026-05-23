@@ -6,32 +6,42 @@ import {
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 import type { Db } from "../db/index.js";
-import { typedEnv } from "./index.js";
+import { getTypedEnv } from "../env.js";
 
-let _db: Db | null = null;
+// Promise singleton — assignment is synchronous so concurrent requests share one init
+let _dbPromise: Promise<Db> | null = null;
 
 async function getDb(): Promise<Db> {
-  if (_db) return _db;
-
-  const sm = new SecretsManagerClient({});
-  const secret = await sm.send(
-    new GetSecretValueCommand({ SecretId: typedEnv.DB_SECRET_ARN }),
-  );
-  const { username, password, host, port, dbname } = JSON.parse(
-    secret.SecretString!,
-  );
-  const proxyEndpoint = typedEnv.DB_PROXY_ENDPOINT;
-  const url = `postgresql://${username}:${encodeURIComponent(password)}@${proxyEndpoint}:${port}/${dbname}?sslmode=require`;
-
-  _db = createDb(url);
-  return _db;
+  if (!_dbPromise) {
+    _dbPromise = (async () => {
+      const env = getTypedEnv();
+      const sm = new SecretsManagerClient({});
+      const secret = await sm.send(
+        new GetSecretValueCommand({ SecretId: env.DB_SECRET_ARN }),
+      );
+      if (!secret.SecretString) throw new Error("DB secret is not a string secret");
+      const { username, password, host, port, dbname } = JSON.parse(secret.SecretString);
+      const url = `postgresql://${username}:${encodeURIComponent(password)}@${env.DB_PROXY_ENDPOINT}:${port}/${dbname}?sslmode=require`;
+      return createDb(url);
+    })();
+  }
+  return _dbPromise;
 }
 
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: typedEnv.COGNITO_USER_POOL_ID,
-  tokenUse: "id",
-  clientId: typedEnv.COGNITO_CLIENT_ID,
-});
+// Lazy singleton — CognitoJwtVerifier.create() is synchronous so no race condition
+let _verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
+
+function getVerifier() {
+  if (!_verifier) {
+    const env = getTypedEnv();
+    _verifier = CognitoJwtVerifier.create({
+      userPoolId: env.COGNITO_USER_POOL_ID,
+      tokenUse: "id",
+      clientId: env.COGNITO_CLIENT_ID,
+    });
+  }
+  return _verifier;
+}
 
 export async function createContext({ req }: { req: FastifyRequest }) {
   const db = await getDb();
@@ -40,7 +50,7 @@ export async function createContext({ req }: { req: FastifyRequest }) {
   if (!auth?.startsWith("Bearer ")) return { userId: null, db };
 
   try {
-    const payload = await verifier.verify(auth.slice(7));
+    const payload = await getVerifier().verify(auth.slice(7));
     return { userId: payload.sub, db };
   } catch {
     return { userId: null, db };

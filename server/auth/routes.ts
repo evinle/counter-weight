@@ -4,7 +4,7 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { typedEnv } from "../api/index.js";
+import { getTypedEnv } from "../env.js";
 import { CookieSerializeOptions } from "@fastify/cookie";
 
 const callbackBody = z.object({ code: z.string(), origin: z.string().url() });
@@ -21,7 +21,7 @@ const COOKIE_OPTS: CookieSerializeOptions = {
 let cachedClientSecret: string | undefined;
 async function getClientSecret(): Promise<string> {
   if (cachedClientSecret) return cachedClientSecret;
-  const raw = typedEnv.COGNITO_CLIENT_SECRET;
+  const raw = getTypedEnv().COGNITO_CLIENT_SECRET;
   if (raw) {
     cachedClientSecret = raw;
     return raw;
@@ -29,16 +29,17 @@ async function getClientSecret(): Promise<string> {
   const sm = new SecretsManagerClient({});
   const { SecretString } = await sm.send(
     new GetSecretValueCommand({
-      SecretId: typedEnv.COGNITO_CLIENT_SECRET_ARN,
+      SecretId: getTypedEnv().COGNITO_CLIENT_SECRET_ARN,
     }),
   );
-  cachedClientSecret = SecretString!;
+  if (!SecretString) throw new Error("Cognito client secret is not a string secret");
+  cachedClientSecret = SecretString;
   return cachedClientSecret;
 }
 
 async function cognitoBasicAuth(): Promise<string> {
   const secret = await getClientSecret();
-  return `Basic ${Buffer.from(`${typedEnv.COGNITO_CLIENT_ID}:${secret}`).toString("base64")}`;
+  return `Basic ${Buffer.from(`${getTypedEnv().COGNITO_CLIENT_ID}:${secret}`).toString("base64")}`;
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
@@ -49,14 +50,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const { code, origin } = parsed.data;
     const ALLOWED_ORIGINS: Record<string, string> = {
-      "http://localhost:5174": typedEnv.AUTH_CALLBACK_URL_LOCAL,
-      "https://counter-weight.app": typedEnv.AUTH_CALLBACK_URL_PROD,
+      "http://localhost:5174": getTypedEnv().AUTH_CALLBACK_URL_LOCAL,
+      "https://counter-weight.app": getTypedEnv().AUTH_CALLBACK_URL_PROD,
     };
     const redirectUri = ALLOWED_ORIGINS[origin];
     if (!redirectUri)
       return reply.status(400).send({ error: "Invalid origin" });
 
-    const tokenRes = await fetch(`${typedEnv.COGNITO_DOMAIN}/oauth2/token`, {
+    const tokenRes = await fetch(`${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -87,7 +88,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!refreshToken)
       return reply.status(401).send({ error: "No refresh token" });
 
-    const tokenRes = await fetch(`${typedEnv.COGNITO_DOMAIN}/oauth2/token`, {
+    const tokenRes = await fetch(`${getTypedEnv().COGNITO_DOMAIN}/oauth2/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

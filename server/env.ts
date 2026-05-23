@@ -19,6 +19,13 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>
 
+// Lazy singleton — lets tests set process.env before first use without eager module-load validation
+let _env: Env | null = null
+export function getTypedEnv(): Env {
+  if (!_env) _env = parseEnv()
+  return _env
+}
+
 export function parseEnv(): Env {
   const result = envSchema.safeParse(process.env)
   if (!result.success) {
