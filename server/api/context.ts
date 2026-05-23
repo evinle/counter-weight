@@ -6,7 +6,7 @@ import {
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 import type { Db } from "../db/index.js";
-import { getTypedEnv } from "../env.js";
+import { getApiEnv } from "../env.js";
 
 // Promise singleton — assignment is synchronous so concurrent requests share one init
 let _dbPromise: Promise<Db> | null = null;
@@ -14,7 +14,7 @@ let _dbPromise: Promise<Db> | null = null;
 async function getDb(): Promise<Db> {
   if (!_dbPromise) {
     _dbPromise = (async () => {
-      const env = getTypedEnv();
+      const env = getApiEnv();
       const sm = new SecretsManagerClient({});
       const secret = await sm.send(
         new GetSecretValueCommand({ SecretId: env.DB_SECRET_ARN }),
@@ -33,7 +33,7 @@ let _verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
 
 function getVerifier() {
   if (!_verifier) {
-    const env = getTypedEnv();
+    const env = getApiEnv();
     _verifier = CognitoJwtVerifier.create({
       userPoolId: env.COGNITO_USER_POOL_ID,
       tokenUse: "id",
