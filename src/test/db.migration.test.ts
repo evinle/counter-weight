@@ -1,46 +1,60 @@
-import 'fake-indexeddb/auto'
-import { db } from '../db'
-import type { Timer } from '../db/schema'
+import { describe, it, expect } from 'vitest'
+import { migrateV1toV2, migrateV2toV3 } from '../db/migrations'
+import type { TimerV1 } from '../db/schema'
 
-const baseTimer: Omit<Timer, 'id'> = {
-  title: 'Test timer',
+const V1_FIXTURE = {
+  title: 'Test',
   description: null,
   emoji: null,
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
-  originalTargetDatetime: new Date('2026-06-01T12:00:00Z'),
   status: 'active',
   priority: 'medium',
   isFlagged: false,
   groupId: null,
   recurrenceRule: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  serverId: null,
-  userId: null,
-  syncStatus: 'synced',
-  version: null,
-}
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
+} satisfies TimerV1
 
-describe('Dexie v3 schema', () => {
-  it('stores and retrieves M2 sync fields', async () => {
-    const id = await db.timers.add(baseTimer)
-    const timer = await db.timers.get(id)
-    expect(timer?.serverId).toBeNull()
-    expect(timer?.userId).toBeNull()
-    expect(timer?.syncStatus).toBe('synced')
-    expect(timer?.version).toBeNull()
+describe('migrateV1toV2', () => {
+  it('copies targetDatetime into originalTargetDatetime', () => {
+    const v2 = migrateV1toV2(V1_FIXTURE)
+    expect(v2.originalTargetDatetime).toBe(V1_FIXTURE.targetDatetime)
   })
 
-  it('v3 upgrade defaults: ?? null and ?? synced logic is correct', () => {
-    // Verify the backfill expressions used in the v3 upgrade function
-    const pre = {} as Record<string, unknown>
-    pre.serverId = pre.serverId ?? null
-    pre.userId = pre.userId ?? null
-    pre.syncStatus = pre.syncStatus ?? 'synced'
-    pre.version = pre.version ?? null
-    expect(pre.serverId).toBeNull()
-    expect(pre.userId).toBeNull()
-    expect(pre.syncStatus).toBe('synced')
-    expect(pre.version).toBeNull()
+  it('preserves all V1 fields', () => {
+    const v2 = migrateV1toV2(V1_FIXTURE)
+    expect(v2.title).toBe('Test')
+    expect(v2.status).toBe('active')
+    expect(v2.groupId).toBeNull()
+  })
+})
+
+describe('migrateV2toV3', () => {
+  const V2_FIXTURE = {
+    ...V1_FIXTURE,
+    originalTargetDatetime: V1_FIXTURE.targetDatetime,
+  }
+
+  it('sets serverId to null', () => {
+    expect(migrateV2toV3(V2_FIXTURE).serverId).toBeNull()
+  })
+
+  it('sets userId to null', () => {
+    expect(migrateV2toV3(V2_FIXTURE).userId).toBeNull()
+  })
+
+  it('sets syncStatus to synced', () => {
+    expect(migrateV2toV3(V2_FIXTURE).syncStatus).toBe('synced')
+  })
+
+  it('sets version to null', () => {
+    expect(migrateV2toV3(V2_FIXTURE).version).toBeNull()
+  })
+
+  it('preserves all V2 fields', () => {
+    const v3 = migrateV2toV3(V2_FIXTURE)
+    expect(v3.title).toBe('Test')
+    expect(v3.originalTargetDatetime).toBe(V1_FIXTURE.targetDatetime)
   })
 })
