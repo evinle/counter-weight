@@ -8,19 +8,19 @@ These must be done before deploying. None produce code.
 
 ## Task 0.1: AWS account prerequisites
 
-- [ ] Install AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-- [ ] Run `aws configure` — enter Access Key ID, Secret, region (e.g. `us-east-1`), output `json`
-- [ ] Install CDK: `npm install -g aws-cdk`
-- [ ] Bootstrap the account (one-time): `cd infra && npx cdk bootstrap`
+- [x] Install AWS CLI v1: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+- [x] Run `aws configure` — enter Access Key ID, Secret, region (e.g. `us-east-1`), output `json`
+- [x] Install CDK: `npm install -g aws-cdk`
+- [x] Bootstrap the account (one-time): `cd infra && npx cdk bootstrap`
 
 ---
 
 ## Task 0.2: Google OAuth client
 
-- [ ] Open Google Cloud Console → APIs & Services → Credentials
-- [ ] Create OAuth 2.0 Client ID (Web application)
-- [ ] Authorised redirect URIs: `https://<your-cognito-domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse`
-- [ ] Note the **Client ID** and **Client Secret** — needed after CDK deploy (Task 6.2)
+- [x] Open Google Cloud Console → APIs & Services → Credentials
+- [x] Create OAuth 2.0 Client ID (Web application)
+- [x] Authorised redirect URIs: `https://<your-cognito-domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse`
+- [x] Note the **Client ID** and **Client Secret** — needed after CDK deploy (Task 6.2)
 
 ---
 
