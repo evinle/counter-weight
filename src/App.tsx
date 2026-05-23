@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./db";
 import { useTimerStore } from "./store/timerStore";
@@ -12,6 +13,11 @@ import { ToastContainer } from "./components/ToastContainer";
 import { useToast } from "./hooks/useToast";
 import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
+import { useAuth } from "./hooks/useAuth";
+import { LoginView } from "./components/LoginView";
+import { trpc, setIdToken } from "./lib/trpc";
+
+const queryClient = new QueryClient();
 
 export function App() {
   const [tab, setTab] = useState<Tab>(Tab.Timers);
@@ -20,6 +26,48 @@ export function App() {
   );
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
   const [swDebug, setSwDebug] = useState<string | null>(null);
+
+  const { state, user, login } = useAuth();
+
+  // Handle Cognito auth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code) return;
+
+    window.history.replaceState({}, "", window.location.pathname);
+
+    fetch("/auth/callback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ code, origin: window.location.origin }),
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const { idToken } = (await res.json()) as { idToken: string };
+        // Reload triggers useAuth's silent refresh, which restores authenticated state.
+        // Known limitation (M2): causes a visible roundtrip. Fixing cleanly requires a
+        // shared auth store so the callback can update auth state in place. Defer to M3.
+        setIdToken(idToken);
+        window.location.reload();
+      });
+  }, []);
+
+  useEffect(() => {
+    if (state !== "authenticated" || !user) return;
+
+    function bootstrap(attempt = 0) {
+      trpc.auth.bootstrap
+        .mutate({ email: user!.email })
+        .catch((err) => {
+          console.error("[bootstrap] failed:", err);
+          if (attempt < 1) setTimeout(() => bootstrap(attempt + 1), 2000);
+        });
+    }
+
+    bootstrap();
+  }, [state, user?.userId]);
 
   const sync = useTimerStore((s) => s.sync);
   const firedTimer = useTimerStore((s) => s.firedTimer);
@@ -108,6 +156,18 @@ export function App() {
   };
 
   function renderContent() {
+    if (state === "loading") {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
+        </div>
+      );
+    }
+
+    if (state === "unauthenticated") {
+      return <LoginView onLogin={login} />;
+    }
+
     if (activeAction === ActiveAction.CreateEdit) {
       return <CreateEditView existing={editTimer} onDone={handleDone} />;
     }
@@ -124,6 +184,7 @@ export function App() {
   }
 
   return (
+    <QueryClientProvider client={queryClient}>
     <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
       <ToastContainer />
       {swDebug && (
@@ -150,7 +211,7 @@ export function App() {
 
       <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
 
-      {activeAction === ActiveAction.None && (
+      {activeAction === ActiveAction.None && state === "authenticated" && (
         <BottomTabBar
           activeTab={tab}
           onTabChange={setTab}
@@ -158,5 +219,6 @@ export function App() {
         />
       )}
     </div>
+    </QueryClientProvider>
   );
 }
