@@ -19,9 +19,10 @@ type TimerMode = (typeof TimerMode)[keyof typeof TimerMode];
 interface Props {
   existing?: Timer;
   onDone: () => void;
+  userId: string | null;
 }
 
-export function CreateEditView({ existing, onDone }: Props) {
+export function CreateEditView({ existing, onDone, userId }: Props) {
   const [title, setTitle] = useState(existing?.title ?? "");
   const [emoji, setEmoji] = useState(existing?.emoji ?? "");
   const [priority, setPriority] = useState<Priority>(
@@ -74,7 +75,7 @@ export function CreateEditView({ existing, onDone }: Props) {
         isFlagged: false,
         groupId: null,
         recurrenceRule: null,
-      });
+      }, userId);
     }
     onDone();
   };

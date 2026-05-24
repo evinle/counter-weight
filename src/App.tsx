@@ -14,6 +14,7 @@ import { useToast } from "./hooks/useToast";
 import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
+import { useSyncEngine } from "./hooks/useSyncEngine";
 import { LoginView } from "./components/LoginView";
 import { trpc, setIdToken } from "./lib/trpc";
 import { bootstrappedKey } from "./lib/storageKeys";
@@ -29,6 +30,7 @@ export function App() {
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user, login, continueAsGuest } = useAuth();
+  useSyncEngine({ user });
 
   // Handle Cognito auth callback
   useEffect(() => {
@@ -173,7 +175,7 @@ export function App() {
     }
 
     if (activeAction === ActiveAction.CreateEdit) {
-      return <CreateEditView existing={editTimer} onDone={handleDone} />;
+      return <CreateEditView existing={editTimer} onDone={handleDone} userId={user?.userId ?? null} />;
     }
     switch (tab) {
       case Tab.Timers:
