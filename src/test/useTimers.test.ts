@@ -21,7 +21,7 @@ beforeEach(async () => {
 
 describe('createTimer', () => {
   it('sets originalTargetDatetime equal to targetDatetime', async () => {
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     const timer = await db.timers.get(id!)
     expect(timer?.originalTargetDatetime.getTime()).toBe(BASE.targetDatetime.getTime())
   })
@@ -29,7 +29,7 @@ describe('createTimer', () => {
 
 describe('cancelTimer', () => {
   it('sets status to cancelled', async () => {
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     await cancelTimer(id!)
     const timer = await db.timers.get(id!)
     expect(timer?.status).toBe('cancelled')
@@ -37,7 +37,7 @@ describe('cancelTimer', () => {
 
   it('updates updatedAt', async () => {
     const before = new Date()
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     await cancelTimer(id!)
     const timer = await db.timers.get(id!)
     expect(timer?.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
@@ -46,7 +46,7 @@ describe('cancelTimer', () => {
 
 describe('editTimer', () => {
   it('allows first deadline extension', async () => {
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z') // 2h later
     await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
     const timer = await db.timers.get(id!)
@@ -54,7 +54,7 @@ describe('editTimer', () => {
   })
 
   it('blocks a second extension', async () => {
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     const first = new Date('2026-06-01T14:00:00Z')
     await editTimer(id!, { targetDatetime: first, title: 'Test', emoji: null, priority: 'medium' })
     const second = new Date('2026-06-01T16:00:00Z')
@@ -65,7 +65,7 @@ describe('editTimer', () => {
   })
 
   it('allows reducing the deadline even after an extension', async () => {
-    const id = await createTimer(BASE)
+    const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z')
     await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
     const earlier = new Date('2026-06-01T11:00:00Z')
