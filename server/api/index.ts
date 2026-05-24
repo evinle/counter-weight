@@ -31,7 +31,7 @@ app.addHook("onSend", (_req, _reply, payload, done) => {
 
 app.register(fastifyTRPCPlugin, {
   prefix: "/trpc",
-  trpcOptions: { router: appRouter, createContext },
+  trpcOptions: { router: appRouter, createContext, allowMethodOverride: true },
 });
 
 const _handler = awsLambdaFastify(app);

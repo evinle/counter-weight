@@ -23,7 +23,7 @@ async function doRefresh(): Promise<string | null> {
   return newToken
 }
 
-async function refreshAndRetry(url: RequestInfo, options: RequestInit): Promise<Response> {
+async function refreshAndRetry(url: RequestInfo | URL, options: RequestInit): Promise<Response> {
   if (!refreshPromise) {
     refreshPromise = doRefresh().finally(() => { refreshPromise = null })
   }
@@ -35,7 +35,7 @@ async function refreshAndRetry(url: RequestInfo, options: RequestInit): Promise<
   return fetch(url, { ...options, headers })
 }
 
-async function fetchWithAuth(url: RequestInfo, options: RequestInit = {}): Promise<Response> {
+async function fetchWithAuth(url: RequestInfo | URL, options: RequestInit = {}): Promise<Response> {
   const res = await fetch(url, options)
   if (res.status === 401 && idToken) return refreshAndRetry(url, options)
   return res
@@ -46,6 +46,9 @@ export const trpc = createTRPCClient<AppRouter>({
     httpBatchLink({
       url: '/trpc',
       fetch: fetchWithAuth,
+      // API Gateway HTTP API decodes query strings before passing to Lambda,
+      // which mangles JSON in ?input=. Force POST so input goes in the body.
+      methodOverride: 'POST',
       headers() {
         return idToken ? { Authorization: `Bearer ${idToken}` } : {}
       },
