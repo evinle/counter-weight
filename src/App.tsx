@@ -16,6 +16,7 @@ import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { LoginView } from "./components/LoginView";
 import { trpc, setIdToken } from "./lib/trpc";
+import { bootstrappedKey } from "./lib/storageKeys";
 
 const queryClient = new QueryClient();
 
@@ -42,24 +43,27 @@ export function App() {
       headers: { "content-type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ code, origin: window.location.origin }),
-    })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const { idToken } = (await res.json()) as { idToken: string };
-        // Reload triggers useAuth's silent refresh, which restores authenticated state.
-        // Known limitation (M2): causes a visible roundtrip. Fixing cleanly requires a
-        // shared auth store so the callback can update auth state in place. Defer to M3.
-        setIdToken(idToken);
-        window.location.reload();
-      });
+    }).then(async (res) => {
+      if (!res.ok) return;
+      const { idToken } = (await res.json()) as { idToken: string };
+      // Reload triggers useAuth's silent refresh, which restores authenticated state.
+      // Known limitation (M2): causes a visible roundtrip. Fixing cleanly requires a
+      // shared auth store so the callback can update auth state in place. Defer to M3.
+      setIdToken(idToken);
+      window.location.reload();
+    });
   }, []);
 
   useEffect(() => {
     if (state !== "authenticated" || !user) return;
 
+    const key = bootstrappedKey(user.userId);
+    if (localStorage.getItem(key)) return;
+
     function bootstrap(attempt = 0) {
       trpc.auth.bootstrap
         .mutate({ email: user!.email })
+        .then(() => localStorage.setItem(key, "1"))
         .catch((err) => {
           console.error("[bootstrap] failed:", err);
           if (attempt < 1) setTimeout(() => bootstrap(attempt + 1), 2000);
@@ -185,40 +189,42 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-    <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
-      <ToastContainer />
-      {swDebug && (
-        <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
-          {swDebug}
-        </div>
-      )}
-      {notifPermission === "default" && activeAction === ActiveAction.None && (
-        <div
-          className="fixed left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
-          style={{ bottom: "calc(var(--spacing-bottom-bar-inset) + 1rem)" }}
-        >
-          <p className="text-sm text-slate-300">
-            Enable notifications for timer alerts
-          </p>
-          <button
-            onClick={requestNotifPermission}
-            className="shrink-0 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer"
-          >
-            Enable
-          </button>
-        </div>
-      )}
+      <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
+        <ToastContainer />
+        {swDebug && (
+          <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+            {swDebug}
+          </div>
+        )}
+        {notifPermission === "default" &&
+          activeAction === ActiveAction.None && (
+            <div
+              className="fixed left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
+              style={{ bottom: "calc(var(--spacing-bottom-bar-inset) + 1rem)" }}
+            >
+              <p className="text-sm text-slate-300">
+                Enable notifications for timer alerts
+              </p>
+              <button
+                onClick={requestNotifPermission}
+                className="shrink-0 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer"
+              >
+                Enable
+              </button>
+            </div>
+          )}
 
-      <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
+        <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
 
-      {activeAction === ActiveAction.None && (state === "authenticated" || state === "guest") && (
-        <BottomTabBar
-          activeTab={tab}
-          onTabChange={setTab}
-          onCreateNew={handleCreateNew}
-        />
-      )}
-    </div>
+        {activeAction === ActiveAction.None &&
+          (state === "authenticated" || state === "guest") && (
+            <BottomTabBar
+              activeTab={tab}
+              onTabChange={setTab}
+              onCreateNew={handleCreateNew}
+            />
+          )}
+      </div>
     </QueryClientProvider>
   );
 }

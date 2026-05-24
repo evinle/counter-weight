@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { setIdToken } from "../lib/trpc";
+import { StorageKey, bootstrappedKey } from "../lib/storageKeys";
 
 export type AuthState =
   | "loading"
@@ -22,11 +23,14 @@ export interface UseAuth {
 
 function parseJwt(token: string): AuthUser | null {
   try {
-    const base64Url = token.split(".")[1]
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
-    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, "=")
-    const payload = JSON.parse(atob(padded))
-    if (!payload.sub || !payload.email) return null
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "=",
+    );
+    const payload = JSON.parse(atob(padded));
+    if (!payload.sub || !payload.email) return null;
     return { userId: payload.sub, email: payload.email };
   } catch {
     return null;
@@ -86,10 +90,11 @@ export function useAuth(): UseAuth {
     if (state !== "guest") {
       await fetch("/auth/logout", { method: "POST", credentials: "include" });
     }
+    if (user) localStorage.removeItem(bootstrappedKey(user.userId));
     setIdToken(null);
     setUser(null);
     setState("unauthenticated");
-    localStorage.removeItem("cw:lastSyncedAt");
+    localStorage.removeItem(StorageKey.LastSyncedAt);
   }
 
   return { state, user, login, logout, continueAsGuest };
