@@ -79,24 +79,6 @@ export class StorageStack extends cdk.Stack {
       cognitoDomain: { domainPrefix: this.cognitoDomainPrefix },
     });
 
-    const googleProvider = new cognito.UserPoolIdentityProviderGoogle(
-      this,
-      "Google",
-      {
-        userPool: this.userPool,
-        clientId: this.node.getContext("googleClientId"),
-        clientSecretValue: cdk.SecretValue.secretsManager(
-          this.node.getContext("googleClientSecretArn"),
-        ),
-        scopes: ["email", "profile", "openid"],
-        attributeMapping: {
-          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
-          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
-          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
-        },
-      },
-    );
-
     this.userPoolClient = this.userPool.addClient("AppClient", {
       generateSecret: true,
       authFlows: { userSrp: true },
@@ -118,7 +100,34 @@ export class StorageStack extends cdk.Stack {
       },
     });
 
-    this.userPoolClient.node.addDependency(googleProvider);
+    const googleClientId = this.node.tryGetContext("googleClientId") as
+      | string
+      | undefined;
+    const googleClientSecretArn = this.node.tryGetContext(
+      "googleClientSecretArn",
+    ) as string | undefined;
+
+    if (googleClientId && googleClientSecretArn) {
+      const googleProvider = new cognito.UserPoolIdentityProviderGoogle(
+        this,
+        "Google",
+        {
+          userPool: this.userPool,
+          clientId: googleClientId,
+          clientSecretValue: cdk.SecretValue.secretsManager(
+            googleClientSecretArn,
+          ),
+          scopes: ["email", "profile", "openid"],
+          attributeMapping: {
+            email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+            givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+            familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+          },
+        },
+      );
+
+      this.userPoolClient.node.addDependency(googleProvider);
+    }
 
     new cdk.CfnOutput(this, "UserPoolId", { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {
