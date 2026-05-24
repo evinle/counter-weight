@@ -24,9 +24,23 @@ app.register(cors, {
   credentials: true,
 });
 
+app.addHook("onSend", (_req, _reply, payload, done) => {
+  console.log("[onSend] payload:", payload);
+  done(null, payload);
+});
+
 app.register(fastifyTRPCPlugin, {
   prefix: "/trpc",
   trpcOptions: { router: appRouter, createContext },
 });
 
-export const handler = awsLambdaFastify(app);
+const _handler = awsLambdaFastify(app);
+
+export const handler: typeof _handler = async (event, context) => {
+  try {
+    return await _handler(event, context);
+  } catch (err) {
+    console.error("[handler] uncaught error after Fastify:", err);
+    throw err;
+  }
+};
