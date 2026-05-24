@@ -19,8 +19,14 @@ async function getDb(): Promise<Db> {
       const secret = await sm.send(
         new GetSecretValueCommand({ SecretId: env.DB_SECRET_ARN }),
       );
-      if (!secret.SecretString) throw new Error("DB secret is not a string secret");
-      const { username, password, host, port, dbname = 'postgres' } = JSON.parse(secret.SecretString);
+      if (!secret.SecretString)
+        throw new Error("DB secret is not a string secret");
+      const {
+        username,
+        password,
+        port,
+        dbname = "postgres",
+      } = JSON.parse(secret.SecretString);
       const url = `postgresql://${username}:${encodeURIComponent(password)}@${env.DB_ENDPOINT}:${port}/${dbname}?sslmode=require`;
       return createDb(url);
     })();
