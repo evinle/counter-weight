@@ -5,7 +5,7 @@
     "synth": "cdk synth",
     "diff:storage": "cdk diff StorageStack",
     "diff:app": "cdk diff AppStack",
-    "deploy:storage": "cdk deploy StorageStack --require-approval never",
+    "deploy:storage": "cdk deploy StorageStack --require-approval never --context googleClientId=236806741921-m12d0djp9hut1ts3cf5fnp6mfk4ibf26.apps.googleusercontent.com --context googleClientSecretArn=arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/google-client-secret-r0w1Eg",
     "deploy:app": "cdk deploy AppStack --require-approval never --context cognitoClientSecretArn=arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/cognito-client-secret-4jZGT9"
   },
   "dependencies": {

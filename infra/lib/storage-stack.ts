@@ -79,9 +79,30 @@ export class StorageStack extends cdk.Stack {
       cognitoDomain: { domainPrefix: this.cognitoDomainPrefix },
     });
 
+    const googleProvider = new cognito.UserPoolIdentityProviderGoogle(
+      this,
+      "Google",
+      {
+        userPool: this.userPool,
+        clientId: this.node.getContext("googleClientId"),
+        clientSecretValue: cdk.SecretValue.secretsManager(
+          this.node.getContext("googleClientSecretArn"),
+        ),
+        scopes: ["email", "profile", "openid"],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+        },
+      },
+    );
+
     this.userPoolClient = this.userPool.addClient("AppClient", {
       generateSecret: true,
       authFlows: { userSrp: true },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.GOOGLE,
+      ],
       oAuth: {
         flows: { authorizationCodeGrant: true },
         scopes: [
@@ -93,9 +114,11 @@ export class StorageStack extends cdk.Stack {
           "https://localhost:5174/auth/callback",
           "https://counter-weight.app/auth/callback",
         ],
-        logoutUrls: ["http://localhost:5174", "https://counter-weight.app"],
+        logoutUrls: ["https://localhost:5174", "https://counter-weight.app"],
       },
     });
+
+    this.userPoolClient.node.addDependency(googleProvider);
 
     new cdk.CfnOutput(this, "UserPoolId", { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {
