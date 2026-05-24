@@ -5,11 +5,13 @@ import { exportTimers, importTimers } from "../lib/backup";
 import { bulkImportTimers } from "../hooks/useTimers";
 import { useToast } from "../hooks/useToast";
 import { ScreenTitle } from "./ScreenTitle";
+import { useAuth } from "../hooks/useAuth";
 
 export function SettingsView() {
   const { show } = useToast();
   const allTimers = useLiveQuery(() => db.timers.toArray(), [], []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { logout, user } = useAuth();
 
   async function handleExport() {
     const json = exportTimers(allTimers ?? []);
@@ -85,6 +87,18 @@ export function SettingsView() {
           className="hidden"
           onChange={handleImport}
         />
+        {user?.userId && (
+          <button
+            onClick={async () => {
+              await logout();
+              window.location.reload();
+            }}
+            className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
+          >
+            <span className="text-2xl">❌</span>
+            <span className="text-white font-medium">Logout</span>
+          </button>
+        )}
       </div>
     </div>
   );
