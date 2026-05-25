@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { setIdToken } from "../lib/trpc";
+import { fetchFromBackend } from "../lib/api";
 import { StorageKey, bootstrappedKey } from "../lib/storageKeys";
 
 export type AuthState =
@@ -49,7 +50,7 @@ export function useAuth(): UseAuth {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
 
-    fetch("/auth/refresh", {
+    fetchFromBackend("/auth/refresh", {
       method: "POST",
       credentials: "include",
       signal: controller.signal,
@@ -88,7 +89,7 @@ export function useAuth(): UseAuth {
 
   async function logout() {
     if (state !== "guest") {
-      await fetch("/auth/logout", { method: "POST", credentials: "include" });
+      await fetchFromBackend("/auth/logout", { method: "POST", credentials: "include" });
     }
     if (user) localStorage.removeItem(bootstrappedKey(user.userId));
     setIdToken(null);

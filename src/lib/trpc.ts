@@ -1,5 +1,6 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client'
 import type { AppRouter } from '../../server/api/index'
+import { API_URL, fetchFromBackend } from './api'
 
 export let idToken: string | null = null
 
@@ -13,7 +14,7 @@ export function setIdToken(token: string | null) {
 let refreshPromise: Promise<string | null> | null = null
 
 async function doRefresh(): Promise<string | null> {
-  const refreshRes = await fetch('/auth/refresh', {
+  const refreshRes = await fetchFromBackend('/auth/refresh', {
     method: 'POST',
     credentials: 'include',
   })
@@ -44,7 +45,7 @@ async function fetchWithAuth(url: RequestInfo | URL, options: RequestInit = {}):
 export const trpc = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: '/trpc',
+      url: `${API_URL}/trpc`,
       fetch: fetchWithAuth,
       // API Gateway HTTP API decodes query strings before passing to Lambda,
       // which mangles JSON in ?input=. Force POST so input goes in the body.

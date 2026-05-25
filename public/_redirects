@@ -1,3 +1,0 @@
-/auth/* https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com/auth/:splat 200
-/trpc/* https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com/trpc/:splat 200
-/* /index.html 200

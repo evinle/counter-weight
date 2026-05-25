@@ -17,6 +17,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
 import { LoginView } from "./components/LoginView";
 import { trpc, setIdToken } from "./lib/trpc";
+import { fetchFromBackend } from "./lib/api";
 import { bootstrappedKey } from "./lib/storageKeys";
 
 const queryClient = new QueryClient();
@@ -40,7 +41,7 @@ export function App() {
 
     window.history.replaceState({}, "", window.location.pathname);
 
-    fetch("/auth/callback", {
+    fetchFromBackend("/auth/callback", {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "include",
