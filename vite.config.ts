@@ -3,34 +3,32 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
-      manifest: {
-        name: 'Counter Weight',
-        short_name: 'CounterWeight',
-        description: 'Local-first countdown timer',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
-        display: 'standalone',
-        orientation: 'portrait',
-        start_url: '/',
-        icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-        ],
-      },
-      injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-      },
-    }),
-  ],
+  plugins: [react(), tailwindcss(), VitePWA({
+    registerType: 'autoUpdate',
+    strategies: 'injectManifest',
+    srcDir: 'src',
+    filename: 'sw.ts',
+    manifest: {
+      name: 'Counter Weight',
+      short_name: 'CounterWeight',
+      description: 'Local-first countdown timer',
+      theme_color: '#0f172a',
+      background_color: '#0f172a',
+      display: 'standalone',
+      orientation: 'portrait',
+      start_url: '/',
+      icons: [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    },
+    injectManifest: {
+      globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+    },
+  }), cloudflare()],
   server: {
     host: true,
     https: {
