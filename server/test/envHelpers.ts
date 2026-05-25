@@ -6,7 +6,7 @@ const TEST_ENV_DEFAULTS = {
   DB_ENDPOINT: "test-db.abcdefghij.us-east-1.rds.amazonaws.com",
   COGNITO_CLIENT_SECRET_ARN:
     "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-cognito",
-  AUTH_CALLBACK_URL_PROD: "https://counter-weight.app/auth/callback",
+  AUTH_CALLBACK_URL_PROD: "https://counter-weight.evinle.app/auth/callback",
   AUTH_CALLBACK_URL_LOCAL: "https://localhost:5174/auth/callback",
   COGNITO_CLIENT_SECRET: "test-client-secret",
 };

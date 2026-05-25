@@ -4,6 +4,7 @@ import * as rds from "aws-cdk-lib/aws-rds";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
+import { ALLOWED_ORIGINS, PROD_CALLBACK_URL, LOCAL_CALLBACK_URL } from "./constants";
 
 export class StorageStack extends cdk.Stack {
   public readonly dbInstanceEndpoint: string;
@@ -92,11 +93,8 @@ export class StorageStack extends cdk.Stack {
           cognito.OAuthScope.OPENID,
           cognito.OAuthScope.PROFILE,
         ],
-        callbackUrls: [
-          "https://localhost:5174/auth/callback",
-          "https://counter-weight.app/auth/callback",
-        ],
-        logoutUrls: ["https://localhost:5174", "https://counter-weight.app"],
+        callbackUrls: [LOCAL_CALLBACK_URL, PROD_CALLBACK_URL],
+        logoutUrls: [...ALLOWED_ORIGINS],
       },
     });
 

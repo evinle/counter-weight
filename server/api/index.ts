@@ -7,6 +7,7 @@ import { authRouter } from "./routers/auth.js";
 import { timersRouter } from "./routers/timers.js";
 import { router } from "./router.js";
 import { parseEnv } from "../env.js";
+import { ALLOWED_ORIGINS } from "../constants.js";
 
 export const typedEnv = parseEnv(); // validates all env vars at cold start — throws before accepting requests
 
@@ -20,7 +21,7 @@ export type AppRouter = typeof appRouter;
 const app = Fastify({ logger: true });
 
 app.register(cors, {
-  origin: ["https://localhost:5174", "https://counter-weight.app"],
+  origin: [...ALLOWED_ORIGINS],
   credentials: true,
 });
 

@@ -6,6 +6,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { getAuthEnv } from "../env.js";
 import { CookieSerializeOptions } from "@fastify/cookie";
+import { LOCAL_ORIGIN, PROD_ORIGIN } from "../constants.js";
 
 const callbackBody = z.object({ code: z.string(), origin: z.string().url() });
 const COOKIE_OPTS: CookieSerializeOptions = {
@@ -51,8 +52,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const { code, origin } = parsed.data;
     const ALLOWED_ORIGINS: Record<string, string> = {
-      "https://localhost:5174": getAuthEnv().AUTH_CALLBACK_URL_LOCAL,
-      "https://counter-weight.app": getAuthEnv().AUTH_CALLBACK_URL_PROD,
+      [LOCAL_ORIGIN]: getAuthEnv().AUTH_CALLBACK_URL_LOCAL,
+      [PROD_ORIGIN]: getAuthEnv().AUTH_CALLBACK_URL_PROD,
     };
     const redirectUri = ALLOWED_ORIGINS[origin];
     if (!redirectUri)

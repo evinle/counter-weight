@@ -8,6 +8,7 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as path from "path";
 import { Construct } from "constructs";
 import type { StorageStack } from "./storage-stack";
+import { ALLOWED_ORIGINS, PROD_CALLBACK_URL, LOCAL_CALLBACK_URL } from "./constants";
 
 interface AppStackProps extends cdk.StackProps {
   storageStack: StorageStack;
@@ -40,8 +41,8 @@ export class AppStack extends cdk.Stack {
       environment: {
         COGNITO_DOMAIN: cognitoDomain,
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
-        AUTH_CALLBACK_URL_PROD: "https://counter-weight.app/auth/callback",
-        AUTH_CALLBACK_URL_LOCAL: "https://localhost:5174/auth/callback",
+        AUTH_CALLBACK_URL_PROD: PROD_CALLBACK_URL,
+        AUTH_CALLBACK_URL_LOCAL: LOCAL_CALLBACK_URL,
         ...(cognitoClientSecretArn && {
           COGNITO_CLIENT_SECRET_ARN: cognitoClientSecretArn,
         }),
@@ -91,7 +92,7 @@ export class AppStack extends cdk.Stack {
     const api = new apigateway.HttpApi(this, "Api", {
       apiName: "counter-weight-api",
       corsPreflight: {
-        allowOrigins: ["https://localhost:5174", "https://counter-weight.app"],
+        allowOrigins: [...ALLOWED_ORIGINS],
         allowMethods: [apigateway.CorsHttpMethod.ANY],
         allowHeaders: ["content-type", "authorization"],
         allowCredentials: true,
