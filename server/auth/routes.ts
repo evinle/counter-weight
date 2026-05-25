@@ -12,7 +12,8 @@ const callbackBody = z.object({ code: z.string(), origin: z.string().url() });
 const COOKIE_OPTS: CookieSerializeOptions = {
   httpOnly: true,
   secure: true,
-  sameSite: "strict" as const,
+  sameSite: "lax" as const,
+  domain: "evinle.app",
   path: "/auth",
   maxAge: 30 * 24 * 60 * 60, // 30 days
 };
@@ -109,7 +110,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     );
 
     if (!tokenRes.ok) {
-      reply.clearCookie("refresh_token", { path: "/auth" });
+      reply.clearCookie("refresh_token", { path: "/auth", domain: "evinle.app" });
       return reply.status(401).send({ error: "Refresh failed" });
     }
 
@@ -128,7 +129,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/logout", async (_req, reply) => {
-    reply.clearCookie("refresh_token", { path: "/auth" });
+    reply.clearCookie("refresh_token", { path: "/auth", domain: "evinle.app" });
     return { ok: true };
   });
 };

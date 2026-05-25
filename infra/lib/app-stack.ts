@@ -4,6 +4,7 @@ import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as apigateway from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as path from "path";
 import { Construct } from "constructs";
@@ -125,6 +126,34 @@ export class AppStack extends cdk.Stack {
       authorizer: jwtAuthorizer,
     });
 
+    // Explicit OPTIONS route without authorizer — JWT authorizer runs before API Gateway's
+    // automatic CORS handling, causing preflight requests to get 401. Routing OPTIONS
+    // separately bypasses the authorizer so Fastify's CORS middleware can return 200.
+    api.addRoutes({
+      path: "/trpc/{proxy+}",
+      methods: [apigateway.HttpMethod.OPTIONS],
+      integration: new HttpLambdaIntegration("ApiOptionsIntegration", apiLambda),
+    });
+
     new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
+
+    const apiCert = new acm.Certificate(this, "ApiCert", {
+      domainName: "api.evinle.app",
+      validation: acm.CertificateValidation.fromDns(),
+    });
+
+    const customDomain = new apigateway.DomainName(this, "ApiCustomDomain", {
+      domainName: "api.evinle.app",
+      certificate: apiCert,
+    });
+
+    new apigateway.ApiMapping(this, "ApiMapping", {
+      api,
+      domainName: customDomain,
+    });
+
+    new cdk.CfnOutput(this, "ApiRegionalDomainName", {
+      value: customDomain.regionalDomainName,
+    });
   }
 }

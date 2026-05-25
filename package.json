@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "vite --host --port 5174",
     "build": "tsc -b && vite build",
-    "build:frontend": "tsc --noEmit && VITE_API_URL=https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com VITE_COGNITO_DOMAIN=https://counter-weight-auth.auth.ap-southeast-2.amazoncognito.com VITE_COGNITO_CLIENT_ID=1m70p1ibek161ssj544l4fpph8 vite build",
+    "build:frontend": "tsc --noEmit && VITE_API_URL=https://api.evinle.app VITE_COGNITO_DOMAIN=https://counter-weight-auth.auth.ap-southeast-2.amazoncognito.com VITE_COGNITO_CLIENT_ID=1m70p1ibek161ssj544l4fpph8 vite build",
     "lint": "eslint .",
     "preview": "vite preview --host --port 5174",
     "test": "vitest",
-    "deploy": "VITE_API_URL=https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com VITE_COGNITO_DOMAIN=https://counter-weight-auth.auth.ap-southeast-2.amazoncognito.com VITE_COGNITO_CLIENT_ID=1m70p1ibek161ssj544l4fpph8 npm run build:frontend && wrangler deploy"
+    "deploy": "VITE_API_URL=https://api.evinle.app VITE_COGNITO_DOMAIN=https://counter-weight-auth.auth.ap-southeast-2.amazoncognito.com VITE_COGNITO_CLIENT_ID=1m70p1ibek161ssj544l4fpph8 npm run build:frontend && wrangler deploy"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.10",
