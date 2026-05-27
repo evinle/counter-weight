@@ -2,21 +2,36 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { getAuthEnv } from "../env.js";
 import { CookieSerializeOptions } from "@fastify/cookie";
 import { LOCAL_ORIGIN, PROD_ORIGIN } from "../constants.js";
 
 const callbackBody = z.object({ code: z.string(), origin: z.string().url() });
-const COOKIE_OPTS: CookieSerializeOptions = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax" as const,
-  domain: "evinle.app",
-  path: "/auth",
-  maxAge: 30 * 24 * 60 * 60, // 30 days
-};
+
+function isLocalRequest(req: FastifyRequest): boolean {
+  return req.headers.origin === LOCAL_ORIGIN;
+}
+
+function cookieOpts(req: FastifyRequest): CookieSerializeOptions {
+  const local = isLocalRequest(req);
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax" as const,
+    ...(local ? {} : { domain: "evinle.app" }),
+    path: "/auth",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  };
+}
+
+function clearOpts(req: FastifyRequest): CookieSerializeOptions {
+  return {
+    path: "/auth",
+    ...(isLocalRequest(req) ? {} : { domain: "evinle.app" }),
+  };
+}
 
 // Cached at module level — fetched once per cold start.
 // Falls back to COGNITO_CLIENT_SECRET for local dev and tests.
@@ -85,7 +100,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       expires_in: number;
     };
 
-    reply.setCookie("refresh_token", tokens.refresh_token, COOKIE_OPTS);
+    reply.setCookie("refresh_token", tokens.refresh_token, cookieOpts(req));
     return { idToken: tokens.id_token, expiresIn: tokens.expires_in };
   });
 
@@ -110,7 +125,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     );
 
     if (!tokenRes.ok) {
-      reply.clearCookie("refresh_token", { path: "/auth", domain: "evinle.app" });
+      reply.clearCookie("refresh_token", clearOpts(req));
       return reply.status(401).send({ error: "Refresh failed" });
     }
 
@@ -122,14 +137,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     // Cognito may rotate the refresh token
     if (tokens.refresh_token) {
-      reply.setCookie("refresh_token", tokens.refresh_token, COOKIE_OPTS);
+      reply.setCookie("refresh_token", tokens.refresh_token, cookieOpts(req));
     }
 
     return { idToken: tokens.id_token, expiresIn: tokens.expires_in };
   });
 
-  app.post("/logout", async (_req, reply) => {
-    reply.clearCookie("refresh_token", { path: "/auth", domain: "evinle.app" });
+  app.post("/logout", async (req, reply) => {
+    reply.clearCookie("refresh_token", clearOpts(req));
     return { ok: true };
   });
 };
