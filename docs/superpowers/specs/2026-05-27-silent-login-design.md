@@ -45,12 +45,34 @@ type AuthStore = {
 
 ### `LastUser` type & `StorageKey.LastUser`
 
-New type added to `src/db/schema.ts` (or `src/lib/storageKeys.ts`):
+New type and type guard added to `src/lib/storageKeys.ts`:
 
 ```ts
 export interface LastUser {
   userId: string
   firstName: string
+}
+
+export function isLastUser(v: unknown): v is LastUser {
+  return (
+    typeof v === 'object' && v !== null &&
+    typeof (v as LastUser).userId === 'string' &&
+    typeof (v as LastUser).firstName === 'string'
+  )
+}
+```
+
+Reading back from localStorage goes through `isLastUser`:
+```ts
+function readLastUser(): LastUser | null {
+  try {
+    const raw = localStorage.getItem(StorageKey.LastUser)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    return isLastUser(parsed) ? parsed : null
+  } catch {
+    return null
+  }
 }
 ```
 
@@ -83,7 +105,7 @@ export function subscribeToAuthPersistence() {
 }
 ```
 
-Called in `main.tsx` (or wherever the app is bootstrapped), returns an unsubscribe fn.
+Called in `App.tsx` alongside `bootstrap()`, returns an unsubscribe fn.
 
 ---
 
@@ -91,8 +113,11 @@ Called in `main.tsx` (or wherever the app is bootstrapped), returns an unsubscri
 
 ### `bootstrap()` (guarded)
 
+The store holds a `bootstrapStarted: boolean` flag (starts `false`). `bootstrap()` sets it to `true` on first call and returns early on any subsequent call — this blocks both concurrent calls while the fetch is in flight (state is still `'loading'`) and re-runs after bootstrap completes.
+
 ```
-if state !== 'loading' → return early (prevents duplicate calls)
+if bootstrapStarted → return early
+set bootstrapStarted = true
 
 POST /auth/refresh (3s timeout, credentials: include)
   ✓ 200 → setAuthenticated(idToken)
@@ -130,11 +155,14 @@ New branch added:
 
 ```ts
 if (params.get('error') === 'login_required') {
-  // Clear the URL params and fall through to LoginView
-  window.history.replaceState({}, '', window.location.pathname)
+  // Reset URL to '/' — removes both the /auth/callback path and the error query params
+  // so a page refresh doesn't re-trigger this handler
+  window.history.replaceState({}, '', '/')
   useAuthStore.getState().setUnauthenticated()
 }
 ```
+
+The existing `?code=` success branch also gets `window.history.replaceState({}, '', '/')` before reloading, replacing the current `/auth/callback?code=...` URL.
 
 ### `logout()`
 
