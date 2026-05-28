@@ -161,3 +161,46 @@ describe('bootstrap()', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('login()', () => {
+  it('redirects to Cognito authorize URL without prompt=none', () => {
+    useAuthStore.getState().login()
+    expect(window.location.href).toContain('/oauth2/authorize')
+    expect(window.location.href).toContain('client_id=')
+    expect(window.location.href).not.toContain('prompt=none')
+  })
+})
+
+describe('loginSilent()', () => {
+  it('redirects to Cognito authorize URL with prompt=none', () => {
+    useAuthStore.getState().loginSilent()
+    expect(window.location.href).toContain('/oauth2/authorize')
+    expect(window.location.href).toContain('prompt=none')
+  })
+})
+
+describe('logout()', () => {
+  it('clears user state, calls /auth/logout, removes localStorage keys', async () => {
+    useAuthStore.setState({
+      state: 'authenticated',
+      user: { userId: 'u1', email: 'user@example.com', firstName: 'Alice' },
+    })
+    localStorage.setItem(bootstrappedKey('u1'), '1')
+    localStorage.setItem(StorageKey.LastSyncedAt, new Date().toISOString())
+    localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
+    mockFetch.mockResolvedValueOnce({ ok: true })
+
+    await useAuthStore.getState().logout()
+
+    const { state, user } = useAuthStore.getState()
+    expect(state).toBe('unauthenticated')
+    expect(user).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/logout'),
+      expect.objectContaining({ method: 'POST' })
+    )
+    expect(localStorage.getItem(bootstrappedKey('u1'))).toBeNull()
+    expect(localStorage.getItem(StorageKey.LastSyncedAt)).toBeNull()
+    expect(localStorage.getItem(StorageKey.LastUser)).toBeNull()
+  })
+})
