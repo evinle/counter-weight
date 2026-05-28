@@ -3,8 +3,23 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { execSync } from "child_process";
+
+const gitSha = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return "unknown";
+  }
+})();
+
+const buildTime = new Date().toISOString();
 
 export default defineConfig({
+  define: {
+    __APP_SHA__: JSON.stringify(gitSha),
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -100,6 +100,9 @@ export function SettingsView() {
           </button>
         )}
       </div>
+      <p className="px-4 pt-2 text-xs text-slate-600 tabular-nums">
+        {__APP_SHA__} · {new Date(__BUILD_TIME__).toUTCString()}
+      </p>
     </div>
   );
 }
