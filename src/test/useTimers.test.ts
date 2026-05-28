@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { createTimer, cancelTimer, editTimer, bulkImportTimers } from '../hooks/useTimers'
+import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers } from '../hooks/useTimers'
 import type { Timer } from '../db/schema'
 
 const BASE = {
@@ -25,6 +25,42 @@ describe('createTimer', () => {
     const timer = await db.timers.get(id!)
     expect(timer?.originalTargetDatetime.getTime()).toBe(BASE.targetDatetime.getTime())
   })
+
+  it('sets syncStatus pending when userId is provided', async () => {
+    const id = await createTimer(BASE, 'user-1')
+    const timer = await db.timers.get(id!)
+    expect(timer?.syncStatus).toBe('pending')
+  })
+
+  it('sets syncStatus synced for guest (null userId)', async () => {
+    const id = await createTimer(BASE, null)
+    const timer = await db.timers.get(id!)
+    expect(timer?.syncStatus).toBe('synced')
+  })
+})
+
+describe('completeTimer', () => {
+  it('sets status to completed', async () => {
+    const id = await createTimer(BASE, null)
+    await completeTimer(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.status).toBe('completed')
+  })
+
+  it('sets syncStatus pending', async () => {
+    const id = await createTimer(BASE, null)
+    await completeTimer(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.syncStatus).toBe('pending')
+  })
+
+  it('updates updatedAt', async () => {
+    const before = new Date()
+    const id = await createTimer(BASE, null)
+    await completeTimer(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+  })
 })
 
 describe('cancelTimer', () => {
@@ -41,6 +77,13 @@ describe('cancelTimer', () => {
     await cancelTimer(id!)
     const timer = await db.timers.get(id!)
     expect(timer?.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+  })
+
+  it('sets syncStatus pending', async () => {
+    const id = await createTimer(BASE, null)
+    await cancelTimer(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.syncStatus).toBe('pending')
   })
 })
 
@@ -72,6 +115,14 @@ describe('editTimer', () => {
     await editTimer(id!, { targetDatetime: earlier, title: 'Test', emoji: null, priority: 'medium' })
     const timer = await db.timers.get(id!)
     expect(timer?.targetDatetime.getTime()).toBe(earlier.getTime())
+  })
+
+  it('sets syncStatus pending on a successful edit', async () => {
+    const id = await createTimer(BASE, null)
+    const extended = new Date('2026-06-01T14:00:00Z')
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    const timer = await db.timers.get(id!)
+    expect(timer?.syncStatus).toBe('pending')
   })
 })
 
