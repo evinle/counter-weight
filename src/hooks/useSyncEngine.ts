@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
 import { trpc } from "../lib/trpc";
 import type { AuthUser } from "./useAuth";
@@ -146,6 +147,24 @@ export async function triggerSync(): Promise<void> {
 
 export function useSyncEngine({ user }: { user: AuthUser | null }) {
   currentUser = user;
+
+  const pendingTimers = useLiveQuery(
+    () =>
+      user
+        ? db.timers
+            .where("syncStatus")
+            .equals("pending")
+            .and((t) => t.userId === user.userId)
+            .toArray()
+        : Promise.resolve([]),
+    [user?.userId],
+    []
+  );
+
+  useEffect(() => {
+    if (!user || !pendingTimers.length) return;
+    drain(user);
+  }, [pendingTimers, user?.userId]);
 
   useEffect(() => {
     if (!user) return;

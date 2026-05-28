@@ -194,6 +194,33 @@ describe('useSyncEngine', () => {
   })
 })
 
+describe('live query drain trigger', () => {
+  it('drains a pending timer added after mount without calling reconcile', async () => {
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValue({ serverId: 'x', version: 1 })
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+
+    renderHook(() => useSyncEngine({ user: USER }))
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+
+    vi.clearAllMocks()
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({ serverId: 'srv-live', version: 1 })
+
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      serverId: null,
+      syncStatus: 'pending',
+    })
+
+    await waitFor(async () => {
+      const timer = await db.timers.get(id)
+      expect(timer?.syncStatus).toBe('synced')
+    })
+
+    expect(trpc.timers.upsert.mutate).toHaveBeenCalled()
+    expect(trpc.timers.reconcile.query).not.toHaveBeenCalled()
+  })
+})
+
 describe('triggerSync', () => {
   it('is a no-op when user is null', async () => {
     await triggerSync()
