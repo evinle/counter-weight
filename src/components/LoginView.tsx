@@ -1,9 +1,11 @@
-interface LoginViewProps {
-  onLogin?: () => void
-  onContinueAsGuest?: () => void
-}
+import { useAuthStore } from '../store/authStore'
 
-export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps = {}) {
+export function LoginView() {
+  const login = useAuthStore((s) => s.login)
+  const loginSilent = useAuthStore((s) => s.loginSilent)
+  const continueAsGuest = useAuthStore((s) => s.continueAsGuest)
+  const lastUser = useAuthStore((s) => s.lastUser)
+
   return (
     <div className="h-full flex flex-col items-center justify-center gap-8 px-8">
       <div className="text-center">
@@ -12,8 +14,17 @@ export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps = {}) {
       </div>
 
       <div className="w-full max-w-xs flex flex-col gap-3">
+        {lastUser && (
+          <button
+            onClick={loginSilent}
+            className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
+          >
+            Continue as {lastUser.firstName}
+          </button>
+        )}
+
         <button
-          onClick={onLogin}
+          onClick={login}
           className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -38,7 +49,7 @@ export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps = {}) {
         </button>
 
         <button
-          onClick={onContinueAsGuest}
+          onClick={continueAsGuest}
           className="w-full text-slate-400 text-sm py-2 active:opacity-70 transition-opacity cursor-pointer"
         >
           Continue without signing in
