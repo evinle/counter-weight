@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { TRPCClientError } from '@trpc/client'
 import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
@@ -81,8 +82,8 @@ describe('useSyncEngine', () => {
       version: 1,
     })
 
-    const conflictError = Object.assign(new Error('Conflict'), {
-      data: { code: 'CONFLICT' },
+    const conflictError = new TRPCClientError('Conflict', {
+      result: { error: { data: { code: 'CONFLICT' }, message: 'Conflict', code: -32600 } },
     })
     vi.mocked(trpc.timers.upsert.mutate).mockRejectedValueOnce(conflictError)
     vi.mocked(trpc.timers.get.query).mockResolvedValueOnce({

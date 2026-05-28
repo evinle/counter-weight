@@ -38,8 +38,14 @@ export interface TimerV3 extends TimerV2 {
 
 export type Timer = TimerV3
 
-export const SYNC_STATUSES = ['pending', 'synced'] as const
-export type SyncStatus = typeof SYNC_STATUSES[number]
+export const SyncStatuses = {
+  Pending: 'pending',
+  Synced: 'synced',
+} as const satisfies Record<string, string>
+export type SyncStatus = typeof SyncStatuses[keyof typeof SyncStatuses]
+export function isSyncStatus(v: unknown): v is SyncStatus {
+  return Object.values(SyncStatuses).includes(v as SyncStatus)
+}
 
 export const HISTORY_STATUSES = ['completed', 'missed', 'cancelled'] as const satisfies ReadonlyArray<TimerStatus>
 export type HistoryStatus = typeof HISTORY_STATUSES[number]

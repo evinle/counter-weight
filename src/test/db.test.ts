@@ -1,6 +1,22 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
+import { isSyncStatus } from '../db/schema'
 import type { Timer } from '../db/schema'
+
+describe('isSyncStatus', () => {
+  it('returns true for valid sync statuses', () => {
+    expect(isSyncStatus('pending')).toBe(true)
+    expect(isSyncStatus('synced')).toBe(true)
+  })
+
+  it('returns false for invalid values', () => {
+    expect(isSyncStatus('active')).toBe(false)
+    expect(isSyncStatus('')).toBe(false)
+    expect(isSyncStatus(null)).toBe(false)
+    expect(isSyncStatus(undefined)).toBe(false)
+    expect(isSyncStatus(42)).toBe(false)
+  })
+})
 
 describe('db', () => {
   beforeEach(async () => {

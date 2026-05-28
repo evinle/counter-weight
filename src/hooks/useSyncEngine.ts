@@ -1,7 +1,9 @@
-import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect } from "react";
+import { isTRPCClientError } from "@trpc/client";
 import { db } from "../db";
-import type { TimerV3 } from "../db/schema";
+import { SyncStatuses } from "../db/schema";
+import type { Timer } from "../db/schema";
 import { trpc } from "../lib/trpc";
 import type { AuthUser } from "./useAuth";
 
@@ -30,7 +32,7 @@ function mapServerTimer(s: ServerTimer) {
     createdAt: new Date(s.createdAt),
     updatedAt: new Date(s.updatedAt),
     groupId: null,
-    syncStatus: "synced" as const,
+    syncStatus: SyncStatuses.Synced,
   };
 }
 
@@ -40,7 +42,7 @@ async function drain(user: AuthUser) {
   try {
     const pending = await db.timers
       .where("syncStatus")
-      .equals("pending")
+      .equals(SyncStatuses.Pending)
       .and((t) => t.userId === user.userId)
       .toArray();
 
@@ -61,11 +63,11 @@ async function drain(user: AuthUser) {
         });
         await db.timers.update(timer.id!, {
           serverId: result.serverId,
-          syncStatus: "synced",
+          syncStatus: SyncStatuses.Synced,
           version: result.version,
         });
       } catch (err: unknown) {
-        const code = (err as { data?: { code?: string } })?.data?.code;
+        const code = isTRPCClientError(err) ? err.data?.code : undefined;
         if (code === "CONFLICT" && timer.serverId) {
           // Server wins: fetch the single conflicting record and overwrite Dexie
           const match = await trpc.timers.get.query({
@@ -80,7 +82,7 @@ async function drain(user: AuthUser) {
             });
             await db.timers.update(timer.id!, {
               ...mapServerTimer(match),
-              syncStatus: "synced",
+              syncStatus: SyncStatuses.Synced,
             });
           }
         }
@@ -119,13 +121,13 @@ async function reconcile(user: AuthUser) {
       if (local?.id !== undefined) {
         await db.timers.update(local.id, {
           ...mapServerTimer(serverTimer),
-          syncStatus: "synced",
+          syncStatus: SyncStatuses.Synced,
         });
       } else {
         await db.timers.add({
           ...mapServerTimer(serverTimer),
           userId: user.userId,
-          syncStatus: "synced",
+          syncStatus: SyncStatuses.Synced,
         });
       }
     }
@@ -150,11 +152,11 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
   currentUser = user;
 
   const pendingTimers = useLiveQuery(
-    (): Promise<TimerV3[]> =>
+    (): Promise<Timer[]> =>
       user
         ? db.timers
             .where("syncStatus")
-            .equals("pending")
+            .equals(SyncStatuses.Pending)
             .and((t) => t.userId === user.userId)
             .toArray()
         : Promise.resolve([]),

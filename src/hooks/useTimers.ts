@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
+import { HISTORY_STATUSES, SyncStatuses } from '../db/schema'
 import type { Priority, Timer } from '../db/schema'
-import { HISTORY_STATUSES } from '../db/schema'
 
 export function useActiveTimers(): Timer[] {
   return (
@@ -68,7 +68,7 @@ export async function createTimer(
     updatedAt: now,
     serverId: null,
     userId,
-    syncStatus: userId ? 'pending' : 'synced',
+    syncStatus: userId ? SyncStatuses.Pending : SyncStatuses.Synced,
     version: null,
   })
 }
@@ -77,7 +77,7 @@ export async function completeTimer(id: number): Promise<void> {
   await db.timers.update(id, {
     status: 'completed',
     updatedAt: new Date(),
-    syncStatus: 'pending',
+    syncStatus: SyncStatuses.Pending,
   })
 }
 
@@ -85,7 +85,7 @@ export async function cancelTimer(id: number): Promise<void> {
   await db.timers.update(id, {
     status: 'cancelled',
     updatedAt: new Date(),
-    syncStatus: 'pending',
+    syncStatus: SyncStatuses.Pending,
   })
 }
 
