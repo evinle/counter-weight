@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
-import { useSyncEngine } from '../hooks/useSyncEngine'
+import { useSyncEngine, triggerSync } from '../hooks/useSyncEngine'
 import type { AuthUser } from '../hooks/useAuth'
 
 // Mock the tRPC client
@@ -44,6 +44,8 @@ beforeEach(async () => {
   await db.timers.clear()
   vi.clearAllMocks()
   localStorage.clear()
+  // Reset module-level currentUser between tests
+  renderHook(() => useSyncEngine({ user: null }))
 })
 
 describe('useSyncEngine', () => {
@@ -119,6 +121,161 @@ describe('useSyncEngine', () => {
 
   it('does nothing when user is null', () => {
     renderHook(() => useSyncEngine({ user: null }))
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+
+  it('reconcile: adds a server record not present in Dexie', async () => {
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({ serverId: 'x', version: 1 })
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
+      {
+        id: 'srv-new',
+        title: 'From Server',
+        description: null,
+        emoji: null,
+        targetDatetime: '2026-06-01T12:00:00.000Z',
+        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
+        status: 'active',
+        priority: 'medium',
+        isFlagged: false,
+        recurrenceRule: null,
+        version: 1,
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        userId: 'user-1',
+        groupId: null,
+        eventbridgeScheduleId: null,
+      },
+    ])
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const timers = await db.timers.toArray()
+      expect(timers.some(t => t.serverId === 'srv-new' && t.title === 'From Server')).toBe(true)
+    })
+  })
+
+  it('reconcile: updates a stale local record with the server version', async () => {
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      serverId: 'srv-existing',
+      syncStatus: 'synced',
+      version: 1,
+    })
+
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
+      {
+        id: 'srv-existing',
+        title: 'Updated By Server',
+        description: null,
+        emoji: null,
+        targetDatetime: '2026-06-01T12:00:00.000Z',
+        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
+        status: 'active',
+        priority: 'medium',
+        isFlagged: false,
+        recurrenceRule: null,
+        version: 2,
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        userId: 'user-1',
+        groupId: null,
+        eventbridgeScheduleId: null,
+      },
+    ])
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const timer = await db.timers.get(id)
+      expect(timer?.title).toBe('Updated By Server')
+      expect(timer?.version).toBe(2)
+    })
+  })
+})
+
+describe('triggerSync', () => {
+  it('is a no-op when user is null', async () => {
+    await triggerSync()
+    expect(trpc.timers.reconcile.query).not.toHaveBeenCalled()
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+
+  it('adds a server record not present in Dexie without calling upsert', async () => {
+    // Let the mount sync settle with an empty reconcile response, then trigger
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    renderHook(() => useSyncEngine({ user: USER }))
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+
+    vi.clearAllMocks()
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
+      {
+        id: 'srv-trigger-new',
+        title: 'Pulled By triggerSync',
+        description: null,
+        emoji: null,
+        targetDatetime: '2026-06-01T12:00:00.000Z',
+        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
+        status: 'active',
+        priority: 'medium',
+        isFlagged: false,
+        recurrenceRule: null,
+        version: 1,
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        userId: 'user-1',
+        groupId: null,
+        eventbridgeScheduleId: null,
+      },
+    ])
+
+    await triggerSync()
+
+    const timers = await db.timers.toArray()
+    expect(timers.some(t => t.serverId === 'srv-trigger-new' && t.title === 'Pulled By triggerSync')).toBe(true)
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+
+  it('updates a stale local record without calling upsert', async () => {
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      serverId: 'srv-stale',
+      syncStatus: 'synced',
+      version: 1,
+    })
+
+    // Let the mount sync settle with an empty reconcile response, then trigger
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    renderHook(() => useSyncEngine({ user: USER }))
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+
+    vi.clearAllMocks()
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
+      {
+        id: 'srv-stale',
+        title: 'Refreshed By triggerSync',
+        description: null,
+        emoji: null,
+        targetDatetime: '2026-06-01T12:00:00.000Z',
+        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
+        status: 'active',
+        priority: 'medium',
+        isFlagged: false,
+        recurrenceRule: null,
+        version: 3,
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+        userId: 'user-1',
+        groupId: null,
+        eventbridgeScheduleId: null,
+      },
+    ])
+
+    await triggerSync()
+
+    const timer = await db.timers.get(id)
+    expect(timer?.title).toBe('Refreshed By triggerSync')
+    expect(timer?.version).toBe(3)
     expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
   })
 })
