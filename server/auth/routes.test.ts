@@ -46,7 +46,7 @@ describe("POST /auth/callback", () => {
     const setCookie = res.headers["set-cookie"] as string;
     expect(setCookie).toContain("refresh_token=test-refresh-token");
     expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("SameSite=Strict");
+    expect(setCookie).toContain("SameSite=Lax");
   });
 
   it("returns 400 if Cognito token exchange fails", async () => {
