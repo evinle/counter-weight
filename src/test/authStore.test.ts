@@ -89,3 +89,75 @@ describe('subscribeToAuthPersistence', () => {
     unsubscribe()
   })
 })
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+beforeEach(() => {
+  vi.stubGlobal('import.meta', {
+    env: {
+      VITE_COGNITO_DOMAIN: 'https://test.auth.example.com',
+      VITE_COGNITO_CLIENT_ID: 'test-client-id',
+    },
+  })
+  vi.stubGlobal('location', {
+    href: '',
+    origin: 'https://app.example.com',
+    search: '',
+    pathname: '/',
+  })
+})
+
+describe('bootstrap()', () => {
+  it('sets authenticated state on successful refresh', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ idToken: fakeJwt('u1', 'user@example.com', 'Alice') }),
+    })
+
+    await useAuthStore.getState().bootstrap()
+
+    expect(useAuthStore.getState().state).toBe('authenticated')
+    expect(useAuthStore.getState().user?.userId).toBe('u1')
+  })
+
+  it('sets unauthenticated when refresh returns 401 and no lastUser', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false })
+
+    await useAuthStore.getState().bootstrap()
+
+    expect(useAuthStore.getState().state).toBe('unauthenticated')
+  })
+
+  it('redirects with prompt=none when refresh returns 401 and lastUser exists', async () => {
+    localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
+    mockFetch.mockResolvedValueOnce({ ok: false })
+
+    await useAuthStore.getState().bootstrap()
+
+    expect(window.location.href).toContain('/oauth2/authorize')
+    expect(window.location.href).toContain('prompt=none')
+  })
+
+  it('sets unauthenticated on network timeout (AbortError)', async () => {
+    mockFetch.mockRejectedValueOnce(
+      Object.assign(new Error('aborted'), { name: 'AbortError' })
+    )
+
+    await useAuthStore.getState().bootstrap()
+
+    expect(useAuthStore.getState().state).toBe('unauthenticated')
+  })
+
+  it('does not re-run when called a second time', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ idToken: fakeJwt('u1', 'user@example.com', 'Alice') }),
+    })
+
+    await useAuthStore.getState().bootstrap()
+    await useAuthStore.getState().bootstrap()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+})
