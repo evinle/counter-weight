@@ -1,9 +1,9 @@
 interface LoginViewProps {
-  onLogin: () => void
-  onContinueAsGuest: () => void
+  onLogin?: () => void
+  onContinueAsGuest?: () => void
 }
 
-export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps) {
+export function LoginView({ onLogin, onContinueAsGuest }: LoginViewProps = {}) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-8 px-8">
       <div className="text-center">

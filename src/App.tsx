@@ -16,9 +16,10 @@ import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
 import { LoginView } from "./components/LoginView";
-import { trpc, setIdToken } from "./lib/trpc";
+import { trpc } from "./lib/trpc";
 import { fetchFromBackend } from "./lib/api";
 import { bootstrappedKey } from "./lib/storageKeys";
+import { useAuthStore, subscribeToAuthPersistence } from "./store/authStore";
 
 const queryClient = new QueryClient();
 
@@ -30,31 +31,42 @@ export function App() {
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
-  const { state, user, login, continueAsGuest } = useAuth();
+  const { state, user } = useAuth();
   useSyncEngine({ user });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthPersistence()
+    useAuthStore.getState().bootstrap()
+    return unsubscribe
+  }, [])
 
   // Handle Cognito auth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    if (!code) return;
+    const error = params.get("error");
 
-    window.history.replaceState({}, "", window.location.pathname);
+    if (!code && !error) return;
 
-    fetchFromBackend("/auth/callback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ code, origin: window.location.origin }),
-    }).then(async (res) => {
-      if (!res.ok) return;
-      const { idToken } = (await res.json()) as { idToken: string };
-      // Reload triggers useAuth's silent refresh, which restores authenticated state.
-      // Known limitation (M2): causes a visible roundtrip. Fixing cleanly requires a
-      // shared auth store so the callback can update auth state in place. Defer to M3.
-      setIdToken(idToken);
-      window.location.reload();
-    });
+    window.history.replaceState({}, "", "/");
+
+    if (error === "login_required") {
+      useAuthStore.getState().setUnauthenticated();
+      return;
+    }
+
+    if (code) {
+      fetchFromBackend("/auth/callback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code, origin: window.location.origin }),
+      }).then(async (res) => {
+        if (!res.ok) return;
+        const { idToken } = (await res.json()) as { idToken: string };
+        useAuthStore.getState().setAuthenticated(idToken);
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -172,7 +184,7 @@ export function App() {
     }
 
     if (state === "unauthenticated") {
-      return <LoginView onLogin={login} onContinueAsGuest={continueAsGuest} />;
+      return <LoginView />;
     }
 
     if (activeAction === ActiveAction.CreateEdit) {
