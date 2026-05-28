@@ -136,3 +136,17 @@ export type Tab = typeof Tab[keyof typeof Tab]
 ### Testing
 
 Frontend tests use `jsdom` + `fake-indexeddb` (configured in `src/test/setup.ts`). Server tests use `vitest` with real types; env helpers in `server/test/envHelpers.ts`. Vitest config is separate from Vite (`vitest.config.ts`).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`https://github.com/evinle/counter-weight`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context repo — `CONTEXT-MAP.md` at the root points to per-package `CONTEXT.md` files (`src/`, `server/`, `infra/`). See `docs/agents/domain.md`.
