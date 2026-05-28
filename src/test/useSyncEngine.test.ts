@@ -21,7 +21,7 @@ vi.mock('../lib/trpc', () => ({
 
 import { trpc } from '../lib/trpc'
 
-const USER: AuthUser = { userId: 'user-1', email: 'user@example.com' }
+const USER = { userId: 'user-1', email: 'user@example.com', firstName: 'Test' } satisfies AuthUser
 
 const BASE_TIMER = {
   title: 'Test',
