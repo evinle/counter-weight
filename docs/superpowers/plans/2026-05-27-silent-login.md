@@ -165,7 +165,7 @@ Create `src/test/authStore.test.ts`:
 ```ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuthStore, subscribeToAuthPersistence } from '../store/authStore'
-import { StorageKey } from '../lib/storageKeys'
+import { StorageKey, bootstrappedKey } from '../lib/storageKeys'
 
 // Minimal fake JWT: header.payload.sig
 function fakeJwt(sub: string, email: string, given_name?: string) {
@@ -384,6 +384,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       localStorage.removeItem(bootstrappedKey(user.userId))
     }
     localStorage.removeItem(StorageKey.LastSyncedAt)
+    localStorage.removeItem(StorageKey.LastUser)
     setIdToken(null)
     set({ user: null, state: 'unauthenticated' })
   },
@@ -552,8 +553,8 @@ describe('logout()', () => {
       state: 'authenticated',
       user: { userId: 'u1', email: 'user@example.com', firstName: 'Alice' },
     })
-    localStorage.setItem('cw:bootstrapped:u1', '1')
-    localStorage.setItem('cw:lastSyncedAt', new Date().toISOString())
+    localStorage.setItem(bootstrappedKey('u1'), '1')
+    localStorage.setItem(StorageKey.LastSyncedAt, new Date().toISOString())
     localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
     mockFetch.mockResolvedValueOnce({ ok: true })
 
@@ -566,8 +567,9 @@ describe('logout()', () => {
       expect.stringContaining('/auth/logout'),
       expect.objectContaining({ method: 'POST' })
     )
-    expect(localStorage.getItem('cw:bootstrapped:u1')).toBeNull()
-    expect(localStorage.getItem('cw:lastSyncedAt')).toBeNull()
+    expect(localStorage.getItem(bootstrappedKey('u1'))).toBeNull()
+    expect(localStorage.getItem(StorageKey.LastSyncedAt)).toBeNull()
+    expect(localStorage.getItem(StorageKey.LastUser)).toBeNull()
   })
 })
 ```
@@ -670,18 +672,26 @@ export function useAuth(): UseAuth {
 }
 ```
 
-- [ ] **Step 4: Run all tests to verify nothing is broken**
+- [ ] **Step 4: Update `src/test/useSyncEngine.test.ts` — `AuthUser` fixture now requires `firstName`**
+
+`AuthUser` gains a required `firstName` field. Update the `USER` fixture at line 24:
+
+```ts
+const USER = { userId: 'user-1', email: 'user@example.com', firstName: 'Test' } satisfies AuthUser
+```
+
+- [ ] **Step 5: Run all tests to verify nothing is broken**
 
 ```bash
 npx vitest run
 ```
 
-Expected: all test suites PASS. If `useSyncEngine.test.ts` or other tests construct `AuthUser`, they need `firstName` added — fix any failures by adding `firstName: 'Test'` to mock `AuthUser` objects.
+Expected: all test suites PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/hooks/useAuth.ts src/test/useAuth.test.ts
+git add src/hooks/useAuth.ts src/test/useAuth.test.ts src/test/useSyncEngine.test.ts
 git commit -m "refactor: replace useAuth React state with Zustand selector"
 ```
 
