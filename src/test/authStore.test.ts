@@ -202,5 +202,6 @@ describe('logout()', () => {
     expect(localStorage.getItem(bootstrappedKey('u1'))).toBeNull()
     expect(localStorage.getItem(StorageKey.LastSyncedAt)).toBeNull()
     expect(localStorage.getItem(StorageKey.LastUser)).toBeNull()
+    expect(useAuthStore.getState().lastUser).toBeNull()
   })
 })

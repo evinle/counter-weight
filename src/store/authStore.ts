@@ -117,7 +117,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     localStorage.removeItem(StorageKey.LastSyncedAt)
     localStorage.removeItem(StorageKey.LastUser)
     setIdToken(null)
-    set({ user: null, state: 'unauthenticated' })
+    set({ user: null, state: 'unauthenticated', lastUser: null })
   },
 }))
 

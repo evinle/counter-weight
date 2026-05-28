@@ -50,7 +50,7 @@ export function App() {
 
     window.history.replaceState({}, "", "/");
 
-    if (error === "login_required") {
+    if (error) {
       useAuthStore.getState().setUnauthenticated();
       return;
     }
@@ -62,7 +62,10 @@ export function App() {
         credentials: "include",
         body: JSON.stringify({ code, origin: window.location.origin }),
       }).then(async (res) => {
-        if (!res.ok) return;
+        if (!res.ok) {
+          useAuthStore.getState().setUnauthenticated();
+          return;
+        }
         const { idToken } = (await res.json()) as { idToken: string };
         useAuthStore.getState().setAuthenticated(idToken);
       });
