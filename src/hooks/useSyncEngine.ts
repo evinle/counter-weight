@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
+import type { TimerV3 } from "../db/schema";
 import { trpc } from "../lib/trpc";
 import type { AuthUser } from "./useAuth";
 
@@ -149,7 +150,7 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
   currentUser = user;
 
   const pendingTimers = useLiveQuery(
-    () =>
+    (): Promise<TimerV3[]> =>
       user
         ? db.timers
             .where("syncStatus")
@@ -158,7 +159,7 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
             .toArray()
         : Promise.resolve([]),
     [user?.userId],
-    []
+    [],
   );
 
   useEffect(() => {
