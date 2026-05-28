@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers } from '../hooks/useTimers'
+import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers, claimTimers, removeUnclaimedTimers } from '../hooks/useTimers'
 import type { Timer } from '../db/schema'
 
 const BASE = {
@@ -123,6 +123,55 @@ describe('editTimer', () => {
     await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
     const timer = await db.timers.get(id!)
     expect(timer?.syncStatus).toBe('pending')
+  })
+})
+
+describe('claimTimers', () => {
+  it('stamps all userId:null timers with the given userId and syncStatus pending', async () => {
+    await createTimer(BASE, null)
+    await createTimer(BASE, null)
+    await claimTimers('user-1')
+    const all = await db.timers.toArray()
+    expect(all.every(t => t.userId === 'user-1')).toBe(true)
+    expect(all.every(t => t.syncStatus === 'pending')).toBe(true)
+  })
+
+  it('does not modify timers that already have a userId', async () => {
+    await createTimer(BASE, 'existing-user')
+    await createTimer(BASE, null)
+    await claimTimers('user-1')
+    const all = await db.timers.toArray()
+    const existing = all.find(t => t.userId === 'existing-user')
+    expect(existing).toBeDefined()
+    expect(existing!.syncStatus).toBe('pending') // createTimer sets pending for non-null userId
+  })
+
+  it('claims timers of all statuses', async () => {
+    for (const status of ['active', 'fired', 'completed', 'missed', 'cancelled'] as const) {
+      await createTimer({ ...BASE, status }, null)
+    }
+    await claimTimers('user-1')
+    const all = await db.timers.toArray()
+    expect(all.every(t => t.userId === 'user-1')).toBe(true)
+  })
+})
+
+describe('removeUnclaimedTimers', () => {
+  it('deletes all userId:null timers', async () => {
+    await createTimer(BASE, null)
+    await createTimer(BASE, null)
+    await removeUnclaimedTimers()
+    const all = await db.timers.toArray()
+    expect(all).toHaveLength(0)
+  })
+
+  it('does not delete timers that have a userId', async () => {
+    await createTimer(BASE, 'user-1')
+    await createTimer(BASE, null)
+    await removeUnclaimedTimers()
+    const all = await db.timers.toArray()
+    expect(all).toHaveLength(1)
+    expect(all[0].userId).toBe('user-1')
   })
 })
 

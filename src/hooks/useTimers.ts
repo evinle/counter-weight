@@ -109,6 +109,21 @@ export async function editTimer(
   await db.timers.update(id, { ...params, updatedAt: new Date(), syncStatus: 'pending' })
 }
 
+async function getUnclaimedIds(): Promise<number[]> {
+  const all = await db.timers.toArray()
+  return all.filter(t => t.userId === null).map(t => t.id!)
+}
+
+export async function claimTimers(userId: string): Promise<void> {
+  const ids = await getUnclaimedIds()
+  await Promise.all(ids.map(id => db.timers.update(id, { userId, syncStatus: SyncStatuses.Pending, updatedAt: new Date() })))
+}
+
+export async function removeUnclaimedTimers(): Promise<void> {
+  const ids = await getUnclaimedIds()
+  await db.timers.bulkDelete(ids)
+}
+
 export async function bulkImportTimers(timers: Omit<Timer, 'id'>[]): Promise<void> {
   await db.timers.bulkAdd(timers)
 }

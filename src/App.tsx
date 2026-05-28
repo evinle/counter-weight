@@ -16,6 +16,8 @@ import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
 import { LoginView } from "./components/LoginView";
+import { UnclaimedTimersModal } from "./components/UnclaimedTimersModal";
+import { claimTimers, removeUnclaimedTimers } from "./hooks/useTimers";
 import { trpc } from "./lib/trpc";
 import { fetchFromBackend } from "./lib/api";
 import { bootstrappedKey } from "./lib/storageKeys";
@@ -33,6 +35,20 @@ export function App() {
 
   const { state, user } = useAuth();
   useSyncEngine({ user });
+
+  const [unclaimedDismissed, setUnclaimedDismissed] = useState(false);
+  useEffect(() => { setUnclaimedDismissed(false) }, [user?.userId]);
+  const unclaimedCount =
+    useLiveQuery(
+      async () => {
+        const all = await db.timers.toArray()
+        return all.filter(t => t.userId === null).length
+      },
+      [],
+      0,
+    ) ?? 0;
+
+  const showUnclaimedModal = state === 'authenticated' && unclaimedCount > 0 && !unclaimedDismissed;
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthPersistence()
@@ -233,6 +249,15 @@ export function App() {
           )}
 
         <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
+
+        {showUnclaimedModal && (
+          <UnclaimedTimersModal
+            count={unclaimedCount}
+            onSync={async () => { await claimTimers(user!.userId); setUnclaimedDismissed(true) }}
+            onKeep={() => setUnclaimedDismissed(true)}
+            onRemove={async () => { await removeUnclaimedTimers(); setUnclaimedDismissed(true) }}
+          />
+        )}
 
         {activeAction === ActiveAction.None &&
           (state === "authenticated" || state === "guest") && (
