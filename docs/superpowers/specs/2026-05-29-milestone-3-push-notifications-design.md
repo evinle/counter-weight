@@ -132,7 +132,7 @@ retryAt = currentTokens >= 1
   : now + (1 - currentTokens) / refillRate       // time until next token
 ```
 
-`retryAt: null` is returned when the timer has exhausted attempts and the server has decided to stop (e.g. max refill cycles exceeded — exact policy TBD).
+`retryAt: null` is returned when `now >= targetDatetime`. Once the target time has passed, scheduling a push notification is meaningless — the server stops retrying permanently.
 
 New procedure: `timers.retrySchedule({ serverId })` — server recomputes tokens, rejects if insufficient, calls `put-schedule`, sets `notification_scheduled = true` on success.
 
@@ -159,16 +159,29 @@ Dexie is **not** imported into the SW — keeps the bundle lean and avoids schem
 
 Add `'fired'` to the `event_type` Postgres enum. `'missed'` and `'snoozed'` deferred until they are actually written.
 
+### 10. Recurrence (Notify Lambda)
+
+When the Notify Lambda fires a timer with a non-null `recurrenceRule`, it uses the **clone-and-complete** model:
+
+1. Update the current timer to `status: 'completed'`
+2. Write `timer_events { eventType: 'completed' }` for the current timer
+3. Compute the next `targetDatetime` from `recurrenceRule` (cron + tz)
+4. Insert a new timer record with a fresh `id` (`serverId`), `status: 'active'`, the computed `targetDatetime`, and the same `recurrenceRule`
+5. Write `timer_events { eventType: 'created' }` for the new record
+6. Create an EventBridge schedule `timer-{newServerId}` at the new `targetDatetime`
+
+The completed timer becomes a discrete history record. The client picks up both the completed record and the new active record on next reconcile.
+
 ---
 
 ## Open Questions
 
-1. **Recurrence** — Notify Lambda recurrence handling (compute next `targetDatetime`, create new EventBridge schedule) deferred to M4. Timers with `recurrenceRule` fire once in M3.
+All original open questions resolved:
 
-2. **Missed status** — When does a `fired` timer become `missed`? The design spec says "API computes on read: status=fired with no completed event within 24h." Not yet implemented. Deferred — client feed only shows `active` and `fired`.
-
-3. **iOS install prompt** — iOS requires PWA installed to Home Screen for push. App should detect iOS on first visit and prompt install before offering notifications. Not yet designed. Deferred.
-
-4. **On-open EventBridge repair** — `timers.retrySchedule` covers client-triggered repair. A server-side sweep for timers where `notification_scheduled = false` (e.g. cron Lambda) is not in M3 scope.
-
-5. **Notify Lambda `retryAt: null` policy** — Exact condition for permanently giving up (e.g. N refill cycles exceeded) not yet defined. TBD during M3 implementation.
+| Question | Resolution |
+|---|---|
+| Recurrence | Clone-and-complete — see §10 |
+| Missed status | Removed from scope — concept not sufficiently defined |
+| iOS install prompt | Moved to M4 scope |
+| On-open server sweep | Removed from scope — client-triggered repair sufficient |
+| `retryAt: null` policy | Give up when `now >= targetDatetime` — see §7 |
