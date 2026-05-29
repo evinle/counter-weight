@@ -60,7 +60,8 @@ Notify Lambda responsibilities on invocation:
 2. Read push subscriptions for the timer's `userId`
 3. Fan out `web-push.sendNotification()` via `Promise.allSettled` — `410 Gone` responses delete stale subscriptions
 4. Write `timer_events { eventType: 'fired' }`
-5. Update `notification_scheduled = true` on the timer row
+
+`notification_scheduled` is set by the API Lambda's `upsert` when EventBridge `put-schedule` succeeds — not by the Notify Lambda. By the time the Notify Lambda fires, the schedule already existed and executed; the flag is irrelevant at that point.
 
 ### 4. Push subscriptions
 
@@ -71,13 +72,11 @@ New table in Postgres:
 | id | uuid PK | |
 | user_id | text FK → users | |
 | endpoint | text UNIQUE | browser push relay URL — used for upsert and 410 cleanup |
-| keys | jsonb | `{ p256dh, auth }` from `PushSubscription.toJSON()` |
+| subscription | jsonb | `{ p256dh, auth, deviceHint }` — crypto keys from `PushSubscription.toJSON()`, `deviceHint` derived server-side from `User-Agent` at registration time |
 | created_at | timestamptz | |
 | last_used_at | timestamptz | |
 
 New tRPC procedure: `pushSubscriptions.register` on the API Lambda. Client calls it when `Notification.permission` transitions to `'granted'` (idempotent upsert by endpoint). Also called on every app-open when permission is already `'granted'` — handles endpoint rotation.
-
-`device_hint` deferred to M4+ (no UI needs it yet).
 
 ### 5. VAPID keys
 
@@ -89,6 +88,8 @@ Generated once via `web-push generateVAPIDKeys()`. Not stored in the DB.
 | `VAPID_PUBLIC_KEY` | Notify Lambda env + `VITE_VAPID_PUBLIC_KEY` baked into frontend build |
 
 The public key is passed to `pushManager.subscribe({ applicationServerKey: vapidPublicKey })` at subscription time. The relay stores it and rejects pushes not signed by the matching private key.
+
+**Rotation:** VAPID keys are semi-permanent — treat rotation as a break-glass procedure (key compromise only). Rotating requires a frontend redeploy with a new `VITE_VAPID_PUBLIC_KEY`. Existing subscriptions become invalid (relay signature mismatch); they re-register on next app-open and stale entries clean up via `410 Gone`. No rotation automation in M3.
 
 ### 6. Scheduling reliability: client contract
 
