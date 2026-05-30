@@ -41,3 +41,6 @@ infra/cdk.out/
 
 #claude worktrees
 .claude/worktrees/
+
+#teaching
+teaching/
