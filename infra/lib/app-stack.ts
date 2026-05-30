@@ -89,6 +89,7 @@ export class AppStack extends cdk.Stack {
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(15),
+      durableConfig: { executionTimeout: cdk.Duration.seconds(30) },
       projectRoot: path.join(__dirname, "../.."),
       environment: {
         DB_ENDPOINT: storageStack.dbInstanceEndpoint,
@@ -100,23 +101,6 @@ export class AppStack extends cdk.Stack {
 
     storageStack.dbSecret.grantRead(notifyLambda);
     vapidPrivateKeySecret?.grantRead(notifyLambda);
-
-    // Durable Execution SDK layer (required for M3.2 durable sleep)
-    // Obtain the ARN from the AWS console or CLI after the layer is published in your region,
-    // then pass it: cdk deploy AppStack --context durableExecutionLayerArn=<ARN>
-    const durableLayerArnRaw = this.node.tryGetContext(
-      "durableExecutionLayerArn",
-    );
-    const durableLayerArn =
-      typeof durableLayerArnRaw === "string" ? durableLayerArnRaw : undefined;
-    if (durableLayerArn) {
-      const durableLayer = lambda.LayerVersion.fromLayerVersionArn(
-        this,
-        "DurableExecutionLayer",
-        durableLayerArn,
-      );
-      notifyLambda.addLayers(durableLayer);
-    }
 
     // EventBridge Scheduler role — assumes this role to invoke Notify Lambda
     const schedulerRole = new iam.Role(this, "EventBridgeSchedulerRole", {
