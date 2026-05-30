@@ -16,8 +16,14 @@ const apiEnvSchema = z.object({
   DB_ENDPOINT: z.string().min(1),
 })
 
+const notifyEnvSchema = z.object({
+  VAPID_PUBLIC_KEY: z.string().min(1),
+  VAPID_PRIVATE_KEY: z.string().min(1),
+})
+
 export type AuthEnv = z.infer<typeof authEnvSchema>
 export type ApiEnv = z.infer<typeof apiEnvSchema>
+export type NotifyEnv = z.infer<typeof notifyEnvSchema>
 
 function parseSchema<T>(schema: z.ZodType<T>): T {
   const result = schema.safeParse(process.env)
@@ -40,6 +46,12 @@ let _apiEnv: ApiEnv | null = null
 export function getApiEnv(): ApiEnv {
   if (!_apiEnv) _apiEnv = parseSchema(apiEnvSchema)
   return _apiEnv
+}
+
+let _notifyEnv: NotifyEnv | null = null
+export function getNotifyEnv(): NotifyEnv {
+  if (!_notifyEnv) _notifyEnv = parseSchema(notifyEnvSchema)
+  return _notifyEnv
 }
 
 // Called at API Lambda cold start to fail fast before accepting requests

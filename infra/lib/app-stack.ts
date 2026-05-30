@@ -32,6 +32,17 @@ export class AppStack extends cdk.Stack {
       "cognitoClientSecretArn",
     ) as string | undefined;
 
+    // VAPID key pair (M3.1 plumbing — Notify Lambda wires these in M3.2)
+    //   cdk deploy AppStack --context vapidSecretArn=<ARN> --context vapidPublicKey=<KEY>
+    const vapidSecretArn = this.node.tryGetContext("vapidSecretArn") as string | undefined;
+    const vapidPublicKey = this.node.tryGetContext("vapidPublicKey") as string | undefined;
+    const vapidPrivateKeySecret = vapidSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "VapidPrivateKeySecret", vapidSecretArn)
+      : undefined;
+    // TODO(M3.2): when NotifyLambda is created, add:
+    //   vapidPrivateKeySecret?.grantRead(notifyLambda)
+    //   if (vapidPublicKey) notifyLambda.addEnvironment("VAPID_PUBLIC_KEY", vapidPublicKey)
+
     // Auth Lambda — outside VPC, internet access for Cognito token endpoint
     const authLambda = new NodejsFunction(this, "AuthLambda", {
       entry: path.join(__dirname, "../../server/auth/index.ts"),
