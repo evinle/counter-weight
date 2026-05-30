@@ -6,6 +6,7 @@ import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations
 import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
 import { Construct } from "constructs";
 import type { StorageStack } from "./storage-stack";
@@ -62,6 +63,52 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: storageStack.userPoolClient.userPoolClientId,
       },
     });
+
+    // VAPID key pair (M3.1 plumbing)
+    //   cdk deploy AppStack --context vapidSecretArn=<ARN> --context vapidPublicKey=<KEY>
+    const vapidSecretArnRaw = this.node.tryGetContext("vapidSecretArn");
+    const vapidSecretArn = typeof vapidSecretArnRaw === "string" ? vapidSecretArnRaw : undefined;
+    const vapidPublicKeyRaw = this.node.tryGetContext("vapidPublicKey");
+    const vapidPublicKey = typeof vapidPublicKeyRaw === "string" ? vapidPublicKeyRaw : undefined;
+    const vapidPrivateKeySecret = vapidSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "VapidPrivateKeySecret", vapidSecretArn)
+      : undefined;
+
+    // Notify Lambda — invoked by EventBridge Scheduler to send push notifications
+    const notifyLambda = new NodejsFunction(this, "NotifyLambda", {
+      entry: path.join(__dirname, "../../server/notify/index.ts"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.seconds(15),
+      projectRoot: path.join(__dirname, "../.."),
+      ...(vapidPublicKey && {
+        environment: {
+          VAPID_PUBLIC_KEY: vapidPublicKey,
+        },
+      }),
+    });
+
+    vapidPrivateKeySecret?.grantRead(notifyLambda);
+
+    // Durable Execution SDK layer (required for M3.2 durable sleep)
+    // Obtain the ARN from the AWS console or CLI after the layer is published in your region,
+    // then pass it: cdk deploy AppStack --context durableExecutionLayerArn=<ARN>
+    const durableLayerArnRaw = this.node.tryGetContext("durableExecutionLayerArn");
+    const durableLayerArn = typeof durableLayerArnRaw === "string" ? durableLayerArnRaw : undefined;
+    if (durableLayerArn) {
+      const durableLayer = lambda.LayerVersion.fromLayerVersionArn(
+        this,
+        "DurableExecutionLayer",
+        durableLayerArn,
+      );
+      notifyLambda.addLayers(durableLayer);
+    }
+
+    // EventBridge Scheduler role — assumes this role to invoke Notify Lambda
+    const schedulerRole = new iam.Role(this, "EventBridgeSchedulerRole", {
+      assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
+    });
+    notifyLambda.grantInvoke(schedulerRole);
 
     // Grant Auth Lambda SM read for Cognito client secret (only when ARN is provided)
     if (cognitoClientSecretArn) {
@@ -155,5 +202,8 @@ export class AppStack extends cdk.Stack {
     new cdk.CfnOutput(this, "ApiRegionalDomainName", {
       value: customDomain.regionalDomainName,
     });
+
+    new cdk.CfnOutput(this, "NotifyLambdaArn", { value: notifyLambda.functionArn });
+    new cdk.CfnOutput(this, "SchedulerRoleArn", { value: schedulerRole.roleArn });
   }
 }
