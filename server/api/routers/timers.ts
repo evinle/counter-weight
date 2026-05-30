@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../router.js'
-import { EventType } from '../../db/schema.js'
-import type { TimerStatus, Priority, RecurrenceRule } from '../../db/schema.js'
+import { EventType, TimerStatus } from '../../db/schema.js'
+import type { Priority, RecurrenceRule } from '../../db/schema.js'
 
 export type InsertTimerVals = {
   userId: string
@@ -57,7 +57,7 @@ export type TimersDb = {
   ): Promise<{ serverId: string; version: number } | null>
   setStatus(
     where: { id: string; userId: string; version: number },
-    status: 'completed' | 'cancelled',
+    status: typeof TimerStatus.Completed | typeof TimerStatus.Cancelled,
   ): Promise<{ id: string } | null>
   insertTimerEvent(vals: { timerId: string; userId: string; eventType: EventType }): Promise<void>
   reconcile(userId: string, since: Date | null): Promise<TimerRecord[]>
@@ -150,7 +150,7 @@ export const timersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const updated = await ctx.timersDb.setStatus(
         { id: input.serverId, userId: ctx.userId, version: input.version },
-        'completed',
+        TimerStatus.Completed,
       )
 
       if (!updated) throw new TRPCError({ code: 'CONFLICT' })
@@ -171,7 +171,7 @@ export const timersRouter = router({
     .mutation(async ({ ctx, input }) => {
       const updated = await ctx.timersDb.setStatus(
         { id: input.serverId, userId: ctx.userId, version: input.version },
-        'cancelled',
+        TimerStatus.Cancelled,
       )
 
       if (!updated) throw new TRPCError({ code: 'CONFLICT' })

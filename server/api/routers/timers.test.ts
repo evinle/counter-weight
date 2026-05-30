@@ -8,7 +8,7 @@ import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import type { FakeTimersDb } from '../../test/fakes/timersDb.js'
 import type { FakeScheduler } from '../../test/fakes/scheduler.js'
 import type { TimerRecord } from './timers.js'
-import type { Db } from '../../db/index.js'
+import { createFakeDb } from '../../test/fakes/db.js'
 import type { Scheduler } from '../scheduler.js'
 import type { z } from 'zod'
 
@@ -51,7 +51,7 @@ const EXISTING_TIMER = {
 } satisfies TimerRecord
 
 function makeCtx(userId: string | null, timersDb: FakeTimersDb, scheduler: Scheduler) {
-  return { userId, db: {} as unknown as Db, timersDb, scheduler, userAgent: null }
+  return { userId, db: createFakeDb(), timersDb, scheduler, userAgent: null }
 }
 
 let fakeDb: FakeTimersDb

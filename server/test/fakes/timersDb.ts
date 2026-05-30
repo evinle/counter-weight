@@ -1,3 +1,4 @@
+import { TimerStatus } from '../../db/schema.js'
 import type { EventType } from '../../db/schema.js'
 import type { TimersDb, TimerRecord, InsertTimerVals, UpdateTimerVals } from '../../api/routers/timers.js'
 
@@ -9,9 +10,8 @@ export type FakeTimersDb = TimersDb & {
   timerEvents: FakeTimerEvent[]
 }
 
-let _idCounter = 0
-
 export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTimersDb {
+  let idCounter = 0
   const timers: FakeTimer[] = opts.timers ? [...opts.timers] : []
   const timerEvents: FakeTimerEvent[] = []
 
@@ -20,7 +20,7 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
     timerEvents,
 
     async listActive(userId) {
-      return timers.filter((t) => t.userId === userId && t.status !== 'cancelled')
+      return timers.filter((t) => t.userId === userId && t.status !== TimerStatus.Cancelled)
     },
 
     async getTimer(id, userId) {
@@ -28,9 +28,9 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
     },
 
     async insertTimer(vals: InsertTimerVals) {
-      _idCounter++
+      idCounter++
       const row: FakeTimer = {
-        id: `timer-${_idCounter}`,
+        id: `timer-${idCounter}`,
         groupId: null,
         eventbridgeScheduleId: null,
         version: 1,
@@ -67,8 +67,8 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
     },
 
     async insertTimerEvent(vals) {
-      _idCounter++
-      timerEvents.push({ id: `event-${_idCounter}`, ...vals, occurredAt: new Date() })
+      idCounter++
+      timerEvents.push({ id: `event-${idCounter}`, ...vals, occurredAt: new Date() })
     },
 
     async reconcile(userId, since) {

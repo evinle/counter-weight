@@ -1,5 +1,6 @@
 import { and, eq, gt, ne, sql } from 'drizzle-orm'
 import { timers, timerEvents } from '../../db/schema.js'
+import { TimerStatus } from '../../db/schema.js'
 import type { EventType } from '../../db/schema.js'
 import type { Db } from '../../db/index.js'
 import type { TimersDb, InsertTimerVals, UpdateTimerVals } from './timers.js'
@@ -10,7 +11,7 @@ export function createTimersDb(db: Db): TimersDb {
       return db
         .select()
         .from(timers)
-        .where(and(eq(timers.userId, userId), ne(timers.status, 'cancelled')))
+        .where(and(eq(timers.userId, userId), ne(timers.status, TimerStatus.Cancelled)))
     },
 
     async getTimer(id, userId) {
