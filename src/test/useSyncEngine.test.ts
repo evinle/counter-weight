@@ -11,6 +11,8 @@ vi.mock('../lib/trpc', () => ({
   trpc: {
     timers: {
       upsert: { mutate: vi.fn() },
+      complete: { mutate: vi.fn() },
+      cancel: { mutate: vi.fn() },
       get: { query: vi.fn() },
       list: { query: vi.fn() },
       reconcile: { query: vi.fn() },
@@ -219,6 +221,80 @@ describe('live query drain trigger', () => {
 
     expect(trpc.timers.upsert.mutate).toHaveBeenCalled()
     expect(trpc.timers.reconcile.query).not.toHaveBeenCalled()
+  })
+})
+
+describe('drain routing by status', () => {
+  it('completed timer calls timers.complete and is marked synced', async () => {
+    // Arrange
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      status: 'completed',
+      serverId: 'srv-done',
+      syncStatus: 'pending',
+      version: 2,
+    })
+
+    vi.mocked(trpc.timers.complete.mutate).mockResolvedValueOnce({ ok: true })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert
+    await waitFor(async () => {
+      const timer = await db.timers.get(id)
+      expect(timer?.syncStatus).toBe('synced')
+    })
+    expect(trpc.timers.complete.mutate).toHaveBeenCalledWith({ serverId: 'srv-done', version: 2 })
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+
+  it('cancelled timer calls timers.cancel and is marked synced', async () => {
+    // Arrange
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      status: 'cancelled',
+      serverId: 'srv-cancelled',
+      syncStatus: 'pending',
+      version: 3,
+    })
+
+    vi.mocked(trpc.timers.cancel.mutate).mockResolvedValueOnce({ ok: true })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert
+    await waitFor(async () => {
+      const timer = await db.timers.get(id)
+      expect(timer?.syncStatus).toBe('synced')
+    })
+    expect(trpc.timers.cancel.mutate).toHaveBeenCalledWith({ serverId: 'srv-cancelled', version: 3 })
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+
+  it('completed timer with no serverId is left pending', async () => {
+    // Arrange
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    const id = await db.timers.add({
+      ...BASE_TIMER,
+      status: 'completed',
+      serverId: null,
+      syncStatus: 'pending',
+      version: null,
+    })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert — still pending after sync settles
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalled())
+    const timer = await db.timers.get(id)
+    expect(timer?.syncStatus).toBe('pending')
+    expect(trpc.timers.complete.mutate).not.toHaveBeenCalled()
+    expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
   })
 })
 

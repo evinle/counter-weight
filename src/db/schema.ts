@@ -4,6 +4,14 @@ export function isTimerStatus(v: string): v is TimerStatus {
   return (TIMER_STATUSES as readonly string[]).includes(v)
 }
 
+export const TimerStatuses = {
+  Active: 'active',
+  Fired: 'fired',
+  Completed: 'completed',
+  Missed: 'missed',
+  Cancelled: 'cancelled',
+} as const satisfies Record<string, TimerStatus>
+
 export const PRIORITIES = ['low', 'medium', 'high', 'critical'] as const
 export type Priority = typeof PRIORITIES[number]
 export function isPriority(v: string): v is Priority {

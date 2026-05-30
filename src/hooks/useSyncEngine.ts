@@ -2,7 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect } from "react";
 import { isTRPCClientError } from "@trpc/client";
 import { db } from "../db";
-import { SyncStatuses } from "../db/schema";
+import { SyncStatuses, TimerStatuses } from "../db/schema";
 import type { Timer } from "../db/schema";
 import { trpc } from "../lib/trpc";
 import type { AuthUser } from "./useAuth";
@@ -46,26 +46,45 @@ async function drain(user: AuthUser) {
       .and((t) => t.userId === user.userId)
       .toArray();
 
+    type TerminalStatus = typeof TimerStatuses.Completed | typeof TimerStatuses.Cancelled;
+    function isTerminalStatus(s: string): s is TerminalStatus {
+      return s === TimerStatuses.Completed || s === TimerStatuses.Cancelled;
+    }
+
+    const terminalMutate: Record<TerminalStatus, (input: { serverId: string; version: number }) => Promise<unknown>> = {
+      [TimerStatuses.Completed]: trpc.timers.complete.mutate,
+      [TimerStatuses.Cancelled]: trpc.timers.cancel.mutate,
+    };
+
     for (const timer of pending) {
+      const terminal = isTerminalStatus(timer.status) ? terminalMutate[timer.status] : undefined;
       try {
-        const result = await trpc.timers.upsert.mutate({
-          serverId: timer.serverId,
-          title: timer.title,
-          description: timer.description,
-          emoji: timer.emoji,
-          targetDatetime: timer.targetDatetime.toISOString(),
-          originalTargetDatetime: timer.originalTargetDatetime.toISOString(),
-          status: timer.status,
-          priority: timer.priority,
-          isFlagged: timer.isFlagged,
-          recurrenceRule: timer.recurrenceRule,
-          version: timer.version ?? undefined,
-        });
-        await db.timers.update(timer.id!, {
-          serverId: result.serverId,
-          syncStatus: SyncStatuses.Synced,
-          version: result.version,
-        });
+        if (terminal) {
+          if (timer.serverId && timer.version != null) {
+            await terminal({ serverId: timer.serverId, version: timer.version });
+            await db.timers.update(timer.id!, { syncStatus: SyncStatuses.Synced });
+          }
+          // no serverId or version: leave pending, retry on next sync
+        } else {
+          const result = await trpc.timers.upsert.mutate({
+            serverId: timer.serverId,
+            title: timer.title,
+            description: timer.description,
+            emoji: timer.emoji,
+            targetDatetime: timer.targetDatetime.toISOString(),
+            originalTargetDatetime: timer.originalTargetDatetime.toISOString(),
+            status: timer.status,
+            priority: timer.priority,
+            isFlagged: timer.isFlagged,
+            recurrenceRule: timer.recurrenceRule,
+            version: timer.version ?? undefined,
+          });
+          await db.timers.update(timer.id!, {
+            serverId: result.serverId,
+            syncStatus: SyncStatuses.Synced,
+            version: result.version,
+          });
+        }
       } catch (err: unknown) {
         const code = isTRPCClientError(err) ? err.data?.code : undefined;
         if (code === "CONFLICT" && timer.serverId) {
