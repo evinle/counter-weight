@@ -59,7 +59,7 @@ describe('pushSubscriptions.register', () => {
     expect(onConflictDoUpdate).toHaveBeenCalledTimes(2)
   })
 
-  it('does not overwrite user ownership when a different user registers the same endpoint', async () => {
+  it('different users registering the same endpoint each get their own row', async () => {
     const onConflictDoUpdate = vi.fn().mockResolvedValue([])
     const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
     const insert = vi.fn().mockReturnValue({ values }) satisfies Partial<Db['insert']>
@@ -70,10 +70,9 @@ describe('pushSubscriptions.register', () => {
     await callerU1.pushSubscriptions.register(BASE_INPUT)
     await callerU2.pushSubscriptions.register(BASE_INPUT)
 
+    // Each user inserts with their own userId — no conflict since the unique key is (endpoint, userId)
     expect(insert).toHaveBeenCalledTimes(2)
-    // Conflict resolution must not update userId — ownership stays with the original registrant
-    const conflictSet = onConflictDoUpdate.mock.calls[1][0].set
-    expect(conflictSet).not.toHaveProperty('userId')
-    expect(conflictSet).toHaveProperty('lastUsedAt')
+    expect(values).toHaveBeenNthCalledWith(1, expect.objectContaining({ userId: 'u1' }))
+    expect(values).toHaveBeenNthCalledWith(2, expect.objectContaining({ userId: 'u2' }))
   })
 })

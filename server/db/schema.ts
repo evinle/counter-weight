@@ -9,7 +9,7 @@ export const priorityEnum = pgEnum('priority', [
   'low', 'medium', 'high', 'critical',
 ])
 export const eventTypeEnum = pgEnum('event_type', [
-  'created', 'updated', 'rescheduled', 'completed', 'cancelled',
+  'created', 'updated', 'rescheduled', 'completed', 'cancelled', 'fired',
 ])
 
 export const users = pgTable('users', {
@@ -74,7 +74,7 @@ export const pushSubscriptions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique('push_subscriptions_endpoint_unique').on(t.endpoint)],
+  (t) => [unique('push_subscriptions_endpoint_user_unique').on(t.endpoint, t.userId)],
 )
 
 export const timerEvents = pgTable('timer_events', {

@@ -34,7 +34,7 @@ export const pushSubscriptionsRouter = router({
           subscription: { p256dh: input.p256dh, auth: input.auth, deviceHint },
         })
         .onConflictDoUpdate({
-          target: pushSubscriptions.endpoint,
+          target: [pushSubscriptions.endpoint, pushSubscriptions.userId],
           set: { lastUsedAt: sql`now()` },
         })
     }),

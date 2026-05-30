@@ -34,7 +34,7 @@ export function useNotifications({ user }: { user: AuthUser | null }): void {
     }
 
     if (permission === 'default') {
-      Notification.requestPermission().then(setPermission)
+      Notification.requestPermission().then(setPermission).catch(err => console.error('[useNotifications]', err))
     }
   }, [user, permission])
 }
