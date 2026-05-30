@@ -2,14 +2,42 @@ import {
   pgTable, pgEnum, text, uuid, timestamp, integer, boolean, jsonb, index, unique,
 } from 'drizzle-orm/pg-core'
 
+export const TimerStatus = {
+  Active: 'active',
+  Fired: 'fired',
+  Completed: 'completed',
+  Missed: 'missed',
+  Cancelled: 'cancelled',
+} as const satisfies Record<string, string>
+export type TimerStatus = typeof TimerStatus[keyof typeof TimerStatus]
+
+export const EventType = {
+  Created: 'created',
+  Updated: 'updated',
+  Rescheduled: 'rescheduled',
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+  Fired: 'fired',
+} as const satisfies Record<string, string>
+export type EventType = typeof EventType[keyof typeof EventType]
+
 export const timerStatusEnum = pgEnum('timer_status', [
-  'active', 'fired', 'completed', 'missed', 'cancelled',
+  TimerStatus.Active,
+  TimerStatus.Fired,
+  TimerStatus.Completed,
+  TimerStatus.Missed,
+  TimerStatus.Cancelled,
 ])
 export const priorityEnum = pgEnum('priority', [
   'low', 'medium', 'high', 'critical',
 ])
 export const eventTypeEnum = pgEnum('event_type', [
-  'created', 'updated', 'rescheduled', 'completed', 'cancelled', 'fired',
+  EventType.Created,
+  EventType.Updated,
+  EventType.Rescheduled,
+  EventType.Completed,
+  EventType.Cancelled,
+  EventType.Fired,
 ])
 
 export const users = pgTable('users', {
