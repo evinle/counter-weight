@@ -14,8 +14,8 @@ const BASE_INPUT = {
   auth: 'tBHItJI5svbpez7KI4CCXg',
 } as const
 
-function makeCtx(userId: string | null, db: Partial<Db> = {}) {
-  return { userId, db: db as unknown as Db }
+function makeCtx(userId: string | null, db: Partial<Db> = {}, userAgent: string | null = null) {
+  return { userId, db: db as unknown as Db, userAgent }
 }
 
 beforeEach(() => {
@@ -59,7 +59,7 @@ describe('pushSubscriptions.register', () => {
     expect(onConflictDoUpdate).toHaveBeenCalledTimes(2)
   })
 
-  it('stores subscriptions independently for different users with different endpoints', async () => {
+  it('does not overwrite user ownership when a different user registers the same endpoint', async () => {
     const onConflictDoUpdate = vi.fn().mockResolvedValue([])
     const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
     const insert = vi.fn().mockReturnValue({ values }) satisfies Partial<Db['insert']>
@@ -67,16 +67,13 @@ describe('pushSubscriptions.register', () => {
     const callerU1 = createCaller(makeCtx('u1', { insert }))
     const callerU2 = createCaller(makeCtx('u2', { insert }))
 
-    const endpointU1 = { ...BASE_INPUT, endpoint: 'https://fcm.googleapis.com/fcm/send/device-1' }
-    const endpointU2 = { ...BASE_INPUT, endpoint: 'https://fcm.googleapis.com/fcm/send/device-2' }
-
-    await callerU1.pushSubscriptions.register(endpointU1)
-    await callerU2.pushSubscriptions.register(endpointU2)
+    await callerU1.pushSubscriptions.register(BASE_INPUT)
+    await callerU2.pushSubscriptions.register(BASE_INPUT)
 
     expect(insert).toHaveBeenCalledTimes(2)
-    const firstCallArgs = values.mock.calls[0][0]
-    const secondCallArgs = values.mock.calls[1][0]
-    expect(firstCallArgs).toMatchObject({ userId: 'u1', endpoint: endpointU1.endpoint })
-    expect(secondCallArgs).toMatchObject({ userId: 'u2', endpoint: endpointU2.endpoint })
+    // Conflict resolution must not update userId — ownership stays with the original registrant
+    const conflictSet = onConflictDoUpdate.mock.calls[1][0].set
+    expect(conflictSet).not.toHaveProperty('userId')
+    expect(conflictSet).toHaveProperty('lastUsedAt')
   })
 })

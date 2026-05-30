@@ -7,7 +7,6 @@ import {
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import type { PrecacheEntry } from 'workbox-precaching'
-import { shouldSuppressPush } from './lib/swPushDedup.js'
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<PrecacheEntry> }
 
@@ -38,6 +37,13 @@ function parseSyncTimers(data: unknown): SyncTimerEntry[] | null {
   const timers = (data as { timers?: unknown }).timers
   if (!Array.isArray(timers)) return null
   return timers as SyncTimerEntry[]
+}
+
+function parsePushPayload(data: unknown): PushPayload | null {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+  if (typeof d.serverId !== 'string' || typeof d.title !== 'string' || typeof d.emoji !== 'string') return null
+  return { serverId: d.serverId, title: d.title, emoji: d.emoji }
 }
 
 const handles = new Map<number, ReturnType<typeof setTimeout>>()
@@ -76,14 +82,14 @@ function notifyTimer(timer: SyncTimerEntry): void {
 }
 
 self.addEventListener('push', event => {
-  const payload = (event as PushEvent).data?.json() as PushPayload | undefined
+  const payload = parsePushPayload(event.data?.json())
   if (!payload) return
 
   const promise = self.clients
     .matchAll({ type: 'window', includeUncontrolled: true })
     .then(clients => {
       const hasVisibleClient = clients.some(c => c.visibilityState === 'visible')
-      if (shouldSuppressPush(payload.serverId, firedServerIds, hasVisibleClient)) return
+      if (firedServerIds.has(payload.serverId) || hasVisibleClient) return
       const title = payload.emoji ? `${payload.emoji} ${payload.title}` : payload.title
       return self.registration.showNotification(title, {
         body: 'Timer complete',
@@ -92,5 +98,5 @@ self.addEventListener('push', event => {
       })
     })
 
-  ;(event as ExtendableEvent).waitUntil(promise)
+  event.waitUntil(promise)
 })

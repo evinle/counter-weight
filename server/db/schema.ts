@@ -45,13 +45,19 @@ export const timers = pgTable(
   ],
 )
 
+export type PushSubscriptionData = {
+  p256dh: string
+  auth: string
+  deviceHint: string
+}
+
 export const pushSubscriptions = pgTable(
   'push_subscriptions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').notNull().references(() => users.id),
     endpoint: text('endpoint').notNull(),
-    subscription: jsonb('subscription').notNull(), // { p256dh, auth, deviceHint }
+    subscription: jsonb('subscription').$type<PushSubscriptionData>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
   },

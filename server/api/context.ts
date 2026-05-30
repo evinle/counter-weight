@@ -52,14 +52,15 @@ function getVerifier() {
 export async function createContext({ req }: { req: FastifyRequest }) {
   const db = await getDb();
   const auth = req.headers.authorization;
+  const userAgent = req.headers['user-agent'] ?? null;
 
-  if (!auth?.startsWith("Bearer ")) return { userId: null, db };
+  if (!auth?.startsWith("Bearer ")) return { userId: null, db, userAgent };
 
   try {
     const payload = await getVerifier().verify(auth.slice(7));
-    return { userId: payload.sub, db };
+    return { userId: payload.sub, db, userAgent };
   } catch {
-    return { userId: null, db };
+    return { userId: null, db, userAgent };
   }
 }
 

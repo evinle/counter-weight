@@ -27,7 +27,7 @@ const BASE_INPUT = {
 
 // Drizzle's Db type is too complex for a partial to satisfy structurally — unavoidable cast
 function makeCtx(userId: string | null, db: Partial<Db> = {}) {
-  return { userId, db: db as unknown as Db }
+  return { userId, db: db as unknown as Db, userAgent: null }
 }
 
 beforeEach(() => {

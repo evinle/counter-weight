@@ -13,7 +13,7 @@ function makeCtx(userId: string | null) {
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
   const insert = vi.fn().mockReturnValue({ values })
   const db = { insert } satisfies Pick<Db, 'insert'>
-  return { userId, db: db as unknown as Db }
+  return { userId, db: db as unknown as Db, userAgent: null }
 }
 
 beforeEach(() => {

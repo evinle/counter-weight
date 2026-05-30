@@ -48,6 +48,7 @@ function mockPushManager(permission: NotificationPermission, subscription = PUSH
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'test-vapid-key')
   mockPermission = 'default'
 })
 
