@@ -13,7 +13,11 @@
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:subagent-driven-development)",
       "Bash(xargs ls -la)",
-      "Bash(gh issue view *)"
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(xargs ls)",
+      "Bash(gh issue *)",
+      "Bash(npm test *)"
     ]
   }
 }
