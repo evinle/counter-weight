@@ -38,3 +38,6 @@ infra/cdk.out/
 !.dev.vars.example
 .env*
 !.env.example
+
+#claude worktrees
+.claude/worktrees/
