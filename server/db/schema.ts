@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, text, uuid, timestamp, integer, boolean, jsonb, index,
+  pgTable, pgEnum, text, uuid, timestamp, integer, boolean, jsonb, index, unique,
 } from 'drizzle-orm/pg-core'
 
 export const timerStatusEnum = pgEnum('timer_status', [
@@ -43,6 +43,19 @@ export const timers = pgTable(
     index('timers_user_status_idx').on(t.userId, t.status),
     index('timers_updated_at_idx').on(t.updatedAt),
   ],
+)
+
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => users.id),
+    endpoint: text('endpoint').notNull(),
+    subscription: jsonb('subscription').notNull(), // { p256dh, auth, deviceHint }
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('push_subscriptions_endpoint_unique').on(t.endpoint)],
 )
 
 export const timerEvents = pgTable('timer_events', {
