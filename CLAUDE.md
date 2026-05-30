@@ -137,6 +137,8 @@ export type Tab = typeof Tab[keyof typeof Tab]
 
 Frontend tests use `jsdom` + `fake-indexeddb` (configured in `src/test/setup.ts`). Server tests use `vitest` with real types; env helpers in `server/test/envHelpers.ts`. Vitest config is separate from Vite (`vitest.config.ts`).
 
+See `docs/agents/testing-standards.md` for standards on fakes, state-based assertions, AAA, and test pollution. Apply when writing new tests or when working in an existing test file.
+
 ## Agent skills
 
 ### Issue tracker
