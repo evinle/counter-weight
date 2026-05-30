@@ -1,8 +1,67 @@
 import { z } from 'zod'
-import { and, eq, gt, ne, sql } from 'drizzle-orm'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../router.js'
-import { timers, timerEvents } from '../../db/schema.js'
+import { EventType } from '../../db/schema.js'
+import type { TimerStatus, Priority, RecurrenceRule } from '../../db/schema.js'
+
+export type InsertTimerVals = {
+  userId: string
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  originalTargetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  isFlagged: boolean
+  recurrenceRule: RecurrenceRule | null
+}
+
+export type UpdateTimerVals = {
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  isFlagged: boolean
+  recurrenceRule: RecurrenceRule | null
+}
+
+export type TimerRecord = {
+  id: string
+  userId: string
+  groupId: string | null
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  originalTargetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  isFlagged: boolean
+  recurrenceRule: RecurrenceRule | null
+  eventbridgeScheduleId: string | null
+  version: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type TimersDb = {
+  listActive(userId: string): Promise<TimerRecord[]>
+  getTimer(id: string, userId: string): Promise<TimerRecord | null>
+  insertTimer(vals: InsertTimerVals): Promise<{ serverId: string; version: number }>
+  updateTimer(
+    where: { id: string; userId: string; version?: number },
+    vals: UpdateTimerVals,
+  ): Promise<{ serverId: string; version: number } | null>
+  setStatus(
+    where: { id: string; userId: string; version: number },
+    status: 'completed' | 'cancelled',
+  ): Promise<{ id: string } | null>
+  insertTimerEvent(vals: { timerId: string; userId: string; eventType: EventType }): Promise<void>
+  reconcile(userId: string, since: Date | null): Promise<TimerRecord[]>
+}
 
 export const timerUpsertInput = z.object({
   serverId: z.string().uuid().nullable(),
@@ -20,37 +79,22 @@ export const timerUpsertInput = z.object({
 
 export const timersRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db
-      .select()
-      .from(timers)
-      .where(and(eq(timers.userId, ctx.userId), ne(timers.status, 'cancelled')))
+    return ctx.timersDb.listActive(ctx.userId)
   }),
 
   get: protectedProcedure
     .input(z.object({ serverId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [timer] = await ctx.db
-        .select()
-        .from(timers)
-        .where(and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId)))
-      return timer ?? null
+      return ctx.timersDb.getTimer(input.serverId, ctx.userId)
     }),
 
   upsert: protectedProcedure
     .input(timerUpsertInput)
     .mutation(async ({ ctx, input }) => {
       if (input.serverId) {
-        const whereClause = input.version !== undefined
-          ? and(
-              eq(timers.id, input.serverId),
-              eq(timers.userId, ctx.userId),
-              eq(timers.version, input.version),
-            )
-          : and(eq(timers.id, input.serverId), eq(timers.userId, ctx.userId))
-
-        const [updated] = await ctx.db
-          .update(timers)
-          .set({
+        const updated = await ctx.timersDb.updateTimer(
+          { id: input.serverId, userId: ctx.userId, version: input.version },
+          {
             title: input.title,
             description: input.description,
             emoji: input.emoji,
@@ -59,38 +103,44 @@ export const timersRouter = router({
             priority: input.priority,
             isFlagged: input.isFlagged,
             recurrenceRule: input.recurrenceRule,
-            version: sql`${timers.version} + 1`,
-            updatedAt: new Date(),
-            // originalTargetDatetime intentionally omitted — immutable after creation
-          })
-          .where(whereClause)
-          .returning({ serverId: timers.id, version: timers.version })
+          },
+        )
 
         if (!updated) throw new TRPCError({ code: 'CONFLICT', message: 'Version mismatch or not found' })
+
+        await ctx.scheduler.updateSchedule(
+          `timer-${input.serverId}`,
+          new Date(input.targetDatetime),
+          { serverId: input.serverId, userId: ctx.userId, targetDatetime: input.targetDatetime },
+        )
+
         return updated
       }
 
-      const [created] = await ctx.db
-        .insert(timers)
-        .values({
-          userId: ctx.userId,
-          title: input.title,
-          description: input.description,
-          emoji: input.emoji,
-          targetDatetime: new Date(input.targetDatetime),
-          originalTargetDatetime: new Date(input.originalTargetDatetime),
-          status: input.status,
-          priority: input.priority,
-          isFlagged: input.isFlagged,
-          recurrenceRule: input.recurrenceRule,
-        })
-        .returning({ serverId: timers.id, version: timers.version })
+      const created = await ctx.timersDb.insertTimer({
+        userId: ctx.userId,
+        title: input.title,
+        description: input.description,
+        emoji: input.emoji,
+        targetDatetime: new Date(input.targetDatetime),
+        originalTargetDatetime: new Date(input.originalTargetDatetime),
+        status: input.status,
+        priority: input.priority,
+        isFlagged: input.isFlagged,
+        recurrenceRule: input.recurrenceRule,
+      })
 
-      await ctx.db.insert(timerEvents).values({
+      await ctx.timersDb.insertTimerEvent({
         timerId: created.serverId,
         userId: ctx.userId,
-        eventType: 'created',
+        eventType: EventType.Created,
       })
+
+      await ctx.scheduler.createSchedule(
+        `timer-${created.serverId}`,
+        new Date(input.targetDatetime),
+        { serverId: created.serverId, userId: ctx.userId, targetDatetime: input.targetDatetime },
+      )
 
       return created
     }),
@@ -98,23 +148,20 @@ export const timersRouter = router({
   complete: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(timers)
-        .set({ status: 'completed', version: sql`${timers.version} + 1`, updatedAt: new Date() })
-        .where(and(
-          eq(timers.id, input.serverId),
-          eq(timers.userId, ctx.userId),
-          eq(timers.version, input.version),
-        ))
-        .returning({ id: timers.id })
+      const updated = await ctx.timersDb.setStatus(
+        { id: input.serverId, userId: ctx.userId, version: input.version },
+        'completed',
+      )
 
       if (!updated) throw new TRPCError({ code: 'CONFLICT' })
 
-      await ctx.db.insert(timerEvents).values({
+      await ctx.timersDb.insertTimerEvent({
         timerId: input.serverId,
         userId: ctx.userId,
-        eventType: 'completed',
+        eventType: EventType.Completed,
       })
+
+      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`)
 
       return { ok: true }
     }),
@@ -122,23 +169,20 @@ export const timersRouter = router({
   cancel: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(timers)
-        .set({ status: 'cancelled', version: sql`${timers.version} + 1`, updatedAt: new Date() })
-        .where(and(
-          eq(timers.id, input.serverId),
-          eq(timers.userId, ctx.userId),
-          eq(timers.version, input.version),
-        ))
-        .returning({ id: timers.id })
+      const updated = await ctx.timersDb.setStatus(
+        { id: input.serverId, userId: ctx.userId, version: input.version },
+        'cancelled',
+      )
 
       if (!updated) throw new TRPCError({ code: 'CONFLICT' })
 
-      await ctx.db.insert(timerEvents).values({
+      await ctx.timersDb.insertTimerEvent({
         timerId: input.serverId,
         userId: ctx.userId,
-        eventType: 'cancelled',
+        eventType: EventType.Cancelled,
       })
+
+      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`)
 
       return { ok: true }
     }),
@@ -153,14 +197,10 @@ export const timersRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const conditions = [eq(timers.userId, ctx.userId)]
-      if (input.since) conditions.push(gt(timers.updatedAt, new Date(input.since)))
-
-      // Cancelled timers are intentionally included — clients need them to tombstone local copies
-      const serverRecords = await ctx.db
-        .select()
-        .from(timers)
-        .where(and(...conditions))
+      const serverRecords = await ctx.timersDb.reconcile(
+        ctx.userId,
+        input.since ? new Date(input.since) : null,
+      )
 
       const clientMap = new Map(
         input.records.map((r) => [r.serverId, new Date(r.updatedAt)]),

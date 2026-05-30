@@ -2,14 +2,53 @@ import {
   pgTable, pgEnum, text, uuid, timestamp, integer, boolean, jsonb, index, unique,
 } from 'drizzle-orm/pg-core'
 
+export const TimerStatus = {
+  Active: 'active',
+  Fired: 'fired',
+  Completed: 'completed',
+  Missed: 'missed',
+  Cancelled: 'cancelled',
+} as const satisfies Record<string, string>
+export type TimerStatus = typeof TimerStatus[keyof typeof TimerStatus]
+
+export const EventType = {
+  Created: 'created',
+  Updated: 'updated',
+  Rescheduled: 'rescheduled',
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+  Fired: 'fired',
+} as const satisfies Record<string, string>
+export type EventType = typeof EventType[keyof typeof EventType]
+
 export const timerStatusEnum = pgEnum('timer_status', [
-  'active', 'fired', 'completed', 'missed', 'cancelled',
+  TimerStatus.Active,
+  TimerStatus.Fired,
+  TimerStatus.Completed,
+  TimerStatus.Missed,
+  TimerStatus.Cancelled,
 ])
+export const Priority = {
+  Low: 'low',
+  Medium: 'medium',
+  High: 'high',
+  Critical: 'critical',
+} as const satisfies Record<string, string>
+export type Priority = typeof Priority[keyof typeof Priority]
+
 export const priorityEnum = pgEnum('priority', [
-  'low', 'medium', 'high', 'critical',
+  Priority.Low,
+  Priority.Medium,
+  Priority.High,
+  Priority.Critical,
 ])
 export const eventTypeEnum = pgEnum('event_type', [
-  'created', 'updated', 'rescheduled', 'completed', 'cancelled', 'fired',
+  EventType.Created,
+  EventType.Updated,
+  EventType.Rescheduled,
+  EventType.Completed,
+  EventType.Cancelled,
+  EventType.Fired,
 ])
 
 export const users = pgTable('users', {
@@ -33,7 +72,7 @@ export const timers = pgTable(
     status: timerStatusEnum('status').notNull().default('active'),
     priority: priorityEnum('priority').notNull().default('medium'),
     isFlagged: boolean('is_flagged').notNull().default(false),
-    recurrenceRule: jsonb('recurrence_rule'),
+    recurrenceRule: jsonb('recurrence_rule').$type<RecurrenceRule | null>(),
     eventbridgeScheduleId: text('eventbridge_schedule_id'), // M3 populates this
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -44,6 +83,8 @@ export const timers = pgTable(
     index('timers_updated_at_idx').on(t.updatedAt),
   ],
 )
+
+export type RecurrenceRule = { cron: string; tz: string }
 
 export type PushSubscriptionData = {
   p256dh: string

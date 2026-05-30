@@ -9,6 +9,8 @@ const TEST_ENV_DEFAULTS = {
   AUTH_CALLBACK_URL_PROD: "https://counter-weight.evinle.app/auth/callback",
   AUTH_CALLBACK_URL_LOCAL: "https://localhost:5174/auth/callback",
   COGNITO_CLIENT_SECRET: "test-client-secret",
+  NOTIFY_LAMBDA_ARN: "arn:aws:lambda:ap-southeast-2:123456789012:function:test-notify",
+  SCHEDULER_ROLE_ARN: "arn:aws:iam::123456789012:role/test-scheduler-role",
 };
 
 export function mockEnv(

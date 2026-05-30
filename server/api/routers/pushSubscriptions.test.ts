@@ -3,6 +3,8 @@ import { TRPCError } from '@trpc/server'
 import { pushSubscriptionsRouter } from './pushSubscriptions.js'
 import { router, createCallerFactory } from '../router.js'
 import { mockEnv } from '../../test/envHelpers.js'
+import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
+import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import type { Db } from '../../db/index.js'
 
 const testRouter = router({ pushSubscriptions: pushSubscriptionsRouter })
@@ -15,7 +17,7 @@ const BASE_INPUT = {
 } as const
 
 function makeCtx(userId: string | null, db: Partial<Db> = {}, userAgent: string | null = null) {
-  return { userId, db: db as unknown as Db, userAgent }
+  return { userId, db: db as unknown as Db, timersDb: createFakeTimersDb(), scheduler: createFakeScheduler(), userAgent }
 }
 
 beforeEach(() => {

@@ -14,6 +14,8 @@ const apiEnvSchema = z.object({
   COGNITO_CLIENT_ID: z.string().min(1),
   DB_SECRET_ARN: z.string().startsWith('arn:'),
   DB_ENDPOINT: z.string().min(1),
+  NOTIFY_LAMBDA_ARN: z.string().startsWith('arn:'),
+  SCHEDULER_ROLE_ARN: z.string().startsWith('arn:'),
 })
 
 const notifyEnvSchema = z.object({

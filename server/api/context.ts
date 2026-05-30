@@ -5,8 +5,11 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import { SchedulerClient } from "@aws-sdk/client-scheduler";
 import type { Db } from "../db/index.js";
 import { getApiEnv } from "../env.js";
+import { AwsScheduler, type Scheduler } from "./scheduler.js";
+import { createTimersDb } from "./routers/timersDb.js";
 
 // Promise singleton — assignment is synchronous so concurrent requests share one init
 let _dbPromise: Promise<Db> | null = null;
@@ -34,6 +37,20 @@ async function getDb(): Promise<Db> {
   return _dbPromise;
 }
 
+let _scheduler: Scheduler | null = null;
+
+function getScheduler(): Scheduler {
+  if (!_scheduler) {
+    const env = getApiEnv();
+    _scheduler = new AwsScheduler(
+      new SchedulerClient({}),
+      env.NOTIFY_LAMBDA_ARN,
+      env.SCHEDULER_ROLE_ARN,
+    );
+  }
+  return _scheduler;
+}
+
 // Lazy singleton — CognitoJwtVerifier.create() is synchronous so no race condition
 let _verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
 
@@ -51,16 +68,18 @@ function getVerifier() {
 
 export async function createContext({ req }: { req: FastifyRequest }) {
   const db = await getDb();
+  const timersDb = createTimersDb(db);
+  const scheduler = getScheduler();
   const auth = req.headers.authorization;
   const userAgent = req.headers['user-agent'] ?? null;
 
-  if (!auth?.startsWith("Bearer ")) return { userId: null, db, userAgent };
+  if (!auth?.startsWith("Bearer ")) return { userId: null, db, timersDb, scheduler, userAgent };
 
   try {
     const payload = await getVerifier().verify(auth.slice(7));
-    return { userId: payload.sub, db, userAgent };
+    return { userId: payload.sub, db, timersDb, scheduler, userAgent };
   } catch {
-    return { userId: null, db, userAgent };
+    return { userId: null, db, timersDb, scheduler, userAgent };
   }
 }
 
