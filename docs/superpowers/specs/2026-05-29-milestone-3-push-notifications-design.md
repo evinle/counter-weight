@@ -3,7 +3,7 @@ _2026-05-29_
 
 ## Goal
 
-Deliver OS-level push notifications when timers fire, even when the app is closed and the service worker has been killed. Background pushes are sent by a dedicated Notify Lambda invoked by EventBridge Scheduler at each timer's `target_datetime`.
+Deliver OS-level push notifications when timers fire, even when the app is closed and the service worker has been killed. Background pushes are sent by a dedicated Notify Lambda invoked by EventBridge Scheduler at `target_datetime - 1 minute`; the Lambda uses the AWS Durable Execution SDK to sleep until `target_datetime` before fanning out.
 
 ---
 
@@ -42,7 +42,7 @@ EventBridge schedules use a deterministic name `timer-{serverId}` and `put-sched
 
 | Event | Server action |
 |---|---|
-| `upsert` — first insert (serverId null) | Create EventBridge schedule at `target_datetime` |
+| `upsert` — first insert (serverId null) | Create EventBridge schedule at `target_datetime - 1 minute` |
 | `upsert` — update (serverId present) | `put-schedule` (handles reschedule idempotently) |
 | `complete` | Delete EventBridge schedule |
 | `cancel` | Delete EventBridge schedule |
@@ -55,11 +55,30 @@ A separate `NodejsFunction` CDK construct, distinct from the API Lambda, for two
 - EventBridge invokes Lambda directly — it cannot call API Gateway
 - The API Lambda is Fastify-shaped (API Gateway events); mixing EventBridge event handling into it would require forking before Fastify touches the event
 
+The Notify Lambda uses the **AWS Durable Execution SDK**. EventBridge invokes it at `target_datetime - 1 minute`; the Lambda sleeps (zero compute charges during wait) until `target_datetime`, then performs its work. Configured timeout: **15 seconds** (covers the resume segment — guard + fan-out — not the sleep).
+
+#### Background: AWS Lambda Durable Functions
+
+Lambda Durable Functions (GA December 2025) extend standard Lambda with a **checkpoint/replay** execution model that enables fault-tolerant, long-running logic written as ordinary sequential code.
+
+**How they work:**
+- The AWS Durable Execution SDK wraps the Lambda handler and exposes a `DurableContext` with two primitive operation types:
+  - **Steps** — wrap business logic calls; the SDK checkpoints the result and replays skip over completed steps on retry
+  - **Waits** — suspend execution at a point in time or until a condition; compute charges stop during the suspension and resume when the function wakes
+- On failure or interruption, the durable execution system re-invokes the Lambda from the beginning. The SDK replays code up to the last checkpoint, restoring prior results from stored state rather than re-executing them.
+- Executions can run for up to one year; each individual Lambda invocation only covers one compute segment (time between checkpoints), so the configured Lambda timeout only needs to bound a single segment, not the full wall-clock duration.
+
+**Why we use it here:**
+- **Precision** — EventBridge Scheduler has up to ~1 minute of invocation jitter. Invoking the Lambda 1 minute early and sleeping until `target_datetime` guarantees the notification fires at the right moment regardless of that jitter.
+- **Cost** — A plain Lambda sleeping 60 seconds would pay ~$0.000128 per invocation (128 MB × 60 s) just for idle time. Durable waits incur no duration charges; the only overhead is ~3 durable operations at $8/million ≈ $0.000024 per timer fired — roughly 5× cheaper for the sleep alone.
+- **Fault tolerance** — If the Lambda is interrupted during fan-out, the checkpoint/replay mechanism ensures it resumes without re-sleeping or double-firing.
+
 Notify Lambda responsibilities on invocation:
-1. Guard: exit if timer status is no longer `active` (timer may have been completed/cancelled since schedule was created)
-2. Read push subscriptions for the timer's `userId`
-3. Fan out `web-push.sendNotification()` via `Promise.allSettled` — `410 Gone` responses delete stale subscriptions
-4. Write `timer_events { eventType: 'fired' }`
+1. Wait until `target_datetime` (durable wait — no duration charges during sleep)
+2. Guard: exit if timer status is no longer `active` (timer may have been completed/cancelled during the wait)
+3. Read push subscriptions for the timer's `userId`
+4. Fan out `web-push.sendNotification()` via `Promise.allSettled` — `410 Gone` responses delete stale subscriptions
+5. Write `timer_events { eventType: 'fired' }`
 
 `notification_scheduled` is set by the API Lambda's `upsert` when EventBridge `put-schedule` succeeds — not by the Notify Lambda. By the time the Notify Lambda fires, the schedule already existed and executed; the flag is irrelevant at that point.
 
@@ -132,7 +151,7 @@ retryAt = currentTokens >= 1
   : now + (1 - currentTokens) / refillRate       // time until next token
 ```
 
-`retryAt: null` is returned when `now >= targetDatetime`. Once the target time has passed, scheduling a push notification is meaningless — the server stops retrying permanently.
+`retryAt: null` is returned when `now >= targetDatetime - 1 minute`. Once it is too late to schedule the Lambda in time for it to wake at `target_datetime`, scheduling is meaningless — the server stops retrying permanently.
 
 New procedure: `timers.retrySchedule({ serverId })` — server recomputes tokens, rejects if insufficient, calls `put-schedule`, sets `notification_scheduled = true` on success.
 
@@ -184,4 +203,8 @@ All original open questions resolved:
 | Missed status | Removed from scope — concept not sufficiently defined |
 | iOS install prompt | Moved to M4 scope |
 | On-open server sweep | Removed from scope — client-triggered repair sufficient |
-| `retryAt: null` policy | Give up when `now >= targetDatetime` — see §7 |
+| `retryAt: null` policy | Give up when `now >= targetDatetime - 1 minute` — see §7 |
+| Notify Lambda durability | Uses AWS Durable Execution SDK — EventBridge invokes 1 minute early, Lambda sleeps until `target_datetime`; see §3 |
+| Notify Lambda guard placement | Post-wait only — cancellation/completion in the 1-minute window is unlikely enough not to warrant a pre-wait check; see §3 |
+| EventBridge schedule time | `target_datetime - 1 minute` to guarantee Lambda is live before jitter window closes — see §2, §3 |
+| Notify Lambda timeout | 15 seconds — covers resume segment (guard + fan-out) only, not the sleep; see §3 |
