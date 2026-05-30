@@ -5,6 +5,8 @@
     "@aws-cdk/core:checkSecretUsage": true,
     "googleClientId": "236806741921-m12d0djp9hut1ts3cf5fnp6mfk4ibf26.apps.googleusercontent.com",
     "googleClientSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/google-client-secret-r0w1Eg",
-    "cognitoClientSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/cognito-client-secret-4jZGT9"
+    "cognitoClientSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/cognito-client-secret-4jZGT9",
+    "vapidSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/vapid-secret-EfbWGR",
+    "vapidPublicKey": "BMjWtAnMDln7h4fooM-69BiTpzeAXrffmjBQwPWZjgCT6ikOh6kdE2aznc5HReSmGXxBOziflZi02HtSZF3nFx4"
   }
 }
