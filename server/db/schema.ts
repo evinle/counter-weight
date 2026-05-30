@@ -51,6 +51,19 @@ export type PushSubscriptionData = {
   deviceHint: string
 }
 
+export function isPushSubscriptionData(v: unknown): v is PushSubscriptionData {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    'p256dh' in v &&
+    'auth' in v &&
+    'deviceHint' in v &&
+    typeof v.p256dh === 'string' &&
+    typeof v.auth === 'string' &&
+    typeof v.deviceHint === 'string'
+  )
+}
+
 export const pushSubscriptions = pgTable(
   'push_subscriptions',
   {
