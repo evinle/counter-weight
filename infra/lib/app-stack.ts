@@ -10,7 +10,11 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
 import { Construct } from "constructs";
 import type { StorageStack } from "./storage-stack";
-import { ALLOWED_ORIGINS, PROD_CALLBACK_URL, LOCAL_CALLBACK_URL } from "./constants";
+import {
+  ALLOWED_ORIGINS,
+  PROD_CALLBACK_URL,
+  LOCAL_CALLBACK_URL,
+} from "./constants";
 
 interface AppStackProps extends cdk.StackProps {
   storageStack: StorageStack;
@@ -32,17 +36,6 @@ export class AppStack extends cdk.Stack {
     const cognitoClientSecretArn = this.node.tryGetContext(
       "cognitoClientSecretArn",
     ) as string | undefined;
-
-    // VAPID key pair (M3.1 plumbing — Notify Lambda wires these in M3.2)
-    //   cdk deploy AppStack --context vapidSecretArn=<ARN> --context vapidPublicKey=<KEY>
-    const vapidSecretArn = this.node.tryGetContext("vapidSecretArn") as string | undefined;
-    const vapidPublicKey = this.node.tryGetContext("vapidPublicKey") as string | undefined;
-    const vapidPrivateKeySecret = vapidSecretArn
-      ? secretsmanager.Secret.fromSecretCompleteArn(this, "VapidPrivateKeySecret", vapidSecretArn)
-      : undefined;
-    // TODO(M3.2): when NotifyLambda is created, add:
-    //   vapidPrivateKeySecret?.grantRead(notifyLambda)
-    //   if (vapidPublicKey) notifyLambda.addEnvironment("VAPID_PUBLIC_KEY", vapidPublicKey)
 
     // Auth Lambda — outside VPC, internet access for Cognito token endpoint
     const authLambda = new NodejsFunction(this, "AuthLambda", {
@@ -78,13 +71,18 @@ export class AppStack extends cdk.Stack {
     // VAPID key pair (M3.1 plumbing)
     //   cdk deploy AppStack --context vapidSecretArn=<ARN> --context vapidPublicKey=<KEY>
     const vapidSecretArnRaw = this.node.tryGetContext("vapidSecretArn");
-    const vapidSecretArn = typeof vapidSecretArnRaw === "string" ? vapidSecretArnRaw : undefined;
+    const vapidSecretArn =
+      typeof vapidSecretArnRaw === "string" ? vapidSecretArnRaw : undefined;
     const vapidPublicKeyRaw = this.node.tryGetContext("vapidPublicKey");
-    const vapidPublicKey = typeof vapidPublicKeyRaw === "string" ? vapidPublicKeyRaw : undefined;
+    const vapidPublicKey =
+      typeof vapidPublicKeyRaw === "string" ? vapidPublicKeyRaw : undefined;
     const vapidPrivateKeySecret = vapidSecretArn
-      ? secretsmanager.Secret.fromSecretCompleteArn(this, "VapidPrivateKeySecret", vapidSecretArn)
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "VapidPrivateKeySecret",
+          vapidSecretArn,
+        )
       : undefined;
-
     // Notify Lambda — invoked by EventBridge Scheduler to send push notifications
     const notifyLambda = new NodejsFunction(this, "NotifyLambda", {
       entry: path.join(__dirname, "../../server/notify/index.ts"),
@@ -92,20 +90,25 @@ export class AppStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(15),
       projectRoot: path.join(__dirname, "../.."),
-      ...(vapidPublicKey && {
-        environment: {
-          VAPID_PUBLIC_KEY: vapidPublicKey,
-        },
-      }),
+      environment: {
+        DB_ENDPOINT: storageStack.dbInstanceEndpoint,
+        DB_SECRET_ARN: storageStack.dbSecret.secretArn,
+        ...(vapidPublicKey && { VAPID_PUBLIC_KEY: vapidPublicKey }),
+        ...(vapidSecretArn && { VAPID_SECRET_ARN: vapidSecretArn }),
+      },
     });
 
+    storageStack.dbSecret.grantRead(notifyLambda);
     vapidPrivateKeySecret?.grantRead(notifyLambda);
 
     // Durable Execution SDK layer (required for M3.2 durable sleep)
     // Obtain the ARN from the AWS console or CLI after the layer is published in your region,
     // then pass it: cdk deploy AppStack --context durableExecutionLayerArn=<ARN>
-    const durableLayerArnRaw = this.node.tryGetContext("durableExecutionLayerArn");
-    const durableLayerArn = typeof durableLayerArnRaw === "string" ? durableLayerArnRaw : undefined;
+    const durableLayerArnRaw = this.node.tryGetContext(
+      "durableExecutionLayerArn",
+    );
+    const durableLayerArn =
+      typeof durableLayerArnRaw === "string" ? durableLayerArnRaw : undefined;
     if (durableLayerArn) {
       const durableLayer = lambda.LayerVersion.fromLayerVersionArn(
         this,
@@ -120,6 +123,10 @@ export class AppStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
     });
     notifyLambda.grantInvoke(schedulerRole);
+
+    // Wire Notify Lambda ARN and scheduler role into API Lambda (used by AwsScheduler in context.ts)
+    apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyLambda.functionArn);
+    apiLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
 
     // Grant Auth Lambda SM read for Cognito client secret (only when ARN is provided)
     if (cognitoClientSecretArn) {
@@ -190,7 +197,10 @@ export class AppStack extends cdk.Stack {
     api.addRoutes({
       path: "/trpc/{proxy+}",
       methods: [apigateway.HttpMethod.OPTIONS],
-      integration: new HttpLambdaIntegration("ApiOptionsIntegration", apiLambda),
+      integration: new HttpLambdaIntegration(
+        "ApiOptionsIntegration",
+        apiLambda,
+      ),
     });
 
     new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
@@ -214,7 +224,11 @@ export class AppStack extends cdk.Stack {
       value: customDomain.regionalDomainName,
     });
 
-    new cdk.CfnOutput(this, "NotifyLambdaArn", { value: notifyLambda.functionArn });
-    new cdk.CfnOutput(this, "SchedulerRoleArn", { value: schedulerRole.roleArn });
+    new cdk.CfnOutput(this, "NotifyLambdaArn", {
+      value: notifyLambda.functionArn,
+    });
+    new cdk.CfnOutput(this, "SchedulerRoleArn", {
+      value: schedulerRole.roleArn,
+    });
   }
 }

@@ -19,8 +19,10 @@ const apiEnvSchema = z.object({
 })
 
 const notifyEnvSchema = z.object({
+  DB_SECRET_ARN: z.string().startsWith('arn:'),
+  DB_ENDPOINT: z.string().min(1),
   VAPID_PUBLIC_KEY: z.string().min(1),
-  VAPID_PRIVATE_KEY: z.string().min(1),
+  VAPID_SECRET_ARN: z.string().startsWith('arn:'),
 })
 
 export type AuthEnv = z.infer<typeof authEnvSchema>
