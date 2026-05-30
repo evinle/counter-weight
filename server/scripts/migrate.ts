@@ -21,7 +21,6 @@ const {
 } = JSON.parse(result.SecretString);
 
 const url = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
-console.log(url);
 
 execSync("npx drizzle-kit migrate", {
   stdio: "inherit",
