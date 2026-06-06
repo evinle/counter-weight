@@ -32,6 +32,10 @@ dist-ssr
 # CDK
 infra/cdk.out/
 
+# SAM local debug
+.aws-sam/
+env.json
+
 # wrangler files
 .wrangler
 .dev.vars*

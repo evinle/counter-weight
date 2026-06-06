@@ -1,0 +1,6 @@
+version = 0.1
+
+[default.local_start_api.parameters]
+template = "sam.local.template.yaml"
+env_vars = "env.json"
+warm_containers = "eager"

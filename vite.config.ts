@@ -67,7 +67,7 @@ export default defineConfig({
         },
       },
       "/trpc": {
-        target: "https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com",
+        target: process.env.API_TARGET ?? "https://i55bwod2e0.execute-api.ap-southeast-2.amazonaws.com",
         changeOrigin: true,
       },
     },
