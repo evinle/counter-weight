@@ -43,9 +43,22 @@ export async function handleTimerFired(
   sendNotification: SendNotification,
 ): Promise<void> {
   const timer = await db.getTimerByServerId(payload.serverId);
-  if (!timer || timer.status !== TimerStatus.Active) return;
+  if (!timer) {
+    console.error(`[notify] timer not found: ${payload.serverId}`);
+    return;
+  }
+  if (timer.status !== TimerStatus.Active) {
+    console.log(`[notify] skipping timer ${payload.serverId}, status=${timer.status}`);
+    return;
+  }
 
   const subscriptions = await db.getSubscriptionsForUser(payload.userId);
+  if (subscriptions.length === 0) {
+    console.log(`[notify] no subscriptions found for user ${payload.userId}`);
+    return;
+  }
+
+  console.log(`[notify] sending to ${subscriptions.length} subscription(s) for user ${payload.userId}`);
 
   const results = await Promise.allSettled(
     subscriptions.map((sub) =>
@@ -62,8 +75,14 @@ export async function handleTimerFired(
 
   await Promise.all(
     results.map((result, i) => {
-      if (result.status === "rejected" && isGoneError(result.reason) && result.reason.statusCode === 410) {
+      const hint = subscriptions[i].subscription.deviceHint;
+      if (result.status === "fulfilled") {
+        console.log(`[notify] sent ok to ${hint} (${subscriptions[i].endpoint}) status=${result.value.statusCode}`);
+      } else if (isGoneError(result.reason) && result.reason.statusCode === 410) {
+        console.log(`[notify] subscription gone (410) for ${hint} (${subscriptions[i].endpoint}), deleting`);
         return db.deleteSubscription(subscriptions[i].id);
+      } else {
+        console.error(`[notify] failed to send to ${hint} (${subscriptions[i].endpoint}):`, result.reason);
       }
       return Promise.resolve();
     }),
