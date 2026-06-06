@@ -102,14 +102,20 @@ export class AppStack extends cdk.Stack {
     storageStack.dbSecret.grantRead(notifyLambda);
     vapidPrivateKeySecret?.grantRead(notifyLambda);
 
+    // Durable execution requires a qualified ARN — alias gives a stable qualified ARN across deploys
+    const notifyAlias = new lambda.Alias(this, "NotifyLambdaLive", {
+      aliasName: "live",
+      version: notifyLambda.currentVersion,
+    });
+
     // EventBridge Scheduler role — assumes this role to invoke Notify Lambda
     const schedulerRole = new iam.Role(this, "EventBridgeSchedulerRole", {
       assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
     });
-    notifyLambda.grantInvoke(schedulerRole);
+    notifyAlias.grantInvoke(schedulerRole);
 
     // Wire Notify Lambda ARN and scheduler role into API Lambda (used by AwsScheduler in context.ts)
-    apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyLambda.functionArn);
+    apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyAlias.functionArn);
     apiLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
 
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
