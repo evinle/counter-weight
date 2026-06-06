@@ -20,7 +20,7 @@ export const appRouter = router({
 
 export type AppRouter = typeof appRouter;
 
-const app = Fastify({ logger: true });
+export const app = Fastify({ logger: true });
 
 app.register(cors, {
   origin: [...ALLOWED_ORIGINS],
