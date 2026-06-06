@@ -112,6 +112,16 @@ export class AppStack extends cdk.Stack {
     apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyLambda.functionArn);
     apiLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
 
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule"],
+      resources: [`arn:aws:scheduler:${this.region}:${this.account}:schedule/default/timer-*`],
+    }));
+
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["iam:PassRole"],
+      resources: [schedulerRole.roleArn],
+    }));
+
     // Grant Auth Lambda SM read for Cognito client secret (only when ARN is provided)
     if (cognitoClientSecretArn) {
       const cognitoClientSecret = secretsmanager.Secret.fromSecretCompleteArn(
