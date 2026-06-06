@@ -5,33 +5,48 @@ import {
   DeleteScheduleCommand,
   ResourceNotFoundException,
   FlexibleTimeWindowMode,
-} from '@aws-sdk/client-scheduler'
+} from "@aws-sdk/client-scheduler";
 
 export type SchedulePayload = {
-  serverId: string
-  userId: string
-  targetDatetime: string
-}
+  serverId: string;
+  userId: string;
+  targetDatetime: string;
+};
 
 export type Scheduler = {
-  createSchedule(name: string, targetDatetime: Date, payload: SchedulePayload): Promise<void>
-  updateSchedule(name: string, targetDatetime: Date, payload: SchedulePayload): Promise<void>
-  deleteSchedule(name: string): Promise<void>
-}
+  createSchedule(
+    name: string,
+    targetDatetime: Date,
+    payload: SchedulePayload,
+  ): Promise<void>;
+  updateSchedule(
+    name: string,
+    targetDatetime: Date,
+    payload: SchedulePayload,
+  ): Promise<void>;
+  deleteSchedule(name: string): Promise<void>;
+};
 
 function toExpression(targetDatetime: Date): string {
-  const fireAt = new Date(targetDatetime.getTime() - 60_000)
-  return `at(${fireAt.toISOString().slice(0, 19)})`
+  const fireAt = new Date(targetDatetime.getTime() - 60_000);
+  return `at(${fireAt.toISOString().slice(0, 19)})`;
 }
 
 export class AwsScheduler implements Scheduler {
-  constructor(
-    private readonly client: SchedulerClient,
-    private readonly targetArn: string,
-    private readonly roleArn: string,
-  ) {}
+  private readonly client: SchedulerClient;
+  private readonly targetArn: string;
+  private readonly roleArn: string;
+  constructor(client: SchedulerClient, targetArn: string, roleArn: string) {
+    this.client = client;
+    this.targetArn = targetArn;
+    this.roleArn = roleArn;
+  }
 
-  async createSchedule(name: string, targetDatetime: Date, payload: SchedulePayload): Promise<void> {
+  async createSchedule(
+    name: string,
+    targetDatetime: Date,
+    payload: SchedulePayload,
+  ): Promise<void> {
     await this.client.send(
       new CreateScheduleCommand({
         Name: name,
@@ -43,10 +58,14 @@ export class AwsScheduler implements Scheduler {
           Input: JSON.stringify(payload),
         },
       }),
-    )
+    );
   }
 
-  async updateSchedule(name: string, targetDatetime: Date, payload: SchedulePayload): Promise<void> {
+  async updateSchedule(
+    name: string,
+    targetDatetime: Date,
+    payload: SchedulePayload,
+  ): Promise<void> {
     await this.client.send(
       new UpdateScheduleCommand({
         Name: name,
@@ -58,15 +77,15 @@ export class AwsScheduler implements Scheduler {
           Input: JSON.stringify(payload),
         },
       }),
-    )
+    );
   }
 
   async deleteSchedule(name: string): Promise<void> {
     try {
-      await this.client.send(new DeleteScheduleCommand({ Name: name }))
+      await this.client.send(new DeleteScheduleCommand({ Name: name }));
     } catch (err) {
-      if (err instanceof ResourceNotFoundException) return
-      throw err
+      if (err instanceof ResourceNotFoundException) return;
+      throw err;
     }
   }
 }
