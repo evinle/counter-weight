@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useNotifications } from '../hooks/useNotifications.js'
 import type { AuthUser } from '../hooks/useAuth.js'
@@ -53,12 +53,16 @@ beforeEach(() => {
 })
 
 describe('useNotifications', () => {
-  it('requests permission and calls register on grant', async () => {
+  it('registers subscription after user grants permission via requestPermission', async () => {
+    // Arrange
     mockRequestPermission.mockResolvedValue('granted')
     const { mockSubscribe } = mockPushManager('default')
+    const { result } = renderHook(() => useNotifications({ user: USER }))
 
-    renderHook(() => useNotifications({ user: USER }))
+    // Act
+    act(() => { result.current.requestPermission() })
 
+    // Assert
     await waitFor(() => {
       expect(trpc.pushSubscriptions.register.mutate).toHaveBeenCalledWith({
         endpoint: PUSH_SUBSCRIPTION_JSON.endpoint,
@@ -69,11 +73,21 @@ describe('useNotifications', () => {
     expect(mockSubscribe).toHaveBeenCalledOnce()
   })
 
-  it('calls register on mount when permission already granted', async () => {
-    const { mockSubscribe } = mockPushManager('granted')
-
+  it('does not request permission automatically on mount', () => {
+    // Arrange + Act
+    mockPushManager('default')
     renderHook(() => useNotifications({ user: USER }))
 
+    // Assert — no prompt fires without user interaction
+    expect(mockRequestPermission).not.toHaveBeenCalled()
+  })
+
+  it('registers subscription on mount when permission already granted', async () => {
+    // Arrange + Act
+    const { mockSubscribe } = mockPushManager('granted')
+    renderHook(() => useNotifications({ user: USER }))
+
+    // Assert
     await waitFor(() => {
       expect(trpc.pushSubscriptions.register.mutate).toHaveBeenCalledOnce()
     })
@@ -81,13 +95,19 @@ describe('useNotifications', () => {
     expect(mockSubscribe).toHaveBeenCalledOnce()
   })
 
-  it('skips entirely for guest users', async () => {
+  it('prompts for permission but skips registration for guest users', async () => {
+    // Arrange
+    mockRequestPermission.mockResolvedValue('granted')
     mockPushManager('default')
+    const { result } = renderHook(() => useNotifications({ user: null }))
 
-    renderHook(() => useNotifications({ user: null }))
+    // Act
+    act(() => { result.current.requestPermission() })
 
-    await new Promise(r => setTimeout(r, 50))
-    expect(mockRequestPermission).not.toHaveBeenCalled()
+    // Assert — browser prompt fires, but subscription is never registered without a user
+    await waitFor(() => {
+      expect(mockRequestPermission).toHaveBeenCalledOnce()
+    })
     expect(trpc.pushSubscriptions.register.mutate).not.toHaveBeenCalled()
   })
 })

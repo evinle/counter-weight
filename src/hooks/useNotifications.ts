@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { trpc } from '../lib/trpc.js'
 import type { AuthUser } from './useAuth.js'
 
@@ -20,21 +20,27 @@ async function subscribeAndRegister(): Promise<void> {
   await trpc.pushSubscriptions.register.mutate({ endpoint: json.endpoint, p256dh, auth })
 }
 
-export function useNotifications({ user }: { user: AuthUser | null }): void {
+type UseNotificationsResult = {
+  permission: NotificationPermission
+  requestPermission: () => void
+}
+
+export function useNotifications({ user }: { user: AuthUser | null }): UseNotificationsResult {
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     'Notification' in window ? Notification.permission : 'denied'
   )
 
   useEffect(() => {
     if (!user || !('serviceWorker' in navigator)) return
-
-    if (permission === 'granted') {
-      subscribeAndRegister().catch(err => console.error('[useNotifications]', err))
-      return
-    }
-
-    if (permission === 'default') {
-      Notification.requestPermission().then(setPermission).catch(err => console.error('[useNotifications]', err))
-    }
+    if (permission !== 'granted') return
+    subscribeAndRegister().catch(err => console.error('[useNotifications]', err))
   }, [user, permission])
+
+  const requestPermission = useCallback(() => {
+    Notification.requestPermission()
+      .then(setPermission)
+      .catch(err => console.error('[useNotifications]', err))
+  }, [])
+
+  return { permission, requestPermission }
 }

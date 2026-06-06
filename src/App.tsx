@@ -15,6 +15,7 @@ import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
+import { useNotifications } from "./hooks/useNotifications";
 import { LoginView } from "./components/LoginView";
 import { UnclaimedTimersModal } from "./components/UnclaimedTimersModal";
 import { claimTimers, removeUnclaimedTimers } from "./hooks/useTimers";
@@ -135,16 +136,7 @@ export function App() {
     }
   }, [activeTimers]);
 
-  const [notifPermission, setNotifPermission] =
-    useState<NotificationPermission | null>(null);
-
-  useEffect(() => {
-    if ("Notification" in window) setNotifPermission(Notification.permission);
-  }, []);
-
-  function requestNotifPermission() {
-    Notification.requestPermission().then((p) => setNotifPermission(p));
-  }
+  const { permission: notifPermission, requestPermission: requestNotifPermission } = useNotifications({ user: user ?? null });
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
