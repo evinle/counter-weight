@@ -8,6 +8,8 @@ export type FakeTimer = {
   userId: string
   status: TimerStatus
   targetDatetime: Date
+  title: string
+  emoji: string | null
 }
 
 export type FakePushSubscription = {

@@ -15,6 +15,8 @@ const activeTimer = {
   userId: USER_ID,
   status: TimerStatus.Active,
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
+  title: 'Test timer',
+  emoji: '⏰',
 } satisfies FakeTimer
 
 const cancelledTimer = {
@@ -22,6 +24,8 @@ const cancelledTimer = {
   userId: USER_ID,
   status: TimerStatus.Cancelled,
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
+  title: 'Test timer',
+  emoji: null,
 } satisfies FakeTimer
 
 const subscription1 = {

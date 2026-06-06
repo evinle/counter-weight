@@ -7,7 +7,7 @@ export function createNotifyDb(db: Db): NotifyDb {
   return {
     async getTimerByServerId(serverId) {
       const [row] = await db
-        .select({ id: timers.id, userId: timers.userId, status: timers.status, targetDatetime: timers.targetDatetime })
+        .select({ id: timers.id, userId: timers.userId, status: timers.status, targetDatetime: timers.targetDatetime, title: timers.title, emoji: timers.emoji })
         .from(timers)
         .where(eq(timers.id, serverId))
       return row ?? null

@@ -18,6 +18,8 @@ const activeTimer = {
   userId: USER_ID,
   status: TimerStatus.Active,
   targetDatetime: new Date(FUTURE_DATETIME),
+  title: 'Test timer',
+  emoji: '⏰',
 } satisfies FakeTimer
 
 const subscription1 = {

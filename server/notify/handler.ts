@@ -2,7 +2,7 @@ import { TimerStatus, EventType } from "../db/schema.js";
 
 export type SendNotification = (
   subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { title: string; body: string },
+  payload: { serverId: string; title: string; emoji: string },
 ) => Promise<{ statusCode: number }>;
 
 export type NotifyDb = {
@@ -11,6 +11,8 @@ export type NotifyDb = {
     userId: string;
     status: TimerStatus;
     targetDatetime: Date;
+    title: string;
+    emoji: string | null;
   } | null>;
   getSubscriptionsForUser(userId: string): Promise<
     Array<{
@@ -68,7 +70,7 @@ export async function handleTimerFired(
           p256dh: sub.subscription.p256dh,
           auth: sub.subscription.auth,
         },
-        { title: "Timer fired", body: `Timer ${payload.serverId} has fired` },
+        { serverId: timer.id, title: timer.title, emoji: timer.emoji ?? "" },
       ),
     ),
   );
