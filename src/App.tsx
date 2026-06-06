@@ -38,24 +38,27 @@ export function App() {
   useSyncEngine({ user });
 
   const [unclaimedDismissed, setUnclaimedDismissed] = useState(false);
-  useEffect(() => { setUnclaimedDismissed(false) }, [user?.userId]);
+  useEffect(() => {
+    setUnclaimedDismissed(false);
+  }, [user?.userId]);
   const unclaimedCount =
     useLiveQuery(
       async () => {
-        const all = await db.timers.toArray()
-        return all.filter(t => t.userId === null).length
+        const all = await db.timers.toArray();
+        return all.filter((t) => t.userId === null).length;
       },
       [],
       0,
     ) ?? 0;
 
-  const showUnclaimedModal = state === 'authenticated' && unclaimedCount > 0 && !unclaimedDismissed;
+  const showUnclaimedModal =
+    state === "authenticated" && unclaimedCount > 0 && !unclaimedDismissed;
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthPersistence()
-    useAuthStore.getState().bootstrap()
-    return unsubscribe
-  }, [])
+    const unsubscribe = subscribeToAuthPersistence();
+    useAuthStore.getState().bootstrap();
+    return unsubscribe;
+  }, []);
 
   // Handle Cognito auth callback
   useEffect(() => {
@@ -136,7 +139,10 @@ export function App() {
     }
   }, [activeTimers]);
 
-  const { permission: notifPermission, requestPermission: requestNotifPermission } = useNotifications({ user: user ?? null });
+  const {
+    permission: notifPermission,
+    requestPermission: requestNotifPermission,
+  } = useNotifications({ user: user ?? null });
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -199,7 +205,13 @@ export function App() {
     }
 
     if (activeAction === ActiveAction.CreateEdit) {
-      return <CreateEditView existing={editTimer} onDone={handleDone} userId={user?.userId ?? null} />;
+      return (
+        <CreateEditView
+          existing={editTimer}
+          onDone={handleDone}
+          userId={user?.userId ?? null}
+        />
+      );
     }
     switch (tab) {
       case Tab.Timers:
@@ -245,9 +257,15 @@ export function App() {
         {showUnclaimedModal && (
           <UnclaimedTimersModal
             count={unclaimedCount}
-            onSync={async () => { await claimTimers(user!.userId); setUnclaimedDismissed(true) }}
+            onSync={async () => {
+              await claimTimers(user!.userId);
+              setUnclaimedDismissed(true);
+            }}
             onKeep={() => setUnclaimedDismissed(true)}
-            onRemove={async () => { await removeUnclaimedTimers(); setUnclaimedDismissed(true) }}
+            onRemove={async () => {
+              await removeUnclaimedTimers();
+              setUnclaimedDismissed(true);
+            }}
           />
         )}
 

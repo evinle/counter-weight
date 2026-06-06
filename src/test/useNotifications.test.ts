@@ -4,7 +4,7 @@ import { useNotifications } from '../hooks/useNotifications.js'
 import type { AuthUser } from '../hooks/useAuth.js'
 
 // jsdom doesn't include Notification — stub it globally for these tests
-const mockRequestPermission = vi.fn<[], Promise<NotificationPermission>>()
+const mockRequestPermission = vi.fn<() => Promise<NotificationPermission>>()
 let mockPermission: NotificationPermission = 'default'
 
 Object.defineProperty(global, 'Notification', {
