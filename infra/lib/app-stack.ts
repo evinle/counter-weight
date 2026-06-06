@@ -89,7 +89,7 @@ export class AppStack extends cdk.Stack {
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(15),
-      durableConfig: { executionTimeout: cdk.Duration.seconds(30) },
+      durableConfig: { executionTimeout: cdk.Duration.seconds(120) },
       projectRoot: path.join(__dirname, "../.."),
       environment: {
         DB_ENDPOINT: storageStack.dbInstanceEndpoint,
@@ -118,15 +118,25 @@ export class AppStack extends cdk.Stack {
     apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyAlias.functionArn);
     apiLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
 
-    apiLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule"],
-      resources: [`arn:aws:scheduler:${this.region}:${this.account}:schedule/default/timer-*`],
-    }));
+    apiLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "scheduler:CreateSchedule",
+          "scheduler:UpdateSchedule",
+          "scheduler:DeleteSchedule",
+        ],
+        resources: [
+          `arn:aws:scheduler:${this.region}:${this.account}:schedule/default/timer-*`,
+        ],
+      }),
+    );
 
-    apiLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: ["iam:PassRole"],
-      resources: [schedulerRole.roleArn],
-    }));
+    apiLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["iam:PassRole"],
+        resources: [schedulerRole.roleArn],
+      }),
+    );
 
     // Grant Auth Lambda SM read for Cognito client secret (only when ARN is provided)
     if (cognitoClientSecretArn) {
