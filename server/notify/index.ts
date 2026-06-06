@@ -39,8 +39,7 @@ async function realGetSendNotification(): Promise<SendNotification> {
       const env = getNotifyEnv()
       const secret = await sm.send(new GetSecretValueCommand({ SecretId: env.VAPID_SECRET_ARN }))
       if (!secret.SecretString) throw new Error('VAPID secret is not a string secret')
-      const { privateKey } = JSON.parse(secret.SecretString)
-      webPush.setVapidDetails('https://evinle.app', env.VAPID_PUBLIC_KEY, privateKey)
+      webPush.setVapidDetails('https://evinle.app', env.VAPID_PUBLIC_KEY, secret.SecretString)
       return async (subscription, payload) => {
         const result = await webPush.sendNotification(
           { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
