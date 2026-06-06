@@ -149,6 +149,42 @@ describe('bootstrap()', () => {
     expect(useAuthStore.getState().state).toBe('unauthenticated')
   })
 
+  it('stays in loading state when auth callback code is present — does not loginSilent', async () => {
+    // Arrange
+    localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
+    vi.stubGlobal('location', {
+      href: '',
+      origin: 'https://app.example.com',
+      search: '?code=abc123',
+      pathname: '/auth/callback',
+    })
+
+    // Act
+    await useAuthStore.getState().bootstrap()
+
+    // Assert — state stays loading, loginSilent did not navigate away
+    expect(useAuthStore.getState().state).toBe('loading')
+    expect(window.location.href).toBe('')
+  })
+
+  it('stays in loading state when auth callback error is present — does not loginSilent', async () => {
+    // Arrange
+    localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
+    vi.stubGlobal('location', {
+      href: '',
+      origin: 'https://app.example.com',
+      search: '?error=access_denied',
+      pathname: '/auth/callback',
+    })
+
+    // Act
+    await useAuthStore.getState().bootstrap()
+
+    // Assert
+    expect(useAuthStore.getState().state).toBe('loading')
+    expect(window.location.href).toBe('')
+  })
+
   it('does not re-run when called a second time', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

@@ -79,6 +79,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   bootstrap: async () => {
     if (get().bootstrapStarted) return
+    // Auth callback is in progress — the code exchange will call setAuthenticated.
+    // Running bootstrap concurrently risks loginSilent() navigating away before the
+    // exchange completes (refresh_token cookie isn't set yet → /auth/refresh 401).
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('code') || urlParams.get('error')) return
     set({ bootstrapStarted: true })
 
     const controller = new AbortController()
