@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { trpc } from "../lib/trpc.js";
+import { useTimerStore } from "../store/timerStore.js";
+import { useToast } from "./useToast.js";
 import type { AuthUser } from "./useAuth.js";
 
 async function subscribeAndRegister(): Promise<void> {
@@ -58,6 +60,21 @@ export function useNotifications({
       .then(() => console.log("[useNotifications] Successfully registered"))
       .catch((err) => console.error("[useNotifications]", err));
   }, [user, permission]);
+
+  const firedTimer = useTimerStore((s) => s.firedTimer);
+  const dismissFired = useTimerStore((s) => s.dismissFired);
+  const { show } = useToast();
+
+  useEffect(() => {
+    if (!firedTimer) return;
+    if (permission !== "granted") {
+      show({
+        message: `${firedTimer.emoji ?? "⏰"} ${firedTimer.title}`,
+        position: "top",
+      });
+    }
+    dismissFired();
+  }, [firedTimer, permission, show, dismissFired]);
 
   const requestPermission = useCallback(() => {
     Notification.requestPermission()

@@ -1,7 +1,11 @@
+import 'fake-indexeddb/auto'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useNotifications } from '../hooks/useNotifications.js'
+import { useTimerStore } from '../store/timerStore.js'
+import { useToastStore } from '../hooks/useToast.js'
 import type { AuthUser } from '../hooks/useAuth.js'
+import type { Timer } from '../db/schema.js'
 
 // jsdom doesn't include Notification — stub it globally for these tests
 const mockRequestPermission = vi.fn<() => Promise<NotificationPermission>>()
@@ -46,10 +50,32 @@ function mockPushManager(permission: NotificationPermission, subscription = PUSH
   return { mockSubscribe }
 }
 
+const FIRED_TIMER = {
+  id: 1,
+  title: 'Standup',
+  emoji: '📅',
+  description: null,
+  targetDatetime: new Date('2026-06-07T09:00:00.000Z'),
+  originalTargetDatetime: new Date('2026-06-07T09:00:00.000Z'),
+  status: 'fired',
+  priority: 'medium',
+  isFlagged: false,
+  groupId: null,
+  recurrenceRule: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  serverId: null,
+  userId: null,
+  syncStatus: 'synced',
+  version: null,
+} satisfies Timer
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'test-vapid-key')
   mockPermission = 'default'
+  useTimerStore.setState({ firedTimer: null, activeTimers: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('useNotifications', () => {
@@ -109,5 +135,36 @@ describe('useNotifications', () => {
       expect(mockRequestPermission).toHaveBeenCalledOnce()
     })
     expect(trpc.pushSubscriptions.register.mutate).not.toHaveBeenCalled()
+  })
+})
+
+describe('useNotifications firedTimer handling', () => {
+  it('shows toast when firedTimer fires and notifications not granted', async () => {
+    // Arrange
+    mockPermission = 'default'
+    renderHook(() => useNotifications({ user: USER }))
+
+    // Act
+    act(() => { useTimerStore.setState({ firedTimer: FIRED_TIMER }) })
+
+    // Assert
+    await waitFor(() => {
+      expect(useToastStore.getState().toasts).toHaveLength(1)
+    })
+    expect(useToastStore.getState().toasts[0].message).toContain('Standup')
+  })
+
+  it('clears firedTimer after handling', async () => {
+    // Arrange
+    mockPermission = 'default'
+    renderHook(() => useNotifications({ user: USER }))
+
+    // Act
+    act(() => { useTimerStore.setState({ firedTimer: FIRED_TIMER }) })
+
+    // Assert
+    await waitFor(() => {
+      expect(useTimerStore.getState().firedTimer).toBeNull()
+    })
   })
 })
