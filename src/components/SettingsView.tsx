@@ -101,7 +101,7 @@ export function SettingsView() {
         )}
       </div>
       <p className="px-4 pt-2 text-xs text-slate-600 tabular-nums">
-        {__APP_SHA__} · {new Date(__BUILD_TIME__).toLocaleDateString("en-AU")}
+        {__APP_SHA__} · {new Date(__BUILD_TIME__).toLocaleString("en-AU")}
       </p>
     </div>
   );
