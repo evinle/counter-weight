@@ -7,6 +7,7 @@ import {
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import type { PrecacheEntry } from "workbox-precaching";
+import { createNotifyTimer } from "./sw.notify";
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<PrecacheEntry>;
@@ -24,8 +25,10 @@ type SyncTimerEntry = {
   serverId: string | null;
   title: string;
   emoji: string | undefined;
-  targetDatetime: string; // ISO string
+  targetDatetime: string;
 };
+
+const notifyTimer = createNotifyTimer({ registration: self.registration });
 
 type PushPayload = {
   serverId: string;
@@ -77,20 +80,6 @@ self.addEventListener("message", (event) => {
     handles.set(timer.id, handle);
   }
 });
-
-function notifyTimer(timer: SyncTimerEntry): void {
-  self.clients
-    .matchAll({ type: "window", includeUncontrolled: true })
-    .then((clients) => {
-      if (clients.some((c) => c.visibilityState === "visible")) return;
-      const title = timer.emoji ? `${timer.emoji} ${timer.title}` : timer.title;
-      self.registration.showNotification(title, {
-        body: "Timer complete",
-        icon: "/icon-192.png",
-        tag: String(timer.id),
-      });
-    });
-}
 
 self.addEventListener("push", (event) => {
   const payload = parsePushPayload(event.data?.json());
