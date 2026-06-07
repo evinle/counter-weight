@@ -10,7 +10,6 @@ import { SettingsView } from "./components/SettingsView";
 import { CreateEditView } from "./components/CreateEditView";
 import { BottomTabBar } from "./components/BottomTabBar";
 import { ToastContainer } from "./components/ToastContainer";
-import { useToast } from "./hooks/useToast";
 import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
@@ -112,9 +111,6 @@ export function App() {
   }, [state, user?.userId]);
 
   const sync = useTimerStore((s) => s.sync);
-  const firedTimer = useTimerStore((s) => s.firedTimer);
-  const dismissFired = useTimerStore((s) => s.dismissFired);
-  const { show } = useToast();
 
   const activeTimers =
     useLiveQuery(
@@ -151,24 +147,6 @@ export function App() {
       setTimeout(() => setSwDebug(null), 4000);
     });
   }, []);
-
-  useEffect(() => {
-    if (!firedTimer) return;
-    if ("Notification" in window && Notification.permission === "granted") {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.showNotification(firedTimer.title, {
-          body: "Timer complete",
-          icon: "/icon-192.png",
-          tag: String(firedTimer.id),
-        });
-      });
-    }
-    show({
-      message: `${firedTimer.emoji ?? "⏰"} ${firedTimer.title}`,
-      position: "top",
-    });
-    dismissFired();
-  }, [firedTimer, show, dismissFired]);
 
   const handleEdit = (timer: Timer) => {
     setEditTimer(timer);
