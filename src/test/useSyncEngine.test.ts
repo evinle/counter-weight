@@ -63,7 +63,7 @@ describe('useSyncEngine', () => {
       serverId: 'srv-uuid',
       version: 1,
     })
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
 
@@ -106,7 +106,7 @@ describe('useSyncEngine', () => {
       groupId: null,
       eventbridgeScheduleId: null,
     })
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
 
@@ -129,8 +129,9 @@ describe('useSyncEngine', () => {
 
   it('reconcile: adds a server record not present in Dexie', async () => {
     vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({ serverId: 'x', version: 1 })
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
-      {
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
+      serverNow: '2026-06-08T00:00:00.000Z',
+      timers: [{
         id: 'srv-new',
         title: 'From Server',
         description: null,
@@ -147,8 +148,8 @@ describe('useSyncEngine', () => {
         userId: 'user-1',
         groupId: null,
         eventbridgeScheduleId: null,
-      },
-    ])
+      }],
+    })
 
     renderHook(() => useSyncEngine({ user: USER }))
 
@@ -166,8 +167,9 @@ describe('useSyncEngine', () => {
       version: 1,
     })
 
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
-      {
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
+      serverNow: '2026-06-08T00:00:00.000Z',
+      timers: [{
         id: 'srv-existing',
         title: 'Updated By Server',
         description: null,
@@ -184,8 +186,8 @@ describe('useSyncEngine', () => {
         userId: 'user-1',
         groupId: null,
         eventbridgeScheduleId: null,
-      },
-    ])
+      }],
+    })
 
     renderHook(() => useSyncEngine({ user: USER }))
 
@@ -200,7 +202,7 @@ describe('useSyncEngine', () => {
 describe('live query drain trigger', () => {
   it('drains a pending timer added after mount without calling reconcile', async () => {
     vi.mocked(trpc.timers.upsert.mutate).mockResolvedValue({ serverId: 'x', version: 1 })
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
@@ -227,7 +229,7 @@ describe('live query drain trigger', () => {
 describe('drain routing by status', () => {
   it('completed timer calls timers.complete and is marked synced', async () => {
     // Arrange
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
     const id = await db.timers.add({
       ...BASE_TIMER,
       status: 'completed',
@@ -252,7 +254,7 @@ describe('drain routing by status', () => {
 
   it('cancelled timer calls timers.cancel and is marked synced', async () => {
     // Arrange
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
     const id = await db.timers.add({
       ...BASE_TIMER,
       status: 'cancelled',
@@ -277,7 +279,7 @@ describe('drain routing by status', () => {
 
   it('completed timer with no serverId is left pending', async () => {
     // Arrange
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValue({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
     const id = await db.timers.add({
       ...BASE_TIMER,
       status: 'completed',
@@ -307,13 +309,14 @@ describe('triggerSync', () => {
 
   it('adds a server record not present in Dexie without calling upsert', async () => {
     // Let the mount sync settle with an empty reconcile response, then trigger
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
     renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
 
     vi.clearAllMocks()
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
-      {
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
+      serverNow: '2026-06-08T00:00:00.000Z',
+      timers: [{
         id: 'srv-trigger-new',
         title: 'Pulled By triggerSync',
         description: null,
@@ -330,8 +333,8 @@ describe('triggerSync', () => {
         userId: 'user-1',
         groupId: null,
         eventbridgeScheduleId: null,
-      },
-    ])
+      }],
+    })
 
     await triggerSync()
 
@@ -349,13 +352,14 @@ describe('triggerSync', () => {
     })
 
     // Let the mount sync settle with an empty reconcile response, then trigger
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
     renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
 
     vi.clearAllMocks()
-    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce([
-      {
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
+      serverNow: '2026-06-08T00:00:00.000Z',
+      timers: [{
         id: 'srv-stale',
         title: 'Refreshed By triggerSync',
         description: null,
@@ -372,8 +376,8 @@ describe('triggerSync', () => {
         userId: 'user-1',
         groupId: null,
         eventbridgeScheduleId: null,
-      },
-    ])
+      }],
+    })
 
     await triggerSync()
 
@@ -381,5 +385,69 @@ describe('triggerSync', () => {
     expect(timer?.title).toBe('Refreshed By triggerSync')
     expect(timer?.version).toBe(3)
     expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
+  })
+})
+
+describe('reconcile call shape', () => {
+  it('on cold start, sends only active/fired timers with a serverId in records', async () => {
+    // Arrange — no lastSyncedAt in localStorage
+    await db.timers.bulkAdd([
+      { ...BASE_TIMER, serverId: 'srv-active', syncStatus: 'synced', version: 1, status: 'active' },
+      { ...BASE_TIMER, serverId: 'srv-fired', syncStatus: 'synced', version: 1, status: 'fired' },
+      { ...BASE_TIMER, serverId: 'srv-completed', syncStatus: 'synced', version: 1, status: 'completed' },
+      { ...BASE_TIMER, serverId: 'srv-cancelled', syncStatus: 'synced', version: 1, status: 'cancelled' },
+      { ...BASE_TIMER, serverId: 'srv-missed', syncStatus: 'synced', version: 1, status: 'missed' },
+      { ...BASE_TIMER, serverId: null, syncStatus: 'pending', version: null, status: 'active' },
+    ])
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+    expect(trpc.timers.reconcile.query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        records: expect.arrayContaining([
+          expect.objectContaining({ serverId: 'srv-active' }),
+          expect.objectContaining({ serverId: 'srv-fired' }),
+        ]),
+      }),
+    )
+    const callArgs = vi.mocked(trpc.timers.reconcile.query).mock.calls[0][0]
+    const sentIds = callArgs.records.map((r: { serverId: string }) => r.serverId)
+    expect(sentIds).not.toContain('srv-completed')
+    expect(sentIds).not.toContain('srv-cancelled')
+    expect(sentIds).not.toContain('srv-missed')
+    expect(sentIds).not.toContain(null)
+  })
+
+  it('stores serverNow as lastSyncedAt after a successful reconcile', async () => {
+    // Arrange
+    const serverNow = '2026-06-08T12:34:56.000Z'
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+    expect(localStorage.getItem('cw:lastSyncedAt')).toBe(serverNow)
+  })
+
+  it('sends records: [] when lastSyncedAt is already set', async () => {
+    // Arrange
+    localStorage.setItem('cw:lastSyncedAt', '2026-06-01T00:00:00.000Z')
+    await db.timers.add({ ...BASE_TIMER, serverId: 'srv-1', syncStatus: 'synced', version: 1 })
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    // Act
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    // Assert
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+    expect(trpc.timers.reconcile.query).toHaveBeenCalledWith(
+      expect.objectContaining({ records: [] }),
+    )
   })
 })

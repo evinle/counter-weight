@@ -194,3 +194,49 @@ describe('timers.cancel', () => {
     expect(fakeScheduler.schedules.has(`timer-${EXISTING_TIMER.id}`)).toBe(false)
   })
 })
+
+describe('timers.reconcile', () => {
+  it('response includes serverNow alongside timers', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [EXISTING_TIMER] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    const result = await caller.timers.reconcile({ since: null, records: [] })
+
+    // Assert
+    expect(result).toHaveProperty('serverNow')
+    expect(typeof result.serverNow).toBe('string')
+    expect(result).toHaveProperty('timers')
+    expect(Array.isArray(result.timers)).toBe(true)
+  })
+
+  it('since: <T> returns only timers updated after T', async () => {
+    // Arrange
+    const oldTimer = { ...EXISTING_TIMER, id: '00000000-0000-0000-0000-000000000002', updatedAt: new Date('2026-01-01T00:00:00Z') }
+    const newTimer = { ...EXISTING_TIMER, id: '00000000-0000-0000-0000-000000000003', updatedAt: new Date('2026-06-01T00:00:00Z') }
+    fakeDb = createFakeTimersDb({ timers: [oldTimer, newTimer] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    const result = await caller.timers.reconcile({ since: '2026-03-01T00:00:00Z', records: [] })
+
+    // Assert
+    expect(result.timers).toHaveLength(1)
+    expect(result.timers[0].id).toBe(newTimer.id)
+  })
+
+  it('since: null returns all timers for the user', async () => {
+    // Arrange
+    const otherUserTimer = { ...EXISTING_TIMER, id: '00000000-0000-0000-0000-000000000002', userId: 'u2' }
+    fakeDb = createFakeTimersDb({ timers: [EXISTING_TIMER, otherUserTimer] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    const result = await caller.timers.reconcile({ since: null, records: [] })
+
+    // Assert
+    expect(result.timers).toHaveLength(1)
+    expect(result.timers[0].id).toBe(EXISTING_TIMER.id)
+  })
+})

@@ -206,9 +206,11 @@ export const timersRouter = router({
         input.records.map((r) => [r.serverId, new Date(r.updatedAt)]),
       )
 
-      return serverRecords.filter((sr) => {
+      const timers = serverRecords.filter((sr) => {
         const clientUpdatedAt = clientMap.get(sr.id)
         return !clientUpdatedAt || sr.updatedAt > clientUpdatedAt
       })
+
+      return { timers, serverNow: new Date().toISOString() }
     }),
 })

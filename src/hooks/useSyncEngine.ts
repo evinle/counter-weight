@@ -123,14 +123,16 @@ async function reconcile(user: AuthUser) {
       .equals(user.userId)
       .toArray();
 
-    const records = localTimers
-      .filter((t) => t.serverId)
-      .map((t) => ({
-        serverId: t.serverId!,
-        updatedAt: t.updatedAt.toISOString(),
-      }));
+    const records = lastSyncedAt
+      ? []
+      : localTimers
+          .filter((t) => t.serverId && (t.status === TimerStatuses.Active || t.status === TimerStatuses.Fired))
+          .map((t) => ({
+            serverId: t.serverId!,
+            updatedAt: t.updatedAt.toISOString(),
+          }));
 
-    const stale = await trpc.timers.reconcile.query({
+    const { timers: stale, serverNow } = await trpc.timers.reconcile.query({
       since: lastSyncedAt,
       records,
     });
@@ -151,7 +153,7 @@ async function reconcile(user: AuthUser) {
       }
     }
 
-    localStorage.setItem(LAST_SYNCED_KEY, new Date().toISOString());
+    localStorage.setItem(LAST_SYNCED_KEY, serverNow);
   } finally {
     syncRunning = false;
   }
