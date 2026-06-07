@@ -1,67 +1,73 @@
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../router.js'
-import { EventType, TimerStatus } from '../../db/schema.js'
-import type { Priority, RecurrenceRule } from '../../db/schema.js'
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "../router.js";
+import { EventType, TimerStatus } from "../../db/schema.js";
+import type { Priority, RecurrenceRule } from "../../db/schema.js";
 
 export type InsertTimerVals = {
-  userId: string
-  title: string
-  description: string | null
-  emoji: string | null
-  targetDatetime: Date
-  originalTargetDatetime: Date
-  status: TimerStatus
-  priority: Priority
-  isFlagged: boolean
-  recurrenceRule: RecurrenceRule | null
-}
+  userId: string;
+  title: string;
+  description: string | null;
+  emoji: string | null;
+  targetDatetime: Date;
+  originalTargetDatetime: Date;
+  status: TimerStatus;
+  priority: Priority;
+  isFlagged: boolean;
+  recurrenceRule: RecurrenceRule | null;
+};
 
 export type UpdateTimerVals = {
-  title: string
-  description: string | null
-  emoji: string | null
-  targetDatetime: Date
-  status: TimerStatus
-  priority: Priority
-  isFlagged: boolean
-  recurrenceRule: RecurrenceRule | null
-}
+  title: string;
+  description: string | null;
+  emoji: string | null;
+  targetDatetime: Date;
+  status: TimerStatus;
+  priority: Priority;
+  isFlagged: boolean;
+  recurrenceRule: RecurrenceRule | null;
+};
 
 export type TimerRecord = {
-  id: string
-  userId: string
-  groupId: string | null
-  title: string
-  description: string | null
-  emoji: string | null
-  targetDatetime: Date
-  originalTargetDatetime: Date
-  status: TimerStatus
-  priority: Priority
-  isFlagged: boolean
-  recurrenceRule: RecurrenceRule | null
-  eventbridgeScheduleId: string | null
-  version: number
-  createdAt: Date
-  updatedAt: Date
-}
+  id: string;
+  userId: string;
+  groupId: string | null;
+  title: string;
+  description: string | null;
+  emoji: string | null;
+  targetDatetime: Date;
+  originalTargetDatetime: Date;
+  status: TimerStatus;
+  priority: Priority;
+  isFlagged: boolean;
+  recurrenceRule: RecurrenceRule | null;
+  eventbridgeScheduleId: string | null;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export type TimersDb = {
-  listActive(userId: string): Promise<TimerRecord[]>
-  getTimer(id: string, userId: string): Promise<TimerRecord | null>
-  insertTimer(vals: InsertTimerVals): Promise<{ serverId: string; version: number }>
+  listActive(userId: string): Promise<TimerRecord[]>;
+  getTimer(id: string, userId: string): Promise<TimerRecord | null>;
+  insertTimer(
+    vals: InsertTimerVals,
+  ): Promise<{ serverId: string; version: number }>;
   updateTimer(
     where: { id: string; userId: string; version?: number },
     vals: UpdateTimerVals,
-  ): Promise<{ serverId: string; version: number } | null>
+  ): Promise<{ serverId: string; version: number } | null>;
   setStatus(
     where: { id: string; userId: string; version: number },
     status: typeof TimerStatus.Completed | typeof TimerStatus.Cancelled,
-  ): Promise<{ id: string } | null>
-  insertTimerEvent(vals: { timerId: string; userId: string; eventType: EventType }): Promise<void>
-  reconcile(userId: string, since: Date | null): Promise<TimerRecord[]>
-}
+  ): Promise<{ id: string } | null>;
+  insertTimerEvent(vals: {
+    timerId: string;
+    userId: string;
+    eventType: EventType;
+  }): Promise<void>;
+  reconcile(userId: string, since: Date | null): Promise<TimerRecord[]>;
+};
 
 export const timerUpsertInput = z.object({
   serverId: z.string().uuid().nullable(),
@@ -70,22 +76,22 @@ export const timerUpsertInput = z.object({
   emoji: z.string().nullable(),
   targetDatetime: z.string().datetime(),
   originalTargetDatetime: z.string().datetime(),
-  status: z.enum(['active', 'fired', 'completed', 'missed', 'cancelled']),
-  priority: z.enum(['low', 'medium', 'high', 'critical']),
+  status: z.enum(["active", "fired", "completed", "missed", "cancelled"]),
+  priority: z.enum(["low", "medium", "high", "critical"]),
   isFlagged: z.boolean(),
   recurrenceRule: z.object({ cron: z.string(), tz: z.string() }).nullable(),
   version: z.number().int().optional(),
-})
+});
 
 export const timersRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.timersDb.listActive(ctx.userId)
+    return ctx.timersDb.listActive(ctx.userId);
   }),
 
   get: protectedProcedure
     .input(z.object({ serverId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return ctx.timersDb.getTimer(input.serverId, ctx.userId)
+      return ctx.timersDb.getTimer(input.serverId, ctx.userId);
     }),
 
   upsert: protectedProcedure
@@ -104,17 +110,25 @@ export const timersRouter = router({
             isFlagged: input.isFlagged,
             recurrenceRule: input.recurrenceRule,
           },
-        )
+        );
 
-        if (!updated) throw new TRPCError({ code: 'CONFLICT', message: 'Version mismatch or not found' })
+        if (!updated)
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Version mismatch or not found",
+          });
 
         await ctx.scheduler.updateSchedule(
           `timer-${input.serverId}`,
           new Date(input.targetDatetime),
-          { serverId: input.serverId, userId: ctx.userId, targetDatetime: input.targetDatetime },
-        )
+          {
+            serverId: input.serverId,
+            userId: ctx.userId,
+            targetDatetime: input.targetDatetime,
+          },
+        );
 
-        return updated
+        return updated;
       }
 
       const created = await ctx.timersDb.insertTimer({
@@ -128,21 +142,25 @@ export const timersRouter = router({
         priority: input.priority,
         isFlagged: input.isFlagged,
         recurrenceRule: input.recurrenceRule,
-      })
+      });
 
       await ctx.timersDb.insertTimerEvent({
         timerId: created.serverId,
         userId: ctx.userId,
         eventType: EventType.Created,
-      })
+      });
 
       await ctx.scheduler.createSchedule(
         `timer-${created.serverId}`,
         new Date(input.targetDatetime),
-        { serverId: created.serverId, userId: ctx.userId, targetDatetime: input.targetDatetime },
-      )
+        {
+          serverId: created.serverId,
+          userId: ctx.userId,
+          targetDatetime: input.targetDatetime,
+        },
+      );
 
-      return created
+      return created;
     }),
 
   complete: protectedProcedure
@@ -151,19 +169,19 @@ export const timersRouter = router({
       const updated = await ctx.timersDb.setStatus(
         { id: input.serverId, userId: ctx.userId, version: input.version },
         TimerStatus.Completed,
-      )
+      );
 
-      if (!updated) throw new TRPCError({ code: 'CONFLICT' })
+      if (!updated) throw new TRPCError({ code: "CONFLICT" });
 
       await ctx.timersDb.insertTimerEvent({
         timerId: input.serverId,
         userId: ctx.userId,
         eventType: EventType.Completed,
-      })
+      });
 
-      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`)
+      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`);
 
-      return { ok: true }
+      return { ok: true };
     }),
 
   cancel: protectedProcedure
@@ -172,19 +190,19 @@ export const timersRouter = router({
       const updated = await ctx.timersDb.setStatus(
         { id: input.serverId, userId: ctx.userId, version: input.version },
         TimerStatus.Cancelled,
-      )
+      );
 
-      if (!updated) throw new TRPCError({ code: 'CONFLICT' })
+      if (!updated) throw new TRPCError({ code: "CONFLICT" });
 
       await ctx.timersDb.insertTimerEvent({
         timerId: input.serverId,
         userId: ctx.userId,
         eventType: EventType.Cancelled,
-      })
+      });
 
-      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`)
+      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`);
 
-      return { ok: true }
+      return { ok: true };
     }),
 
   reconcile: protectedProcedure
@@ -192,7 +210,10 @@ export const timersRouter = router({
       z.object({
         since: z.string().datetime().nullable(),
         records: z.array(
-          z.object({ serverId: z.string().uuid(), updatedAt: z.string().datetime() }),
+          z.object({
+            serverId: z.string().uuid(),
+            updatedAt: z.string().datetime(),
+          }),
         ),
       }),
     )
@@ -200,17 +221,19 @@ export const timersRouter = router({
       const serverRecords = await ctx.timersDb.reconcile(
         ctx.userId,
         input.since ? new Date(input.since) : null,
-      )
+      );
+
+      const serverNow = new Date().toISOString();
 
       const clientMap = new Map(
         input.records.map((r) => [r.serverId, new Date(r.updatedAt)]),
-      )
+      );
 
       const timers = serverRecords.filter((sr) => {
-        const clientUpdatedAt = clientMap.get(sr.id)
-        return !clientUpdatedAt || sr.updatedAt > clientUpdatedAt
-      })
+        const clientUpdatedAt = clientMap.get(sr.id);
+        return !clientUpdatedAt || sr.updatedAt > clientUpdatedAt;
+      });
 
-      return { timers, serverNow: new Date().toISOString() }
+      return { timers, serverNow };
     }),
-})
+});

@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import awsLambdaFastify from "@fastify/aws-lambda";
+import compress from "@fastify/compress";
 import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import { createContext } from "./context.js";
@@ -22,6 +23,7 @@ export type AppRouter = typeof appRouter;
 
 export const app = Fastify({ logger: true });
 
+app.register(compress);
 app.register(cors, {
   origin: [...ALLOWED_ORIGINS],
   credentials: true,

@@ -46,23 +46,35 @@ async function drain(user: AuthUser) {
       .and((t) => t.userId === user.userId)
       .toArray();
 
-    type TerminalStatus = typeof TimerStatuses.Completed | typeof TimerStatuses.Cancelled;
+    type TerminalStatus =
+      | typeof TimerStatuses.Completed
+      | typeof TimerStatuses.Cancelled;
     function isTerminalStatus(s: string): s is TerminalStatus {
       return s === TimerStatuses.Completed || s === TimerStatuses.Cancelled;
     }
 
-    const terminalMutate: Record<TerminalStatus, (input: { serverId: string; version: number }) => Promise<unknown>> = {
+    const terminalMutate: Record<
+      TerminalStatus,
+      (input: { serverId: string; version: number }) => Promise<unknown>
+    > = {
       [TimerStatuses.Completed]: trpc.timers.complete.mutate,
       [TimerStatuses.Cancelled]: trpc.timers.cancel.mutate,
     };
 
     for (const timer of pending) {
-      const terminal = isTerminalStatus(timer.status) ? terminalMutate[timer.status] : undefined;
+      const terminal = isTerminalStatus(timer.status)
+        ? terminalMutate[timer.status]
+        : undefined;
       try {
         if (terminal) {
           if (timer.serverId && timer.version != null) {
-            await terminal({ serverId: timer.serverId, version: timer.version });
-            await db.timers.update(timer.id!, { syncStatus: SyncStatuses.Synced });
+            await terminal({
+              serverId: timer.serverId,
+              version: timer.version,
+            });
+            await db.timers.update(timer.id!, {
+              syncStatus: SyncStatuses.Synced,
+            });
           }
           // no serverId or version: leave pending, retry on next sync
         } else {
@@ -126,7 +138,12 @@ async function reconcile(user: AuthUser) {
     const records = lastSyncedAt
       ? []
       : localTimers
-          .filter((t) => t.serverId && (t.status === TimerStatuses.Active || t.status === TimerStatuses.Fired))
+          .filter(
+            (t) =>
+              t.serverId &&
+              (t.status === TimerStatuses.Active ||
+                t.status === TimerStatuses.Fired),
+          )
           .map((t) => ({
             serverId: t.serverId!,
             updatedAt: t.updatedAt.toISOString(),
