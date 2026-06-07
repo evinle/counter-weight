@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto'
 import { vi, beforeEach, afterEach, describe, it, expect } from "vitest";
 import { useTimerStore } from "../store/timerStore";
 import type { Timer } from "../db/schema";
@@ -113,3 +114,4 @@ describe("timerStore", () => {
     expect(useTimerStore.getState().firedTimer?.id).toBe(1);
   });
 });
+

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Timer } from '../db/schema'
+import { db } from '../db'
 
 interface TimerState {
   firedTimer: Timer | null
@@ -21,7 +22,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
     if (!next) return
 
     timeout = setTimeout(() => {
-      set({ 
+      if (next.id !== undefined) {
+        db.timers.update(next.id, { status: 'fired' })
+      }
+      set({
         firedTimer: next,
         activeTimers: get().activeTimers.filter(t => t.id !== next.id)
       })

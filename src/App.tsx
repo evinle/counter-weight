@@ -163,12 +163,6 @@ export function App() {
         });
       });
     }
-    if (firedTimer.id !== undefined) {
-      db.timers.update(firedTimer.id, {
-        status: "fired",
-        updatedAt: new Date(),
-      });
-    }
     show({
       message: `${firedTimer.emoji ?? "⏰"} ${firedTimer.title}`,
       position: "top",
