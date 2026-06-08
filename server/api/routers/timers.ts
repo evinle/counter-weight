@@ -5,47 +5,43 @@ import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule } from "../../db/schema.js";
 
 export type InsertTimerVals = {
-  userId: string;
-  title: string;
-  description: string | null;
-  emoji: string | null;
-  targetDatetime: Date;
-  originalTargetDatetime: Date;
-  status: TimerStatus;
-  priority: Priority;
-  isFlagged: boolean;
-  recurrenceRule: RecurrenceRule | null;
-};
+  userId: string
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  originalTargetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  recurrenceRule: RecurrenceRule | null
+}
 
 export type UpdateTimerVals = {
-  title: string;
-  description: string | null;
-  emoji: string | null;
-  targetDatetime: Date;
-  status: TimerStatus;
-  priority: Priority;
-  isFlagged: boolean;
-  recurrenceRule: RecurrenceRule | null;
-};
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  recurrenceRule: RecurrenceRule | null
+}
 
 export type TimerRecord = {
-  id: string;
-  userId: string;
-  groupId: string | null;
-  title: string;
-  description: string | null;
-  emoji: string | null;
-  targetDatetime: Date;
-  originalTargetDatetime: Date;
-  status: TimerStatus;
-  priority: Priority;
-  isFlagged: boolean;
-  recurrenceRule: RecurrenceRule | null;
-  eventbridgeScheduleId: string | null;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
+  id: string
+  userId: string
+  title: string
+  description: string | null
+  emoji: string | null
+  targetDatetime: Date
+  originalTargetDatetime: Date
+  status: TimerStatus
+  priority: Priority
+  recurrenceRule: RecurrenceRule | null
+  eventbridgeScheduleId: string | null
+  version: number
+  createdAt: Date
+  updatedAt: Date
+}
 
 export type TimersDb = {
   listActive(userId: string): Promise<TimerRecord[]>;
@@ -76,9 +72,8 @@ export const timerUpsertInput = z.object({
   emoji: z.string().nullable(),
   targetDatetime: z.string().datetime(),
   originalTargetDatetime: z.string().datetime(),
-  status: z.enum(["active", "fired", "completed", "missed", "cancelled"]),
-  priority: z.enum(["low", "medium", "high", "critical"]),
-  isFlagged: z.boolean(),
+  status: z.enum(['active', 'fired', 'completed', 'missed', 'cancelled']),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
   recurrenceRule: z.object({ cron: z.string(), tz: z.string() }).nullable(),
   version: z.number().int().optional(),
 });
@@ -107,7 +102,6 @@ export const timersRouter = router({
             targetDatetime: new Date(input.targetDatetime),
             status: input.status,
             priority: input.priority,
-            isFlagged: input.isFlagged,
             recurrenceRule: input.recurrenceRule,
           },
         );
@@ -140,7 +134,6 @@ export const timersRouter = router({
         originalTargetDatetime: new Date(input.originalTargetDatetime),
         status: input.status,
         priority: input.priority,
-        isFlagged: input.isFlagged,
         recurrenceRule: input.recurrenceRule,
       });
 

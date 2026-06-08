@@ -26,12 +26,10 @@ function mapServerTimer(s: ServerTimer) {
     originalTargetDatetime: new Date(s.originalTargetDatetime),
     status: s.status,
     priority: s.priority,
-    isFlagged: s.isFlagged,
     recurrenceRule: s.recurrenceRule as { cron: string; tz: string } | null,
     version: s.version,
     createdAt: new Date(s.createdAt),
     updatedAt: new Date(s.updatedAt),
-    groupId: null,
     syncStatus: SyncStatuses.Synced,
   };
 }
@@ -87,7 +85,6 @@ async function drain(user: AuthUser) {
             originalTargetDatetime: timer.originalTargetDatetime.toISOString(),
             status: timer.status,
             priority: timer.priority,
-            isFlagged: timer.isFlagged,
             recurrenceRule: timer.recurrenceRule,
             version: timer.version ?? undefined,
           });

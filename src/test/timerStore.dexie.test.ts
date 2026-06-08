@@ -12,8 +12,6 @@ const BASE_DB_TIMER = {
   originalTargetDatetime: new Date('2026-01-01T00:00:00.000Z'),
   status: 'active',
   priority: 'medium',
-  isFlagged: false,
-  groupId: null,
   recurrenceRule: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),

@@ -59,8 +59,6 @@ const FIRED_TIMER = {
   originalTargetDatetime: new Date('2026-06-07T09:00:00.000Z'),
   status: 'fired',
   priority: 'medium',
-  isFlagged: false,
-  groupId: null,
   recurrenceRule: null,
   createdAt: new Date(),
   updatedAt: new Date(),

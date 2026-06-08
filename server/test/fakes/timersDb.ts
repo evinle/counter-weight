@@ -31,7 +31,6 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
       idCounter++
       const row: FakeTimer = {
         id: `timer-${idCounter}`,
-        groupId: null,
         eventbridgeScheduleId: null,
         version: 1,
         createdAt: new Date(),

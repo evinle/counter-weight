@@ -33,6 +33,8 @@ export interface TimerV1 {
   updatedAt: Date
 }
 
+// TimerV1–V3 retained as migration source types only — do not use as the active Timer type.
+
 export interface TimerV2 extends TimerV1 {
   originalTargetDatetime: Date
 }
@@ -44,7 +46,9 @@ export interface TimerV3 extends TimerV2 {
   version: number | null
 }
 
-export type Timer = TimerV3
+export type TimerV4 = Omit<TimerV3, 'isFlagged' | 'groupId'>
+
+export type Timer = TimerV4
 
 export const SyncStatuses = {
   Pending: 'pending',

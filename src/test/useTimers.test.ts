@@ -10,8 +10,6 @@ const BASE = {
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
   status: 'active',
   priority: 'medium',
-  isFlagged: false,
-  groupId: null,
   recurrenceRule: null,
 } satisfies Omit<Timer, 'id' | 'createdAt' | 'updatedAt' | 'originalTargetDatetime' | 'serverId' | 'userId' | 'syncStatus' | 'version'>
 
@@ -186,8 +184,6 @@ describe('bulkImportTimers', () => {
         originalTargetDatetime: new Date('2026-07-01T10:00:00Z'),
         status: 'active',
         priority: 'medium',
-        isFlagged: false,
-        groupId: null,
         recurrenceRule: null,
         createdAt: new Date(),
         updatedAt: new Date(),

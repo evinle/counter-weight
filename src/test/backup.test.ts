@@ -11,8 +11,6 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     originalTargetDatetime: new Date("2026-06-01T10:00:00.000Z"),
     status: "active",
     priority: "medium",
-    isFlagged: false,
-    groupId: null,
     recurrenceRule: null,
     createdAt: new Date("2026-05-01T00:00:00.000Z"),
     updatedAt: new Date("2026-05-01T00:00:00.000Z"),

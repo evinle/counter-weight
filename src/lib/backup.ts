@@ -35,8 +35,6 @@ function coerceTimer(raw: unknown): Omit<Timer, 'id'> | null {
     originalTargetDatetime: parseDate(r.originalTargetDatetime) ?? targetDatetime,
     status,
     priority: typeof r.priority === 'string' && isPriority(r.priority) ? r.priority : 'medium',
-    isFlagged: typeof r.isFlagged === 'boolean' ? r.isFlagged : false,
-    groupId: typeof r.groupId === 'number' ? r.groupId : null,
     recurrenceRule:
       r.recurrenceRule &&
       typeof r.recurrenceRule === 'object' &&

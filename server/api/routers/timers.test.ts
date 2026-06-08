@@ -26,7 +26,6 @@ const BASE_INPUT = {
   originalTargetDatetime: '2026-06-01T12:00:00Z',
   status: 'active',
   priority: 'medium',
-  isFlagged: false,
   recurrenceRule: null,
   version: undefined,
 } satisfies TimerUpsertInput
@@ -34,7 +33,6 @@ const BASE_INPUT = {
 const EXISTING_TIMER = {
   id: '00000000-0000-0000-0000-000000000001',
   userId: 'u1',
-  groupId: null,
   title: 'Existing timer',
   description: null,
   emoji: null,
@@ -42,7 +40,6 @@ const EXISTING_TIMER = {
   originalTargetDatetime: new Date('2026-06-01T12:00:00Z'),
   status: 'active',
   priority: 'medium',
-  isFlagged: false,
   recurrenceRule: null,
   eventbridgeScheduleId: null,
   version: 1,

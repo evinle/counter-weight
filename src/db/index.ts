@@ -24,6 +24,9 @@ class CounterWeightDB extends Dexie {
         Object.assign(timer, migrateV2toV3(timer))
       })
     )
+    this.version(4).stores({
+      timers: '++id, status, targetDatetime, priority, syncStatus, serverId, userId',
+    })
   }
 }
 

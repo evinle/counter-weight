@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, text, uuid, timestamp, integer, boolean, jsonb, index, unique,
+  pgTable, pgEnum, text, uuid, timestamp, integer, jsonb, index, unique,
 } from 'drizzle-orm/pg-core'
 
 export const TimerStatus = {
@@ -63,7 +63,6 @@ export const timers = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').notNull().references(() => users.id),
-    groupId: uuid('group_id'), // no FK until M4
     title: text('title').notNull(),
     description: text('description'),
     emoji: text('emoji'),
@@ -71,7 +70,6 @@ export const timers = pgTable(
     originalTargetDatetime: timestamp('original_target_datetime', { withTimezone: true }).notNull(),
     status: timerStatusEnum('status').notNull().default('active'),
     priority: priorityEnum('priority').notNull().default('medium'),
-    isFlagged: boolean('is_flagged').notNull().default(false),
     recurrenceRule: jsonb('recurrence_rule').$type<RecurrenceRule | null>(),
     eventbridgeScheduleId: text('eventbridge_schedule_id'), // M3 populates this
     version: integer('version').notNull().default(1),

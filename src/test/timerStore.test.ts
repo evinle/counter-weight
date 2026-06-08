@@ -14,8 +14,6 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     originalTargetDatetime: rightAfter,
     status: "active",
     priority: "medium",
-    isFlagged: false,
-    groupId: null,
     recurrenceRule: null,
     createdAt: new Date(),
     updatedAt: new Date(),

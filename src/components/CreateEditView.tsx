@@ -72,8 +72,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         targetDatetime,
         status: "active",
         priority,
-        isFlagged: false,
-        groupId: null,
         recurrenceRule: null,
       }, userId);
     }
