@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "workspaces": ["packages/*", "server", "infra"],
   "scripts": {
     "dev": "vite --host --port 5174",
     "dev:local": "API_TARGET=http://localhost:3000 vite --host --port 5174",
