@@ -96,6 +96,7 @@ export async function editTimer(
     title: string
     emoji: string | null
     priority: Priority
+    tagIds: string[]
   },
 ) {
   const current = await db.timers.get(id)

@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { useAnimatedCountdown } from '../hooks/useAnimatedCountdown'
 import { formatDuration } from '../lib/countdown'
 import { completeTimer, cancelTimer } from '../hooks/useTimers'
-import type { Timer, Priority } from '../db/schema'
+import type { Timer, Priority, Tag } from '../db/schema'
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
   low: 'text-slate-400',
@@ -13,10 +13,11 @@ const PRIORITY_COLOURS: Record<Priority, string> = {
 
 interface Props {
   timer: Timer
+  tagsMap: Map<string, Tag>
   onEdit: (timer: Timer) => void
 }
 
-export function TimerCard({ timer, onEdit }: Props) {
+export function TimerCard({ timer, tagsMap, onEdit }: Props) {
   const remaining = useAnimatedCountdown(timer.targetDatetime)
   const isOverdue = remaining <= 0
   const [dropArmed, setDropArmed] = useState(false)
@@ -39,6 +40,11 @@ export function TimerCard({ timer, onEdit }: Props) {
     }
   }, [])
 
+  const resolvedTags = timer.tagIds.flatMap((id) => {
+    const tag = tagsMap.get(id)
+    return tag ? [tag] : []
+  })
+
   return (
     <div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
@@ -54,6 +60,20 @@ export function TimerCard({ timer, onEdit }: Props) {
       <span className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? 'text-red-400' : 'text-white'}`}>
         {formatDuration(remaining)}
       </span>
+
+      {resolvedTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {resolvedTags.map((tag) => (
+            <span
+              key={tag.serverId}
+              className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+              style={{ backgroundColor: tag.color ?? '#6b7280' }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-3 mt-1">
         <button

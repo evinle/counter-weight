@@ -1,4 +1,5 @@
 import { useFeedTimers } from "../hooks/useTimers";
+import { useTagsMap } from "../hooks/useTags";
 import { TimerCard } from "./TimerCard";
 import { ScreenTitle } from "./ScreenTitle";
 import type { Timer } from "../db/schema";
@@ -9,6 +10,7 @@ interface Props {
 
 export function FeedView({ onEdit }: Props) {
   const timers = useFeedTimers();
+  const tagsMap = useTagsMap();
 
   const renderTimersContent = () =>
     timers.length === 0 ? (
@@ -19,7 +21,7 @@ export function FeedView({ onEdit }: Props) {
     ) : (
       <div className="flex flex-col gap-3 p-4 box-border">
         {timers.map((timer) => (
-          <TimerCard key={timer.id} timer={timer} onEdit={onEdit} />
+          <TimerCard key={timer.id} timer={timer} tagsMap={tagsMap} onEdit={onEdit} />
         ))}
       </div>
     );

@@ -3,6 +3,7 @@ import { createTimer, editTimer } from "../hooks/useTimers";
 import { DurationInput } from "./DurationInput";
 import { DateTimeInput } from "./DateTimeInput";
 import { EmojiButton } from "./EmojiButton";
+import { TagPicker } from "./TagPicker";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
@@ -28,6 +29,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const [priority, setPriority] = useState<Priority>(
     existing?.priority ?? "medium",
   );
+  const [tagIds, setTagIds] = useState<string[]>(existing?.tagIds ?? []);
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
   const isAlreadyExtended = existing
     ? existing.targetDatetime > existing.originalTargetDatetime
@@ -63,7 +65,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         : atTime;
 
     if (existing?.id !== undefined) {
-      await editTimer(existing.id, { targetDatetime, title, emoji, priority });
+      await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds });
     } else {
       await createTimer({
         title,
@@ -73,6 +75,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         status: "active",
         priority,
         recurrenceRule: null,
+        tagIds,
       }, userId);
     }
     onDone();
@@ -161,6 +164,15 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-sm text-slate-400">Tags</span>
+        <TagPicker
+          userId={userId}
+          initialServerIds={existing?.tagIds}
+          onChange={setTagIds}
+        />
       </div>
 
       <button
