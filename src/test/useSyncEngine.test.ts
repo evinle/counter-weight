@@ -385,6 +385,67 @@ describe('triggerSync', () => {
   })
 })
 
+describe('tag drain', () => {
+  const BASE_TAG = {
+    userId: 'user-1',
+    name: 'Work',
+    color: '#ff0000',
+    emoji: null,
+    version: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  it('drains pending tags and marks them synced on success', async () => {
+    const id = await db.tags.add({ ...BASE_TAG, serverId: null, syncStatus: 'pending' })
+
+    vi.mocked(trpc.tags.upsert.mutate).mockResolvedValueOnce({ serverId: 'tag-srv', version: 1 })
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const tag = await db.tags.get(id)
+      expect(tag?.syncStatus).toBe('synced')
+      expect(tag?.serverId).toBe('tag-srv')
+      expect(tag?.version).toBe(1)
+    })
+  })
+
+  it('overwrites local tag with server record on CONFLICT', async () => {
+    const id = await db.tags.add({ ...BASE_TAG, serverId: 'tag-existing', syncStatus: 'pending', version: 1 })
+
+    const conflictError = new TRPCClientError('Conflict', {
+      result: { error: { data: { code: 'CONFLICT' }, message: 'Conflict', code: -32600 } },
+    })
+    vi.mocked(trpc.tags.upsert.mutate).mockRejectedValueOnce(conflictError)
+    vi.mocked(trpc.tags.reconcile.query)
+      .mockResolvedValueOnce({
+        tags: [{
+          id: 'tag-existing',
+          name: 'Server Name',
+          color: '#ffffff',
+          emoji: null,
+          version: 5,
+          createdAt: '2026-05-01T00:00:00.000Z',
+          updatedAt: '2026-05-01T00:00:00.000Z',
+        }],
+        serverNow: '2026-06-08T00:00:00.000Z',
+      })
+      .mockResolvedValueOnce(EMPTY_TAGS_RECONCILE)
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const tag = await db.tags.get(id)
+      expect(tag?.name).toBe('Server Name')
+      expect(tag?.syncStatus).toBe('synced')
+      expect(tag?.version).toBe(5)
+    })
+  })
+})
+
 describe('reconcile call shape', () => {
   it('on cold start, sends only active/fired timers with a serverId in records', async () => {
     // Arrange — no lastSyncedAt in localStorage
