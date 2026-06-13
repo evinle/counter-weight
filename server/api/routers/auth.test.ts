@@ -5,6 +5,7 @@ import { router, createCallerFactory } from '../router.js'
 import { mockEnv } from '../../test/envHelpers.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
+import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { Db } from '../../db/index.js'
 
 const testRouter = router({ auth: authRouter })
@@ -15,7 +16,7 @@ function makeCtx(userId: string | null) {
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
   const insert = vi.fn().mockReturnValue({ values })
   const db = { insert } satisfies Pick<Db, 'insert'>
-  return { userId, db: db as unknown as Db, timersDb: createFakeTimersDb(), scheduler: createFakeScheduler(), userAgent: null }
+  return { userId, db: db as unknown as Db, timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent: null }
 }
 
 beforeEach(() => {

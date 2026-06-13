@@ -1,4 +1,4 @@
-import type { TimerV1, TimerV2, TimerV3, TimerV4 } from './schema'
+import type { TimerV1, TimerV2, TimerV3, TimerV4, TimerV5 } from './schema'
 
 export function migrateV1toV2(timer: TimerV1): TimerV2 {
   return {
@@ -19,4 +19,8 @@ export function migrateV2toV3(timer: TimerV2): TimerV3 {
 
 export function migrateV3toV4({ isFlagged: _f, groupId: _g, ...rest }: TimerV3): TimerV4 {
   return rest
+}
+
+export function migrateV4toV5(timer: TimerV4): TimerV5 {
+  return { ...timer, tagIds: [] }
 }

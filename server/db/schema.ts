@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, text, uuid, timestamp, integer, jsonb, index, unique,
+  pgTable, pgEnum, text, uuid, timestamp, integer, jsonb, index, unique, primaryKey,
 } from 'drizzle-orm/pg-core'
 
 export const TimerStatus = {
@@ -114,6 +114,34 @@ export const pushSubscriptions = pgTable(
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('push_subscriptions_endpoint_user_unique').on(t.endpoint, t.userId)],
+)
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => users.id),
+    name: text('name').notNull(),
+    color: text('color'),
+    emoji: text('emoji'),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('tags_user_name_unique').on(t.userId, t.name),
+    index('tags_user_idx').on(t.userId),
+    index('tags_updated_at_idx').on(t.updatedAt),
+  ],
+)
+
+export const timerTags = pgTable(
+  'timer_tags',
+  {
+    timerId: uuid('timer_id').notNull().references(() => timers.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.timerId, t.tagId] })],
 )
 
 export const timerEvents = pgTable('timer_events', {

@@ -14,6 +14,7 @@ export type InsertTimerVals = {
   status: TimerStatus
   priority: Priority
   recurrenceRule: RecurrenceRule | null
+  tagIds: string[]
 }
 
 export type UpdateTimerVals = {
@@ -24,6 +25,7 @@ export type UpdateTimerVals = {
   status: TimerStatus
   priority: Priority
   recurrenceRule: RecurrenceRule | null
+  tagIds: string[]
 }
 
 export type TimerRecord = {
@@ -39,6 +41,7 @@ export type TimerRecord = {
   recurrenceRule: RecurrenceRule | null
   eventbridgeScheduleId: string | null
   version: number
+  tagIds: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -48,11 +51,11 @@ export type TimersDb = {
   getTimer(id: string, userId: string): Promise<TimerRecord | null>;
   insertTimer(
     vals: InsertTimerVals,
-  ): Promise<{ serverId: string; version: number }>;
+  ): Promise<{ serverId: string; version: number; tagIds: string[] }>;
   updateTimer(
     where: { id: string; userId: string; version?: number },
     vals: UpdateTimerVals,
-  ): Promise<{ serverId: string; version: number } | null>;
+  ): Promise<{ serverId: string; version: number; tagIds: string[] } | null>;
   setStatus(
     where: { id: string; userId: string; version: number },
     status: typeof TimerStatus.Completed | typeof TimerStatus.Cancelled,
@@ -76,6 +79,7 @@ export const timerUpsertInput = z.object({
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   recurrenceRule: z.object({ cron: z.string(), tz: z.string() }).nullable(),
   version: z.number().int().optional(),
+  tagIds: z.array(z.string().uuid()).default([]),
 });
 
 export const timersRouter = router({
@@ -103,6 +107,7 @@ export const timersRouter = router({
             status: input.status,
             priority: input.priority,
             recurrenceRule: input.recurrenceRule,
+            tagIds: input.tagIds,
           },
         );
 
@@ -135,6 +140,7 @@ export const timersRouter = router({
         status: input.status,
         priority: input.priority,
         recurrenceRule: input.recurrenceRule,
+        tagIds: input.tagIds,
       });
 
       await ctx.timersDb.insertTimerEvent({

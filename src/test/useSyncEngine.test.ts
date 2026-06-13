@@ -17,12 +17,18 @@ vi.mock('../lib/trpc', () => ({
       list: { query: vi.fn() },
       reconcile: { query: vi.fn() },
     },
+    tags: {
+      upsert: { mutate: vi.fn() },
+      reconcile: { query: vi.fn() },
+    },
   },
   idToken: 'mock-token',
   setIdToken: vi.fn(),
 }))
 
 import { trpc } from '../lib/trpc'
+
+const EMPTY_TAGS_RECONCILE = { tags: [], serverNow: '2026-06-08T00:00:00.000Z' }
 
 const USER = { userId: 'user-1', email: 'user@example.com', firstName: 'Test' } satisfies AuthUser
 
@@ -43,8 +49,10 @@ const BASE_TIMER = {
 
 beforeEach(async () => {
   await db.timers.clear()
+  await db.tags.clear()
   vi.clearAllMocks()
   localStorage.clear()
+  vi.mocked(trpc.tags.reconcile.query).mockResolvedValue(EMPTY_TAGS_RECONCILE)
   // Reset module-level currentUser between tests
   renderHook(() => useSyncEngine({ user: null }))
 })
@@ -101,6 +109,7 @@ describe('useSyncEngine', () => {
       updatedAt: '2026-05-01T00:00:00.000Z',
       userId: 'user-1',
       eventbridgeScheduleId: null,
+      tagIds: [],
     })
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 

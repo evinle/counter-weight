@@ -5,9 +5,12 @@ import { router, createCallerFactory } from '../router.js'
 import { mockEnv } from '../../test/envHelpers.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
+import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { FakeTimersDb } from '../../test/fakes/timersDb.js'
 import type { FakeScheduler } from '../../test/fakes/scheduler.js'
+import type { FakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { TimerRecord } from './timers.js'
+import type { TagRecord } from './tags.js'
 import { createFakeDb } from '../../test/fakes/db.js'
 import type { Scheduler } from '../scheduler.js'
 import type { z } from 'zod'
@@ -28,7 +31,19 @@ const BASE_INPUT = {
   priority: 'medium',
   recurrenceRule: null,
   version: undefined,
+  tagIds: [],
 } satisfies TimerUpsertInput
+
+const EXISTING_TAG = {
+  id: '00000000-0000-0000-0000-000000000011',
+  userId: 'u1',
+  name: 'urgent',
+  color: '#ff0000',
+  emoji: null,
+  version: 1,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+} satisfies TagRecord
 
 const EXISTING_TIMER = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -43,21 +58,24 @@ const EXISTING_TIMER = {
   recurrenceRule: null,
   eventbridgeScheduleId: null,
   version: 1,
+  tagIds: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies TimerRecord
 
-function makeCtx(userId: string | null, timersDb: FakeTimersDb, scheduler: Scheduler) {
-  return { userId, db: createFakeDb(), timersDb, scheduler, userAgent: null }
+function makeCtx(userId: string | null, timersDb: FakeTimersDb, scheduler: Scheduler, tagsDb?: FakeTagsDb) {
+  return { userId, db: createFakeDb(), timersDb, tagsDb: tagsDb ?? createFakeTagsDb(), scheduler, userAgent: null }
 }
 
 let fakeDb: FakeTimersDb
 let fakeScheduler: FakeScheduler
+let fakeTagsDb: FakeTagsDb
 
 beforeEach(() => {
   mockEnv()
   fakeDb = createFakeTimersDb()
   fakeScheduler = createFakeScheduler()
+  fakeTagsDb = createFakeTagsDb()
 })
 
 describe('timers.upsert', () => {
@@ -235,5 +253,54 @@ describe('timers.reconcile', () => {
     // Assert
     expect(result.timers).toHaveLength(1)
     expect(result.timers[0].id).toBe(EXISTING_TIMER.id)
+  })
+
+  it('timers include tagIds in reconcile response', async () => {
+    // Arrange
+    const timerWithTags = { ...EXISTING_TIMER, tagIds: [EXISTING_TAG.id] }
+    fakeDb = createFakeTimersDb({ timers: [timerWithTags] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    const result = await caller.timers.reconcile({ since: null, records: [] })
+
+    // Assert
+    expect(result.timers[0].tagIds).toEqual([EXISTING_TAG.id])
+  })
+})
+
+describe('timers.upsert — tag diff', () => {
+  it('insert path stores tagIds on the timer', async () => {
+    // Arrange
+    fakeTagsDb = createFakeTagsDb({ tags: [EXISTING_TAG] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, fakeTagsDb))
+
+    // Act
+    const result = await caller.timers.upsert({ ...BASE_INPUT, tagIds: [EXISTING_TAG.id] })
+
+    // Assert
+    expect(fakeDb.timers[0].tagIds).toEqual([EXISTING_TAG.id])
+    expect(result.tagIds).toEqual([EXISTING_TAG.id])
+  })
+
+  it('update path replaces tagIds (adds new, removes old)', async () => {
+    // Arrange
+    const tag2 = { ...EXISTING_TAG, id: '00000000-0000-0000-0000-000000000012', name: 'low' }
+    const timerWithTag1 = { ...EXISTING_TIMER, tagIds: [EXISTING_TAG.id] }
+    fakeDb = createFakeTimersDb({ timers: [timerWithTag1] })
+    fakeTagsDb = createFakeTagsDb({ tags: [EXISTING_TAG, tag2] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, fakeTagsDb))
+
+    // Act — swap tag1 for tag2
+    const result = await caller.timers.upsert({
+      ...BASE_INPUT,
+      serverId: EXISTING_TIMER.id,
+      version: 1,
+      tagIds: [tag2.id],
+    })
+
+    // Assert
+    expect(fakeDb.timers[0].tagIds).toEqual([tag2.id])
+    expect(result.tagIds).toEqual([tag2.id])
   })
 })

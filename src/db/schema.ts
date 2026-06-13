@@ -48,7 +48,22 @@ export interface TimerV3 extends TimerV2 {
 
 export type TimerV4 = Omit<TimerV3, 'isFlagged' | 'groupId'>
 
-export type Timer = TimerV4
+export type TimerV5 = TimerV4 & { tagIds: string[] }
+
+export type Timer = TimerV5
+
+export interface Tag {
+  id?: number
+  serverId: string | null
+  userId: string | null
+  name: string
+  color: string | null
+  emoji: string | null
+  version: number | null
+  syncStatus: SyncStatus
+  createdAt: Date
+  updatedAt: Date
+}
 
 export const SyncStatuses = {
   Pending: 'pending',

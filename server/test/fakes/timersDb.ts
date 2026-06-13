@@ -38,7 +38,7 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
         ...vals,
       }
       timers.push(row)
-      return { serverId: row.id, version: row.version }
+      return { serverId: row.id, version: row.version, tagIds: row.tagIds }
     },
 
     async updateTimer(where, vals: UpdateTimerVals) {
@@ -52,7 +52,7 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
       const prev = timers[idx]
       const updated: FakeTimer = { ...prev, ...vals, version: prev.version + 1, updatedAt: new Date() }
       timers[idx] = updated
-      return { serverId: updated.id, version: updated.version }
+      return { serverId: updated.id, version: updated.version, tagIds: updated.tagIds }
     },
 
     async setStatus(where, status) {

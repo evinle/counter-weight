@@ -15,6 +15,7 @@ let syncRunning = false;
 let currentUser: AuthUser | null = null;
 
 type ServerTimer = Awaited<ReturnType<typeof trpc.timers.list.query>>[number];
+type ServerTag = Awaited<ReturnType<typeof trpc.tags.reconcile.query>>['tags'][number];
 
 function mapServerTimer(s: ServerTimer) {
   return {
@@ -28,16 +29,106 @@ function mapServerTimer(s: ServerTimer) {
     priority: s.priority,
     recurrenceRule: s.recurrenceRule as { cron: string; tz: string } | null,
     version: s.version,
+    tagIds: s.tagIds,
     createdAt: new Date(s.createdAt),
     updatedAt: new Date(s.updatedAt),
     syncStatus: SyncStatuses.Synced,
   };
 }
 
+function mapServerTag(s: ServerTag) {
+  return {
+    serverId: s.id,
+    name: s.name,
+    color: s.color,
+    emoji: s.emoji,
+    version: s.version,
+    createdAt: new Date(s.createdAt),
+    updatedAt: new Date(s.updatedAt),
+    syncStatus: SyncStatuses.Synced,
+  };
+}
+
+async function drainTags(user: AuthUser): Promise<void> {
+  const pending = await db.tags
+    .where("syncStatus")
+    .equals(SyncStatuses.Pending)
+    .and((t) => t.userId === user.userId)
+    .toArray();
+
+  for (const tag of pending) {
+    try {
+      const result = await trpc.tags.upsert.mutate({
+        serverId: tag.serverId,
+        name: tag.name,
+        color: tag.color,
+        emoji: tag.emoji,
+        version: tag.version ?? undefined,
+      });
+      await db.tags.update(tag.id!, {
+        serverId: result.serverId,
+        version: result.version,
+        syncStatus: SyncStatuses.Synced,
+      });
+    } catch (err: unknown) {
+      const code = isTRPCClientError(err) ? err.data?.code : undefined;
+      if (code === "CONFLICT" && tag.serverId) {
+        const { tags: serverTags } = await trpc.tags.reconcile.query({
+          since: null,
+          records: [],
+        });
+        const match = serverTags.find((t) => t.id === tag.serverId);
+        if (match) {
+          await db.tags.update(tag.id!, {
+            ...mapServerTag(match),
+            syncStatus: SyncStatuses.Synced,
+          });
+        }
+      }
+      // Other errors: leave pending, retry on next sync
+    }
+  }
+}
+
+async function reconcileTags(user: AuthUser, since: string | null): Promise<void> {
+  const localTags = await db.tags
+    .where("userId")
+    .equals(user.userId)
+    .toArray();
+
+  const records = since
+    ? []
+    : localTags
+        .filter((t) => t.serverId)
+        .map((t) => ({
+          serverId: t.serverId!,
+          updatedAt: t.updatedAt.toISOString(),
+        }));
+
+  const { tags: stale } = await trpc.tags.reconcile.query({ since, records });
+
+  for (const serverTag of stale) {
+    const local = localTags.find((t) => t.serverId === serverTag.id);
+    if (local?.id !== undefined) {
+      await db.tags.update(local.id, {
+        ...mapServerTag(serverTag),
+        userId: user.userId,
+      });
+    } else {
+      await db.tags.add({
+        ...mapServerTag(serverTag),
+        userId: user.userId,
+      });
+    }
+  }
+}
+
 async function drain(user: AuthUser) {
   if (syncRunning) return;
   syncRunning = true;
   try {
+    await drainTags(user);
+
     const pending = await db.timers
       .where("syncStatus")
       .equals(SyncStatuses.Pending)
@@ -87,6 +178,7 @@ async function drain(user: AuthUser) {
             priority: timer.priority,
             recurrenceRule: timer.recurrenceRule,
             version: timer.version ?? undefined,
+            tagIds: timer.tagIds,
           });
           await db.timers.update(timer.id!, {
             serverId: result.serverId,
@@ -122,51 +214,57 @@ async function drain(user: AuthUser) {
   }
 }
 
+async function reconcileTimers(user: AuthUser, since: string | null): Promise<string> {
+  const localTimers = await db.timers
+    .where("userId")
+    .equals(user.userId)
+    .toArray();
+
+  const records = since
+    ? []
+    : localTimers
+        .filter(
+          (t) =>
+            t.serverId &&
+            (t.status === TimerStatuses.Active ||
+              t.status === TimerStatuses.Fired),
+        )
+        .map((t) => ({
+          serverId: t.serverId!,
+          updatedAt: t.updatedAt.toISOString(),
+        }));
+
+  const { timers: stale, serverNow } = await trpc.timers.reconcile.query({
+    since,
+    records,
+  });
+
+  for (const serverTimer of stale) {
+    const local = localTimers.find((t) => t.serverId === serverTimer.id);
+    if (local?.id !== undefined) {
+      await db.timers.update(local.id, {
+        ...mapServerTimer(serverTimer),
+        syncStatus: SyncStatuses.Synced,
+      });
+    } else {
+      await db.timers.add({
+        ...mapServerTimer(serverTimer),
+        userId: user.userId,
+        syncStatus: SyncStatuses.Synced,
+      });
+    }
+  }
+
+  return serverNow;
+}
+
 async function reconcile(user: AuthUser) {
   if (syncRunning) return;
   syncRunning = true;
   try {
     const lastSyncedAt = localStorage.getItem(LAST_SYNCED_KEY);
-    const localTimers = await db.timers
-      .where("userId")
-      .equals(user.userId)
-      .toArray();
-
-    const records = lastSyncedAt
-      ? []
-      : localTimers
-          .filter(
-            (t) =>
-              t.serverId &&
-              (t.status === TimerStatuses.Active ||
-                t.status === TimerStatuses.Fired),
-          )
-          .map((t) => ({
-            serverId: t.serverId!,
-            updatedAt: t.updatedAt.toISOString(),
-          }));
-
-    const { timers: stale, serverNow } = await trpc.timers.reconcile.query({
-      since: lastSyncedAt,
-      records,
-    });
-
-    for (const serverTimer of stale) {
-      const local = localTimers.find((t) => t.serverId === serverTimer.id);
-      if (local?.id !== undefined) {
-        await db.timers.update(local.id, {
-          ...mapServerTimer(serverTimer),
-          syncStatus: SyncStatuses.Synced,
-        });
-      } else {
-        await db.timers.add({
-          ...mapServerTimer(serverTimer),
-          userId: user.userId,
-          syncStatus: SyncStatuses.Synced,
-        });
-      }
-    }
-
+    await reconcileTags(user, lastSyncedAt);
+    const serverNow = await reconcileTimers(user, lastSyncedAt);
     localStorage.setItem(LAST_SYNCED_KEY, serverNow);
   } finally {
     syncRunning = false;
