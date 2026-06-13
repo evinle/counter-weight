@@ -1,14 +1,17 @@
 import type { TagsDb, TagRecord, InsertTagVals, UpdateTagVals } from '../../api/routers/tags.js'
 
 export type FakeTag = TagRecord
-export type FakeTagsDb = TagsDb & { tags: FakeTag[] }
+export type FakeTimerTag = { timerId: string; tagId: string }
+export type FakeTagsDb = TagsDb & { tags: FakeTag[]; timerTags: FakeTimerTag[] }
 
-export function createFakeTagsDb(opts: { tags?: FakeTag[] } = {}): FakeTagsDb {
+export function createFakeTagsDb(opts: { tags?: FakeTag[]; timerTags?: FakeTimerTag[] } = {}): FakeTagsDb {
   let idCounter = 0
   const tags: FakeTag[] = opts.tags ? [...opts.tags] : []
+  const timerTags: FakeTimerTag[] = opts.timerTags ? [...opts.timerTags] : []
 
   return {
     tags,
+    timerTags,
 
     async insertTag(vals: InsertTagVals) {
       idCounter++
@@ -38,6 +41,9 @@ export function createFakeTagsDb(opts: { tags?: FakeTag[] } = {}): FakeTagsDb {
     },
 
     async deleteTag(where) {
+      const remaining = timerTags.filter((tt) => tt.tagId !== where.id)
+      timerTags.length = 0
+      timerTags.push(...remaining)
       const idx = tags.findIndex((t) => t.id === where.id && t.userId === where.userId)
       if (idx !== -1) tags.splice(idx, 1)
     },

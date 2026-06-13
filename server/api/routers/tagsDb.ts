@@ -1,5 +1,5 @@
 import { and, eq, gt, sql } from 'drizzle-orm'
-import { tags } from '../../db/schema.js'
+import { tags, timerTags } from '../../db/schema.js'
 import type { Db } from '../../db/index.js'
 import type { TagsDb, InsertTagVals, UpdateTagVals } from './tags.js'
 
@@ -29,7 +29,10 @@ export function createTagsDb(db: Db): TagsDb {
     },
 
     async deleteTag(where) {
-      await db.delete(tags).where(and(eq(tags.id, where.id), eq(tags.userId, where.userId)))
+      await db.transaction(async (tx) => {
+        await tx.delete(timerTags).where(eq(timerTags.tagId, where.id))
+        await tx.delete(tags).where(and(eq(tags.id, where.id), eq(tags.userId, where.userId)))
+      })
     },
 
     async getTag(id, userId) {

@@ -108,6 +108,24 @@ describe('tags.delete', () => {
     expect(result).toEqual({ ok: true })
     expect(fakeTagsDb.tags).toHaveLength(0)
   })
+
+  it('cascades: removes timer_tags rows for the deleted tag', async () => {
+    // Arrange
+    fakeTagsDb = createFakeTagsDb({
+      tags: [EXISTING_TAG],
+      timerTags: [
+        { timerId: 'timer-1', tagId: EXISTING_TAG.id },
+        { timerId: 'timer-2', tagId: EXISTING_TAG.id },
+      ],
+    })
+    const caller = createCaller(makeCtx('u1', fakeTagsDb))
+
+    // Act
+    await caller.tags.delete({ serverId: EXISTING_TAG.id })
+
+    // Assert
+    expect(fakeTagsDb.timerTags).toHaveLength(0)
+  })
 })
 
 describe('tags.reconcile', () => {
