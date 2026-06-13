@@ -4,6 +4,7 @@ import { TimerStatus, EventType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Shared fixtures --------------------------------------------------
 
@@ -51,7 +52,7 @@ let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
 beforeEach(() => {
   fakeDb = createFakeNotifyDb()
-  sendNotification = vi.fn().mockResolvedValue({ statusCode: 201 }) as ReturnType<typeof vi.fn> & SendNotification
+  sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
 })
 
 describe('handleTimerFired', () => {
@@ -117,9 +118,9 @@ describe('handleTimerFired', () => {
       subscriptions: [subscription1, subscription2],
     })
     const gone410 = Object.assign(new Error('Gone'), { statusCode: 410 })
-    sendNotification = vi.fn()
+    sendNotification = fromAny(vi.fn()
       .mockRejectedValueOnce(gone410)         // sub-1 → 410
-      .mockResolvedValueOnce({ statusCode: 201 }) as ReturnType<typeof vi.fn> & SendNotification // sub-2 → ok
+      .mockResolvedValueOnce({ statusCode: 201 })) // sub-2 → ok
 
     // Act
     await handleTimerFired(PAYLOAD, fakeDb, sendNotification)

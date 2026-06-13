@@ -6,6 +6,7 @@ import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import { TimerStatus, EventType } from '../db/schema.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Fixtures ---------------------------------------------------------
 
@@ -49,7 +50,7 @@ describe('notify handler (index)', () => {
 
   beforeEach(() => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
-    sendNotification = vi.fn().mockResolvedValue({ statusCode: 201 }) as ReturnType<typeof vi.fn> & SendNotification
+    sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
   })
 
   function makeRunner() {

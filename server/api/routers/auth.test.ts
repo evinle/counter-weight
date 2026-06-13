@@ -7,6 +7,7 @@ import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { Db } from '../../db/index.js'
+import { fromPartial } from '@total-typescript/shoehorn'
 
 const testRouter = router({ auth: authRouter })
 const createCaller = createCallerFactory(testRouter)
@@ -15,8 +16,8 @@ function makeCtx(userId: string | null) {
   const onConflictDoUpdate = vi.fn().mockResolvedValue([])
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
   const insert = vi.fn().mockReturnValue({ values })
-  const db = { insert } satisfies Pick<Db, 'insert'>
-  return { userId, db: db as unknown as Db, timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent: null }
+  const db = { insert }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent: null }
 }
 
 beforeEach(() => {

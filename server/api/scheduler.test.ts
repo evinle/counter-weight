@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { SchedulerClient, ResourceNotFoundException } from '@aws-sdk/client-scheduler'
+import { fromPartial } from '@total-typescript/shoehorn'
 import { AwsScheduler } from './scheduler.js'
 
 function makeScheduler() {
   const send = vi.fn()
-  const client = { send } as unknown as SchedulerClient
+  const client = fromPartial<SchedulerClient>({ send })
   return { scheduler: new AwsScheduler(client, 'arn:aws:lambda:::function:notify', 'arn:aws:iam:::role/scheduler'), send }
 }
 

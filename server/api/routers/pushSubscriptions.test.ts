@@ -7,6 +7,7 @@ import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { Db } from '../../db/index.js'
+import { fromPartial } from '@total-typescript/shoehorn'
 
 const testRouter = router({ pushSubscriptions: pushSubscriptionsRouter })
 const createCaller = createCallerFactory(testRouter)
@@ -18,7 +19,7 @@ const BASE_INPUT = {
 } as const
 
 function makeCtx(userId: string | null, db: Partial<Db> = {}, userAgent: string | null = null) {
-  return { userId, db: db as unknown as Db, timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent }
 }
 
 beforeEach(() => {
