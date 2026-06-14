@@ -8,6 +8,8 @@ import { HistoryView } from "./components/HistoryView";
 import { AnalyticsView } from "./components/AnalyticsView";
 import { SettingsView } from "./components/SettingsView";
 import { CreateEditView } from "./components/CreateEditView";
+import { GroupCreateEditView } from "./components/GroupCreateEditView";
+import { GroupListView } from "./components/GroupListView";
 import { BottomTabBar } from "./components/BottomTabBar";
 import { ToastContainer } from "./components/ToastContainer";
 import { Tab, ActiveAction } from "./lib/navigation";
@@ -31,6 +33,7 @@ export function App() {
     ActiveAction.None,
   );
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
+  const [editGroup, setEditGroup] = useState<import("./db/schema").Group | undefined>();
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user } = useAuth();
@@ -161,6 +164,21 @@ export function App() {
   const handleDone = () => {
     setActiveAction(ActiveAction.None);
     setEditTimer(undefined);
+    setEditGroup(undefined);
+  };
+
+  const handleEditGroup = (group: import("./db/schema").Group) => {
+    setEditGroup(group);
+    setActiveAction(ActiveAction.CreateEditGroup);
+  };
+
+  const handleCreateNewGroup = () => {
+    setEditGroup(undefined);
+    setActiveAction(ActiveAction.CreateEditGroup);
+  };
+
+  const handleManageGroups = () => {
+    setActiveAction(ActiveAction.ManageGroups);
   };
 
   function renderContent() {
@@ -185,9 +203,37 @@ export function App() {
         />
       );
     }
+
+    if (activeAction === ActiveAction.CreateEditGroup) {
+      return (
+        <GroupCreateEditView
+          existing={editGroup}
+          onDone={handleDone}
+          userId={user?.userId ?? null}
+        />
+      );
+    }
+
+    if (activeAction === ActiveAction.ManageGroups) {
+      return (
+        <GroupListView
+          userId={user?.userId ?? null}
+          onEdit={handleEditGroup}
+          onCreateNew={handleCreateNewGroup}
+          onDone={handleDone}
+        />
+      );
+    }
+
     switch (tab) {
       case Tab.Timers:
-        return <FeedView onEdit={handleEdit} />;
+        return (
+          <FeedView
+            onEdit={handleEdit}
+            onManageGroups={handleManageGroups}
+            userId={user?.userId ?? null}
+          />
+        );
       case Tab.History:
         return <HistoryView />;
       case Tab.Analytics:

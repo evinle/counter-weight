@@ -17,6 +17,9 @@ A user-created saved filter. Stores a `GroupConditions` JSON tree (Tier 2: AND-o
 ### View (Group By)
 A client-only display mode that re-renders the timer feed as labeled sections grouped by a chosen property (priority, tag, time bucket, status). No backend — stored in localStorage as `cw:groupBy`. Within each section, the global Smart sort applies.
 
+### View Store
+A Zustand store (`viewStore`) holding the current feed display configuration: active Smart Group selection (`selectedGroupId: number | null`), sort mode (M4.8), and group-by mode. Single source of truth for all view settings — readable by the feed, history, and analytics views.
+
 ### Smart Sort
 The default global sort mode. Computes an urgency score per timer: `priorityWeight + timeScore`, where overdue timers score very high and time-to-fire inversely scales the time component. A critical timer due in two weeks can score below a low-priority timer due in five minutes.
 
