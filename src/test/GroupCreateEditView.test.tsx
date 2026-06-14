@@ -28,7 +28,7 @@ beforeEach(async () => {
 
 describe('GroupCreateEditView', () => {
   it('saves a new group with a name to Dexie with syncStatus pending', async () => {
-    render(<GroupCreateEditView userId="user-1" onDone={() => {}} />)
+    render(<GroupCreateEditView userId="user-1" onDone={() => {}} onCancel={() => {}} />)
 
     fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
       target: { value: 'My Group' },
@@ -56,7 +56,7 @@ describe('GroupCreateEditView', () => {
   })
 
   it('saves a group with a condition added via the condition builder', async () => {
-    render(<GroupCreateEditView userId="user-1" onDone={() => {}} />)
+    render(<GroupCreateEditView userId="user-1" onDone={() => {}} onCancel={() => {}} />)
 
     fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
       target: { value: 'Overdue' },

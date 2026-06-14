@@ -90,10 +90,11 @@ function draftToFieldCondition(draft: DraftCondition): FieldCondition | null {
 interface Props {
   existing?: Group
   onDone: () => void
+  onCancel: () => void
   userId: string | null
 }
 
-export function GroupCreateEditView({ existing, onDone, userId }: Props) {
+export function GroupCreateEditView({ existing, onDone, onCancel, userId }: Props) {
   const [name, setName] = useState(existing?.name ?? '')
   const [emoji, setEmoji] = useState(existing?.emoji ?? '')
   const [color, setColor] = useState(existing?.color ?? '')
@@ -222,6 +223,13 @@ export function GroupCreateEditView({ existing, onDone, userId }: Props) {
           className="bg-blue-600 text-white font-semibold rounded-xl py-3 disabled:opacity-40"
         >
           Save
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-slate-400 text-base py-3"
+        >
+          Cancel
         </button>
       </form>
     </div>

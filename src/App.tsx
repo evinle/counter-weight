@@ -209,6 +209,7 @@ export function App() {
         <GroupCreateEditView
           existing={editGroup}
           onDone={handleDone}
+          onCancel={handleManageGroups}
           userId={user?.userId ?? null}
         />
       );
