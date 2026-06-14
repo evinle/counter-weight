@@ -105,6 +105,15 @@ describe('editTimer', () => {
     expect(timer?.targetDatetime.getTime()).toBe(first.getTime())
   })
 
+  it('returns false when a second extension is blocked', async () => {
+    const id = await createTimer(BASE, null)
+    const first = new Date('2026-06-01T14:00:00Z')
+    await editTimer(id!, { targetDatetime: first, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
+    const second = new Date('2026-06-01T16:00:00Z')
+    const result = await editTimer(id!, { targetDatetime: second, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
+    expect(result).toBe(false)
+  })
+
   it('allows reducing the deadline even after an extension', async () => {
     const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z')

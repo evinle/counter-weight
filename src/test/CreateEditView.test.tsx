@@ -1,9 +1,11 @@
 import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '../db'
 import { createTimer } from '../hooks/useTimers'
+import * as useTimersMod from '../hooks/useTimers'
 import { CreateEditView } from '../components/CreateEditView'
+import { useToastStore } from '../hooks/useToast'
 import type { Timer } from '../db/schema'
 
 const BASE = {
@@ -19,6 +21,7 @@ const BASE = {
 
 beforeEach(async () => {
   await db.timers.clear()
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('CreateEditView — edit mode', () => {
@@ -74,6 +77,25 @@ describe('CreateEditView — edit mode', () => {
       expect(timer?.title).toBe('Retitled')
       expect(timer?.targetDatetime.getTime()).toBe(BASE.targetDatetime.getTime())
     })
+  })
+
+  it('shows an error toast when editTimer signals a blocked extension', async () => {
+    vi.spyOn(useTimersMod, 'editTimer').mockResolvedValueOnce(false)
+
+    const id = await createTimer(BASE, null)
+    const existing = await db.timers.get(id!)
+
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+
+    fireEvent.click(screen.getByText(/edit time/i))
+    fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+    await waitFor(() => {
+      expect(useToastStore.getState().toasts).toHaveLength(1)
+      expect(useToastStore.getState().toasts[0].variant).toBe('error')
+    })
+
+    vi.restoreAllMocks()
   })
 })
 

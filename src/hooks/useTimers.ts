@@ -105,7 +105,7 @@ export async function editTimer(
   if (params.targetDatetime !== undefined) {
     const isAlreadyExtended = current.targetDatetime > current.originalTargetDatetime
     const isExtending = params.targetDatetime > current.targetDatetime
-    if (isAlreadyExtended && isExtending) return
+    if (isAlreadyExtended && isExtending) return false
   }
 
   const { targetDatetime, ...rest } = params

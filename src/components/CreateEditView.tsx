@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createTimer, editTimer } from "../hooks/useTimers";
+import { useToastStore } from "../hooks/useToast";
 import { DurationInput } from "./DurationInput";
 import { DateTimeInput } from "./DateTimeInput";
 import { EmojiButton } from "./EmojiButton";
@@ -63,7 +64,11 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
           : atTime
         : undefined;
-      await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds });
+      const result = await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds });
+      if (result === false) {
+        useToastStore.getState().show({ message: 'Timer can only be extended once', variant: 'error' });
+        return;
+      }
     } else {
       const targetDatetime =
         mode === TimerMode.FromNow
