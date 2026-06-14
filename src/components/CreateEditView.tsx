@@ -23,6 +23,10 @@ interface Props {
   userId: string | null;
 }
 
+function snapshotDurationFor(existing: Timer): DurationValue {
+  return msToDuration(timeRemaining(existing.targetDatetime));
+}
+
 export function CreateEditView({ existing, onDone, userId }: Props) {
   const [title, setTitle] = useState(existing?.title ?? "");
   const [emoji, setEmoji] = useState(existing?.emoji ?? "");
@@ -31,42 +35,40 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   );
   const [tagIds, setTagIds] = useState<string[]>(existing?.tagIds ?? []);
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
-  const isAlreadyExtended = existing
-    ? existing.targetDatetime > existing.originalTargetDatetime
-    : false;
-  const [duration, setDuration] = useState<DurationValue>(() => {
-    if (existing) return msToDuration(timeRemaining(existing.targetDatetime));
-    return { days: 0, hours: 0, minutes: 5, seconds: 0 };
-  });
-  const [durationCap] = useState<DurationValue | undefined>(() =>
-    isAlreadyExtended && existing
-      ? msToDuration(timeRemaining(existing.targetDatetime))
-      : undefined,
+  const [timeEditUnlocked, setTimeEditUnlocked] = useState(false);
+  const [duration, setDuration] = useState<DurationValue>(() =>
+    existing ? snapshotDurationFor(existing) : { days: 0, hours: 0, minutes: 5, seconds: 0 },
   );
   const [atTime, setAtTime] = useState<Date>(() => {
-    const nextHourTarget = existing?.targetDatetime ?? new Date();
-    nextHourTarget.setHours(nextHourTarget.getHours() + 1, 0, 0, 0);
-    return nextHourTarget;
+    if (existing) return new Date(existing.targetDatetime);
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d;
   });
+
+  function cancelTimeEdit() {
+    if (existing) {
+      setDuration(snapshotDurationFor(existing));
+      setAtTime(new Date(existing.targetDatetime));
+    }
+    setTimeEditUnlocked(false);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const targetDatetime =
-      mode === TimerMode.FromNow
-        ? new Date(
-            Date.now() +
-              durationToMs(
-                duration.days,
-                duration.hours,
-                duration.minutes,
-                duration.seconds,
-              ),
-          )
-        : atTime;
 
     if (existing?.id !== undefined) {
+      const targetDatetime = timeEditUnlocked
+        ? mode === TimerMode.FromNow
+          ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
+          : atTime
+        : undefined;
       await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds });
     } else {
+      const targetDatetime =
+        mode === TimerMode.FromNow
+          ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
+          : atTime;
       await createTimer({
         title,
         emoji: emoji || null,
@@ -81,16 +83,14 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     onDone();
   };
 
+  const isAlreadyExtended = existing
+    ? existing.targetDatetime > existing.originalTargetDatetime
+    : false;
+
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
-        return (
-          <DurationInput
-            value={duration}
-            onChange={setDuration}
-            maxValue={durationCap}
-          />
-        );
+        return <DurationInput value={duration} onChange={setDuration} />;
       case TimerMode.AtTime:
         return (
           <DateTimeInput
@@ -101,6 +101,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         );
     }
   }
+
+  const showTimeEditor = !existing || timeEditUnlocked;
 
   return (
     <form
@@ -119,32 +121,59 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         <EmojiButton value={emoji} onChange={setEmoji} />
       </div>
 
-      <div className="flex rounded-xl overflow-hidden border border-slate-600">
-        <button
-          type="button"
-          onClick={() => setMode(TimerMode.FromNow)}
-          className={`flex-1 py-3 text-base font-medium transition-colors ${
-            mode === TimerMode.FromNow
-              ? "bg-blue-600 text-white"
-              : "bg-slate-700 text-slate-400"
-          }`}
-        >
-          From now
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode(TimerMode.AtTime)}
-          className={`flex-1 py-3 text-base font-medium transition-colors ${
-            mode === TimerMode.AtTime
-              ? "bg-blue-600 text-white"
-              : "bg-slate-700 text-slate-400"
-          }`}
-        >
-          At time
-        </button>
-      </div>
+      {showTimeEditor ? (
+        <>
+          <div className="flex rounded-xl overflow-hidden border border-slate-600">
+            <button
+              type="button"
+              onClick={() => setMode(TimerMode.FromNow)}
+              className={`flex-1 py-3 text-base font-medium transition-colors ${
+                mode === TimerMode.FromNow
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-700 text-slate-400"
+              }`}
+            >
+              From now
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode(TimerMode.AtTime)}
+              className={`flex-1 py-3 text-base font-medium transition-colors ${
+                mode === TimerMode.AtTime
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-700 text-slate-400"
+              }`}
+            >
+              At time
+            </button>
+          </div>
 
-      {renderModeInput()}
+          {renderModeInput()}
+
+          {existing && (
+            <button
+              type="button"
+              onClick={cancelTimeEdit}
+              className="text-sm text-slate-400 text-center w-full active:opacity-60 transition-opacity"
+            >
+              Cancel time edit
+            </button>
+          )}
+        </>
+      ) : existing && (
+        <div className="flex items-center justify-between">
+          <span className="text-slate-300 text-base">
+            {existing.targetDatetime.toLocaleString()}
+          </span>
+          <button
+            type="button"
+            onClick={() => setTimeEditUnlocked(true)}
+            className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
+          >
+            Edit time
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label htmlFor="timer-priority" className="text-sm text-slate-400">

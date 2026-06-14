@@ -122,6 +122,45 @@ describe('editTimer', () => {
     const timer = await db.timers.get(id!)
     expect(timer?.syncStatus).toBe('pending')
   })
+
+  it('updates non-time fields when targetDatetime is omitted', async () => {
+    const id = await createTimer(BASE, null)
+    await editTimer(id!, { title: 'Renamed', emoji: '🔥', priority: 'high', tagIds: ['tag-1'] })
+    const timer = await db.timers.get(id!)
+    expect(timer?.title).toBe('Renamed')
+    expect(timer?.emoji).toBe('🔥')
+    expect(timer?.priority).toBe('high')
+    expect(timer?.tagIds).toEqual(['tag-1'])
+  })
+
+  it('preserves targetDatetime when omitted', async () => {
+    const id = await createTimer(BASE, null)
+    await editTimer(id!, { title: 'Renamed', emoji: null, priority: 'medium', tagIds: [] })
+    const timer = await db.timers.get(id!)
+    expect(timer?.targetDatetime.getTime()).toBe(BASE.targetDatetime.getTime())
+  })
+
+  it('applies non-time edits on an already-extended timer', async () => {
+    const extended = new Date('2026-06-01T14:00:00Z')
+    const id = await db.timers.add({
+      ...BASE,
+      tagIds: [],
+      targetDatetime: extended,
+      originalTargetDatetime: BASE.targetDatetime,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      serverId: null,
+      userId: null,
+      syncStatus: 'synced',
+      version: null,
+    })
+    await editTimer(id!, { title: 'Retitled', emoji: null, priority: 'high', tagIds: ['tag-1'] })
+    const timer = await db.timers.get(id!)
+    expect(timer?.title).toBe('Retitled')
+    expect(timer?.priority).toBe('high')
+    expect(timer?.tagIds).toEqual(['tag-1'])
+    expect(timer?.targetDatetime.getTime()).toBe(extended.getTime())
+  })
 })
 
 describe('claimTimers', () => {

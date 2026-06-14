@@ -92,7 +92,7 @@ export async function cancelTimer(id: number): Promise<void> {
 export async function editTimer(
   id: number,
   params: {
-    targetDatetime: Date
+    targetDatetime?: Date
     title: string
     emoji: string | null
     priority: Priority
@@ -102,12 +102,17 @@ export async function editTimer(
   const current = await db.timers.get(id)
   if (!current) return
 
-  const isAlreadyExtended = current.targetDatetime > current.originalTargetDatetime
-  const isExtending = params.targetDatetime > current.targetDatetime
+  if (params.targetDatetime !== undefined) {
+    const isAlreadyExtended = current.targetDatetime > current.originalTargetDatetime
+    const isExtending = params.targetDatetime > current.targetDatetime
+    if (isAlreadyExtended && isExtending) return
+  }
 
-  if (isAlreadyExtended && isExtending) return
+  const { targetDatetime, ...rest } = params
+  const updates: Parameters<typeof db.timers.update>[1] = { ...rest, updatedAt: new Date(), syncStatus: 'pending' }
+  if (targetDatetime !== undefined) updates.targetDatetime = targetDatetime
 
-  await db.timers.update(id, { ...params, updatedAt: new Date(), syncStatus: 'pending' })
+  await db.timers.update(id, updates)
 }
 
 async function getUnclaimedIds(): Promise<number[]> {
