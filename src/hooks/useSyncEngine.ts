@@ -22,9 +22,16 @@ type LocalBase = {
   serverId: string | null;
   syncStatus: SyncStatus;
   version: number | null;
+  updatedAt: Date;
 };
 
-interface SyncAdapter<TLocal extends LocalBase, TServer extends { id: string }> {
+interface DeletionCapability<TLocal extends LocalBase> {
+  getDeleted: (userId: string) => Promise<TLocal[]>;
+  drainDeleted: (entity: TLocal) => Promise<void>;
+  deleteLocal: (id: number) => Promise<void>;
+}
+
+interface SyncAdapter<TLocal extends LocalBase, TServer extends { id: string; updatedAt: string }> {
   label: string;
   getPending: (userId: string) => Promise<TLocal[]>;
   getLocalItems: (userId: string) => Promise<TLocal[]>;
@@ -40,6 +47,7 @@ interface SyncAdapter<TLocal extends LocalBase, TServer extends { id: string }> 
   updateLocal: (id: number, patch: Partial<LocalBase> | Omit<TLocal, "id">) => Promise<void>;
   addLocal: (record: Omit<TLocal, "id">) => Promise<void>;
   logConflict?: (entity: TLocal, server: TServer, userId: string) => void;
+  deletion?: DeletionCapability<TLocal>;
 }
 
 function mapServerTimer(s: ServerTimer): Omit<Timer, "id"> {
@@ -121,6 +129,22 @@ const tagAdapter: SyncAdapter<Tag, ServerTag> = {
   updateLocal: (id, patch) => db.tags.update(id, patch).then(() => {}),
 
   addLocal: (record) => db.tags.add(record as Tag).then(() => {}),
+
+  deletion: {
+    getDeleted: (userId) =>
+      db.tags
+        .where("syncStatus")
+        .equals(SyncStatuses.Deleted)
+        .and((t) => t.userId === userId)
+        .toArray(),
+
+    drainDeleted: async (tag) => {
+      if (!tag.serverId) return;
+      await trpc.tags.delete.mutate({ serverId: tag.serverId });
+    },
+
+    deleteLocal: (id) => db.tags.delete(id).then(() => {}),
+  },
 };
 
 type TerminalStatus =
@@ -212,7 +236,7 @@ const timerAdapter: SyncAdapter<Timer, ServerTimer> = {
 // Inside these functions TLocal/TServer are concrete, so the correlated-unions
 // problem that affects heterogeneous arrays doesn't apply.
 
-async function drainAdapter<TLocal extends LocalBase, TServer extends { id: string }>(
+async function drainAdapter<TLocal extends LocalBase, TServer extends { id: string; updatedAt: string }>(
   adapter: SyncAdapter<TLocal, TServer>,
   user: AuthUser,
 ): Promise<void> {
@@ -239,9 +263,22 @@ async function drainAdapter<TLocal extends LocalBase, TServer extends { id: stri
       // Other errors: leave pending, retry on next sync
     }
   }
+
+  if (adapter.deletion) {
+    const { getDeleted, drainDeleted, deleteLocal } = adapter.deletion;
+    const deleted = await getDeleted(user.userId);
+    for (const item of deleted) {
+      try {
+        await drainDeleted(item);
+        await deleteLocal(item.id!);
+      } catch {
+        // leave as 'deleted', retry on next sync
+      }
+    }
+  }
 }
 
-async function reconcileAdapter<TLocal extends LocalBase, TServer extends { id: string }>(
+async function reconcileAdapter<TLocal extends LocalBase, TServer extends { id: string; updatedAt: string }>(
   adapter: SyncAdapter<TLocal, TServer>,
   since: string | null,
   user: AuthUser,
@@ -252,11 +289,16 @@ async function reconcileAdapter<TLocal extends LocalBase, TServer extends { id: 
 
   for (const server of serverRecords) {
     const local = localItems.find((t) => t.serverId === server.id);
-    const data = adapter.mapToLocal(server, user.userId);
-    if (local?.id !== undefined) {
-      await adapter.updateLocal(local.id, data);
-    } else {
-      await adapter.addLocal(data);
+    const localDeletionWins =
+      local?.syncStatus === SyncStatuses.Deleted &&
+      local.updatedAt >= new Date(server.updatedAt);
+    if (!localDeletionWins) {
+      const data = adapter.mapToLocal(server, user.userId);
+      if (local?.id !== undefined) {
+        await adapter.updateLocal(local.id, data);
+      } else {
+        await adapter.addLocal(data);
+      }
     }
   }
 
@@ -269,7 +311,7 @@ interface AdapterStep {
   reconcile: (since: string | null, user: AuthUser) => Promise<string | undefined>;
 }
 
-function wrapAdapter<TLocal extends LocalBase, TServer extends { id: string }>(
+function wrapAdapter<TLocal extends LocalBase, TServer extends { id: string; updatedAt: string }>(
   adapter: SyncAdapter<TLocal, TServer>,
 ): AdapterStep {
   return {

@@ -3,6 +3,7 @@ import { TRPCClientError } from '@trpc/client'
 import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
+import { SyncStatuses } from '../db/schema'
 import { useSyncEngine, triggerSync } from '../hooks/useSyncEngine'
 import type { AuthUser } from '../hooks/useAuth'
 
@@ -19,6 +20,7 @@ vi.mock('../lib/trpc', () => ({
     },
     tags: {
       upsert: { mutate: vi.fn() },
+      delete: { mutate: vi.fn() },
       reconcile: { query: vi.fn() },
     },
   },
@@ -443,6 +445,80 @@ describe('tag drain', () => {
       expect(tag?.syncStatus).toBe('synced')
       expect(tag?.version).toBe(5)
     })
+  })
+})
+
+describe('tag delete drain', () => {
+  const BASE_TAG = {
+    userId: 'user-1',
+    name: 'Work',
+    color: '#ff0000',
+    emoji: null,
+    version: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  it('drains a deleted tag: calls server delete then hard-deletes from Dexie', async () => {
+    const id = await db.tags.add({ ...BASE_TAG, serverId: 'tag-srv-1', syncStatus: SyncStatuses.Deleted })
+
+    vi.mocked(trpc.tags.delete.mutate).mockResolvedValueOnce(undefined)
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const tag = await db.tags.get(id)
+      expect(tag).toBeUndefined()
+    })
+  })
+
+  it('failed drain leaves tag as deleted for retry', async () => {
+    const id = await db.tags.add({ ...BASE_TAG, serverId: 'tag-srv-2', syncStatus: SyncStatuses.Deleted })
+
+    vi.mocked(trpc.tags.delete.mutate).mockRejectedValueOnce(new Error('network error'))
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const tag = await db.tags.get(id)
+      expect(tag?.syncStatus).toBe(SyncStatuses.Deleted)
+    })
+  })
+
+  it('reconcile skips resurrection when local deletion timestamp >= server updatedAt', async () => {
+    const localDeletedAt = new Date('2026-06-10T12:00:00.000Z')
+    const id = await db.tags.add({
+      ...BASE_TAG,
+      serverId: 'tag-srv-3',
+      syncStatus: SyncStatuses.Deleted,
+      updatedAt: localDeletedAt,
+    })
+
+    // Drain fails so tag stays in Dexie as 'deleted' for reconcile to evaluate
+    vi.mocked(trpc.tags.delete.mutate).mockRejectedValueOnce(new Error('network error'))
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-14T00:00:00.000Z' })
+    vi.mocked(trpc.tags.reconcile.query).mockResolvedValueOnce({
+      tags: [{
+        id: 'tag-srv-3',
+        name: 'Work',
+        color: '#ff0000',
+        emoji: null,
+        version: 1,
+        createdAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-06-09T00:00:00.000Z', // older than local deletion
+      }],
+      serverNow: '2026-06-14T00:00:00.000Z',
+    })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(() => expect(trpc.tags.reconcile.query).toHaveBeenCalledTimes(1))
+    const tag = await db.tags.get(id)
+    // Must still exist as deleted — not resurrected
+    expect(tag?.syncStatus).toBe(SyncStatuses.Deleted)
+    expect(tag?.name).toBe('Work') // original name preserved
   })
 })
 

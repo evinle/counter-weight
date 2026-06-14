@@ -68,6 +68,7 @@ export interface Tag {
 export const SyncStatuses = {
   Pending: 'pending',
   Synced: 'synced',
+  Deleted: 'deleted',
 } as const satisfies Record<string, string>
 export type SyncStatus = typeof SyncStatuses[keyof typeof SyncStatuses]
 export function isSyncStatus(v: unknown): v is SyncStatus {
