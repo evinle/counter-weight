@@ -403,6 +403,8 @@ describe('tag drain', () => {
           color: '#ffffff',
           emoji: null,
           version: 5,
+          createdAt: '2026-06-01T00:00:00.000Z',
+          updatedAt: '2026-06-01T00:00:00.000Z',
         })],
         serverNow: '2026-06-08T00:00:00.000Z',
       })
@@ -417,6 +419,9 @@ describe('tag drain', () => {
       expect(tag?.syncStatus).toBe('synced')
       expect(tag?.version).toBe(5)
     })
+    // Wait for the full sync cycle (including reconcileAll) to finish so it doesn't
+    // leak into the next test via the module-level syncRunning flag or consumed mocks.
+    await waitFor(() => expect(localStorage.getItem('cw:lastSyncedAt')).not.toBeNull())
   })
 })
 
