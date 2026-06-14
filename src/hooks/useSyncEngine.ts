@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { isTRPCClientError } from "@trpc/client";
 import { db } from "../db";
 import { SyncStatuses, TimerStatuses } from "../db/schema";
-import type { SyncStatus, Tag, Timer } from "../db/schema";
+import type { SyncStatus, Tag, Timer, Group } from "../db/schema";
 import { trpc } from "../lib/trpc";
 import type { AuthUser } from "./useAuth";
 
@@ -14,6 +14,7 @@ let currentUser: AuthUser | null = null;
 
 type ServerTimer = Awaited<ReturnType<typeof trpc.timers.list.query>>[number];
 type ServerTag = Awaited<ReturnType<typeof trpc.tags.reconcile.query>>["tags"][number];
+type ServerGroup = Awaited<ReturnType<typeof trpc.groups.reconcile.query>>["groups"][number];
 
 type RecordRef = { serverId: string; updatedAt: string };
 
@@ -144,6 +145,85 @@ const tagAdapter: SyncAdapter<Tag, ServerTag> = {
     },
 
     deleteLocal: (id) => db.tags.delete(id).then(() => {}),
+  },
+};
+
+function mapServerGroup(s: ServerGroup): Omit<Group, "id"> {
+  return {
+    serverId: s.id,
+    userId: null,
+    name: s.name,
+    emoji: s.emoji,
+    color: s.color,
+    conditions: s.conditions,
+    version: s.version,
+    createdAt: new Date(s.createdAt),
+    updatedAt: new Date(s.updatedAt),
+    syncStatus: SyncStatuses.Synced,
+  };
+}
+
+const groupAdapter: SyncAdapter<Group, ServerGroup> = {
+  label: "group",
+
+  getPending: (userId) =>
+    db.groups
+      .where("syncStatus")
+      .equals(SyncStatuses.Pending)
+      .and((g) => g.userId === userId)
+      .toArray(),
+
+  getLocalItems: (userId) => db.groups.where("userId").equals(userId).toArray(),
+
+  buildRefs: (since, items) =>
+    since
+      ? []
+      : items
+          .filter((g) => g.serverId)
+          .map((g) => ({ serverId: g.serverId!, updatedAt: g.updatedAt.toISOString() })),
+
+  drain: async (group) => {
+    const result = await trpc.groups.upsert.mutate({
+      serverId: group.serverId,
+      name: group.name,
+      emoji: group.emoji,
+      color: group.color,
+      conditions: group.conditions,
+      version: group.version ?? undefined,
+    });
+    return { serverId: result.serverId, version: result.version };
+  },
+
+  getConflictRecord: async (serverId) => {
+    const { groups } = await trpc.groups.reconcile.query({ since: null, records: [] });
+    return groups.find((g) => g.id === serverId) ?? null;
+  },
+
+  getServerRecords: async (since, refs) => {
+    const { groups, serverNow } = await trpc.groups.reconcile.query({ since, records: refs });
+    return { records: groups, serverNow };
+  },
+
+  mapToLocal: (s, userId) => ({ ...mapServerGroup(s), userId }),
+
+  updateLocal: (id, patch) => db.groups.update(id, patch).then(() => {}),
+
+  addLocal: (record) => db.groups.add(record as Group).then(() => {}),
+
+  deletion: {
+    getDeleted: (userId) =>
+      db.groups
+        .where("syncStatus")
+        .equals(SyncStatuses.Deleted)
+        .and((g) => g.userId === userId)
+        .toArray(),
+
+    drainDeleted: async (group) => {
+      if (!group.serverId) return;
+      await trpc.groups.delete.mutate({ serverId: group.serverId });
+    },
+
+    deleteLocal: (id) => db.groups.delete(id).then(() => {}),
   },
 };
 
@@ -323,6 +403,7 @@ function wrapAdapter<TLocal extends LocalBase, TServer extends { id: string; upd
 // Single source of adapter ordering. Add one line here when a new table needs sync.
 const PIPELINE: AdapterStep[] = [
   wrapAdapter(tagAdapter),
+  wrapAdapter(groupAdapter),
   wrapAdapter(timerAdapter),
 ];
 

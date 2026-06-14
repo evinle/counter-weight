@@ -6,6 +6,7 @@ import { mockEnv } from '../../test/envHelpers.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
+import { createFakeGroupsDb } from '../../test/fakes/groupsDb.js'
 import type { Db } from '../../db/index.js'
 import { fromPartial } from '@total-typescript/shoehorn'
 
@@ -17,7 +18,7 @@ function makeCtx(userId: string | null) {
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
   const insert = vi.fn().mockReturnValue({ values })
   const db = { insert }
-  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent: null }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), userAgent: null }
 }
 
 beforeEach(() => {

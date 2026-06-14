@@ -11,6 +11,7 @@ import { getApiEnv } from "../env.js";
 import { AwsScheduler, type Scheduler } from "./scheduler.js";
 import { createTimersDb } from "./routers/timersDb.js";
 import { createTagsDb } from "./routers/tagsDb.js";
+import { createGroupsDb } from "./routers/groupsDb.js";
 
 // Promise singleton — assignment is synchronous so concurrent requests share one init
 let _dbPromise: Promise<Db> | null = null;
@@ -71,17 +72,18 @@ export async function createContext({ req }: { req: FastifyRequest }) {
   const db = await getDb();
   const timersDb = createTimersDb(db);
   const tagsDb = createTagsDb(db);
+  const groupsDb = createGroupsDb(db);
   const scheduler = getScheduler();
   const auth = req.headers.authorization;
   const userAgent = req.headers['user-agent'] ?? null;
 
-  if (!auth?.startsWith("Bearer ")) return { userId: null, db, timersDb, tagsDb, scheduler, userAgent };
+  if (!auth?.startsWith("Bearer ")) return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
 
   try {
     const payload = await getVerifier().verify(auth.slice(7));
-    return { userId: payload.sub, db, timersDb, tagsDb, scheduler, userAgent };
+    return { userId: payload.sub, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
   } catch {
-    return { userId: null, db, timersDb, tagsDb, scheduler, userAgent };
+    return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
   }
 }
 

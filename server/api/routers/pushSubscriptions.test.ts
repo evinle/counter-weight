@@ -6,6 +6,7 @@ import { mockEnv } from '../../test/envHelpers.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
+import { createFakeGroupsDb } from '../../test/fakes/groupsDb.js'
 import type { Db } from '../../db/index.js'
 import { fromPartial } from '@total-typescript/shoehorn'
 
@@ -19,7 +20,7 @@ const BASE_INPUT = {
 } as const
 
 function makeCtx(userId: string | null, db: Partial<Db> = {}, userAgent: string | null = null) {
-  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), scheduler: createFakeScheduler(), userAgent }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), userAgent }
 }
 
 beforeEach(() => {

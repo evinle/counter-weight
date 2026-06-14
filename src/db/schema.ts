@@ -1,3 +1,7 @@
+import type { GroupConditions } from '@cw/filters'
+
+export type { GroupConditions }
+
 export const TIMER_STATUSES = ['active', 'fired', 'completed', 'missed', 'cancelled'] as const
 export type TimerStatus = typeof TIMER_STATUSES[number]
 export function isTimerStatus(v: string): v is TimerStatus {
@@ -59,6 +63,20 @@ export interface Tag {
   name: string
   color: string | null
   emoji: string | null
+  version: number | null
+  syncStatus: SyncStatus
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface Group {
+  id?: number
+  serverId: string | null
+  userId: string | null
+  name: string
+  emoji: string | null
+  color: string | null
+  conditions: GroupConditions
   version: number | null
   syncStatus: SyncStatus
   createdAt: Date

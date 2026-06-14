@@ -7,6 +7,7 @@ import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
 import { createFakeDb } from '../../test/fakes/db.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
+import { createFakeGroupsDb } from '../../test/fakes/groupsDb.js'
 import type { FakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { TagRecord } from './tags.js'
 
@@ -30,6 +31,7 @@ function makeCtx(userId: string | null, tagsDb: FakeTagsDb) {
     db: createFakeDb(),
     timersDb: createFakeTimersDb(),
     tagsDb,
+    groupsDb: createFakeGroupsDb(),
     scheduler: createFakeScheduler(),
     userAgent: null,
   }
