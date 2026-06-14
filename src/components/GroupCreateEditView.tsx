@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { createGroup, updateGroup } from '../hooks/useGroups'
+import { useUserTags } from '../hooks/useTags'
 import { ScreenTitle } from './ScreenTitle'
-import type { Group, GroupConditions, FieldCondition, Priority, TimerStatus } from '../db/schema'
+import type { Group, GroupConditions, FieldCondition, Priority, TimerStatus, Tag } from '../db/schema'
 import { PRIORITIES, TIMER_STATUSES } from '../db/schema'
 
 type ConditionField = FieldCondition['field']
@@ -96,6 +97,7 @@ export function GroupCreateEditView({ existing, onDone, userId }: Props) {
   const [name, setName] = useState(existing?.name ?? '')
   const [emoji, setEmoji] = useState(existing?.emoji ?? '')
   const [color, setColor] = useState(existing?.color ?? '')
+  const tags = useUserTags(userId)
   const [drafts, setDrafts] = useState<DraftCondition[]>(() =>
     existing?.conditions.conditions.map((c) => ({
       field: c.field,
@@ -198,6 +200,7 @@ export function GroupCreateEditView({ existing, onDone, userId }: Props) {
             <ConditionRow
               key={i}
               draft={draft}
+              tags={tags}
               onChange={(patch) => updateDraft(i, patch)}
               onRemove={() => removeDraft(i)}
             />
@@ -227,13 +230,79 @@ export function GroupCreateEditView({ existing, onDone, userId }: Props) {
 
 interface ConditionRowProps {
   draft: DraftCondition
+  tags: Tag[]
   onChange: (patch: Partial<DraftCondition>) => void
   onRemove: () => void
 }
 
-function ConditionRow({ draft, onChange, onRemove }: ConditionRowProps) {
+function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
   const ops = OPS_BY_FIELD[draft.field] ?? []
   const needsValue = !['overdue', 'today', 'exists', 'not_exists'].includes(draft.op)
+
+  function renderValueInput() {
+    if (!needsValue) return null
+
+    const selectClass = "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none"
+    const inputClass = "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none"
+
+    if (draft.field === 'tags') {
+      return (
+        <select
+          aria-label="Value"
+          value={draft.value}
+          onChange={(e) => onChange({ value: e.target.value })}
+          className={selectClass}
+        >
+          <option value="">Select tag…</option>
+          {tags.filter(t => t.serverId).map((t) => (
+            <option key={t.serverId} value={t.serverId!}>{t.name}</option>
+          ))}
+        </select>
+      )
+    }
+
+    if (draft.field === 'priority' && draft.op === 'eq') {
+      return (
+        <select
+          aria-label="Value"
+          value={draft.value}
+          onChange={(e) => onChange({ value: e.target.value })}
+          className={selectClass}
+        >
+          <option value="">Select…</option>
+          {PRIORITIES.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      )
+    }
+
+    if (draft.field === 'status' && draft.op === 'eq') {
+      return (
+        <select
+          aria-label="Value"
+          value={draft.value}
+          onChange={(e) => onChange({ value: e.target.value })}
+          className={selectClass}
+        >
+          <option value="">Select…</option>
+          {TIMER_STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      )
+    }
+
+    return (
+      <input
+        aria-label="Value"
+        type="text"
+        value={draft.value}
+        onChange={(e) => onChange({ value: e.target.value })}
+        className={inputClass}
+      />
+    )
+  }
 
   return (
     <div className="flex items-center gap-2">
@@ -259,15 +328,7 @@ function ConditionRow({ draft, onChange, onRemove }: ConditionRowProps) {
         ))}
       </select>
 
-      {needsValue && (
-        <input
-          aria-label="Value"
-          type="text"
-          value={draft.value}
-          onChange={(e) => onChange({ value: e.target.value })}
-          className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none"
-        />
-      )}
+      {renderValueInput()}
 
       <button
         type="button"
