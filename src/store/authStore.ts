@@ -32,7 +32,8 @@ function parseJwtClaims(token: string): { sub: string; email: string; given_name
     const base64Url = token.split('.')[1]
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
-    const payload = JSON.parse(atob(padded)) as Record<string, unknown>
+    const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0))
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>
     if (typeof payload.sub !== 'string' || typeof payload.email !== 'string') return null
     return {
       sub: payload.sub,

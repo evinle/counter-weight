@@ -2,10 +2,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuthStore, subscribeToAuthPersistence } from '../store/authStore'
 import { StorageKey, bootstrappedKey } from '../lib/storageKeys'
 
-// Minimal fake JWT: header.payload.sig
+// Minimal fake JWT: header.payload.sig (ASCII-safe only)
 function fakeJwt(sub: string, email: string, given_name?: string) {
   const payload = btoa(JSON.stringify({ sub, email, given_name }))
   return `header.${payload}.sig`
+}
+
+// UTF-8 safe variant — encodes payload bytes before base64 so non-ASCII survives
+function fakeJwtUtf8(sub: string, email: string, given_name: string) {
+  const bytes = new TextEncoder().encode(JSON.stringify({ sub, email, given_name }))
+  const b64 = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return `header.${b64}.sig`
 }
 
 const initialState = {
@@ -44,6 +51,11 @@ describe('setAuthenticated', () => {
     const { state, user } = useAuthStore.getState()
     expect(state).toBe('authenticated')
     expect(user).toEqual({ userId: 'user-1', email: 'user@example.com', firstName: 'Alice' })
+  })
+
+  it('preserves non-ASCII given_name (Korean) as firstName', () => {
+    useAuthStore.getState().setAuthenticated(fakeJwtUtf8('user-1', 'user@example.com', '이진'))
+    expect(useAuthStore.getState().user?.firstName).toBe('이진')
   })
 
   it('falls back to email local-part when given_name is absent', () => {
