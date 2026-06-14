@@ -20,19 +20,13 @@ html {
   --spacing-safe-top: env(safe-area-inset-top);
   --spacing-safe-bottom: env(safe-area-inset-bottom);
   --spacing-bottom-bar-inset: calc(
-    var(--bottom-tab-bar-height) + env(safe-area-inset-bottom) + 16px
+    var(--bottom-tab-bar-height) + env(safe-area-inset-bottom)
   );
 
   /* Shift the entire scale up one rung. text-sm meets the iOS 16 px
      auto-zoom threshold; all other sizes stay proportionally consistent. */
   --text-xs: 0.875rem; /* was 12 px → 14 px */
   --text-sm: 1rem; /* was 14 px → 16 px */
-  --text-base: 1.125rem; /* was 16 px → 18 px */
-  --text-lg: 1.25rem; /* was 18 px → 20 px */
-  --text-xl: 1.5rem; /* was 20 px → 24 px */
-  --text-2xl: 1.875rem; /* was 24 px → 30 px */
-  --text-3xl: 2.25rem; /* was 30 px → 36 px */
-  --text-4xl: 3rem; /* was 36 px → 48 px */
 }
 
 @utility pb-tab-bar {
