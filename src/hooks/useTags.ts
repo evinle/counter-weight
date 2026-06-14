@@ -50,6 +50,12 @@ export async function deleteTag(tag: Tag): Promise<void> {
   )
 }
 
+export async function renameTag(tag: Tag, name: string): Promise<void> {
+  const { id } = tag
+  if (id === undefined) return
+  await db.tags.update(id, { name, syncStatus: SyncStatuses.Pending, updatedAt: new Date() })
+}
+
 export async function createTag(
   data: Pick<Tag, 'name' | 'color' | 'emoji'>,
   userId: string | null,

@@ -34,60 +34,85 @@ async function seedTag(name: string, serverId: string | null = `srv-${name}`) {
   })
 }
 
-describe('TagPicker manage mode', () => {
-  it('shows a Manage button and no × buttons initially', async () => {
+async function longPress(el: HTMLElement) {
+  fireEvent.pointerDown(el)
+  // Allow the 0ms macrotask to fire before continuing
+  await new Promise<void>((resolve) => setTimeout(resolve, 10))
+}
+
+describe('TagPicker long-press popover', () => {
+  it('shows no popover on initial render', async () => {
     await seedTag('Work')
-
-    render(<TagPicker userId="user-1" onChange={() => {}} />)
-
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
     await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
 
-    expect(screen.getByRole('button', { name: /manage/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /×/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /rename/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /delete/i })).toBeNull()
   })
 
-  it('reveals × buttons for each tag when Manage is clicked', async () => {
+  it('reveals Rename and Delete options after long press on a tag', async () => {
     await seedTag('Work')
-    await seedTag('Personal')
-
-    render(<TagPicker userId="user-1" onChange={() => {}} />)
-
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
     await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /manage/i }))
+    await longPress(screen.getByRole('button', { name: /Work/ }))
 
-    expect(screen.getAllByRole('button', { name: /×/ })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /rename/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
   })
 
-  it('does not show × on a currently selected tag', async () => {
-    const id = await seedTag('Work', 'srv-work')
-
-    render(<TagPicker userId="user-1" initialServerIds={['srv-work']} onChange={() => {}} />)
-
+  it('does not open the popover when pointerUp cancels before the threshold', async () => {
+    await seedTag('Work')
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={500} />)
     await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /manage/i }))
+    const btn = screen.getByRole('button', { name: /Work/ })
+    fireEvent.pointerDown(btn)
+    fireEvent.pointerUp(btn)
 
-    // One tag, but it's selected — × must NOT appear for it
-    expect(screen.queryByRole('button', { name: /×/ })).toBeNull()
-
-    // Suppress unused var warning — id is the Dexie id we seeded
-    void id
+    expect(screen.queryByRole('button', { name: /rename/i })).toBeNull()
   })
 
-  it('calls deleteTag when × is clicked on an unselected tag', async () => {
-    await seedTag('Work', 'srv-work')
-
-    render(<TagPicker userId="user-1" onChange={() => {}} />)
-
+  it('opens an inline rename input when Rename is tapped', async () => {
+    await seedTag('Work')
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
     await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /manage/i }))
-    fireEvent.click(screen.getByRole('button', { name: /×/ }))
+    await longPress(screen.getByRole('button', { name: /Work/ }))
+    fireEvent.click(screen.getByRole('button', { name: /rename/i }))
+
+    expect(screen.getByRole('textbox')).toHaveValue('Work')
+  })
+
+  it('commits the rename on Enter and marks the tag pending', async () => {
+    await seedTag('Work')
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
+    await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
+
+    await longPress(screen.getByRole('button', { name: /Work/ }))
+    fireEvent.click(screen.getByRole('button', { name: /rename/i }))
+
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Personal' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
 
     await waitFor(async () => {
       const tags = await db.tags.toArray()
-      // synced tag: should be marked deleted, not hard-deleted
+      expect(tags[0]?.name).toBe('Personal')
+      expect(tags[0]?.syncStatus).toBe(SyncStatuses.Pending)
+    })
+  })
+
+  it('marks a synced tag deleted when Delete is tapped', async () => {
+    await seedTag('Work')
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
+    await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
+
+    await longPress(screen.getByRole('button', { name: /Work/ }))
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }))
+
+    await waitFor(async () => {
+      const tags = await db.tags.toArray()
       expect(tags[0]?.syncStatus).toBe(SyncStatuses.Deleted)
     })
   })

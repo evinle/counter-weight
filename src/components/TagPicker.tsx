@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useUserTags, createTag, deleteTag } from '../hooks/useTags'
+import { useUserTags, createTag, deleteTag, renameTag } from '../hooks/useTags'
 import { SyncStatuses } from '../db/schema'
 import { db } from '../db'
 import { trpc } from '../lib/trpc'
@@ -15,13 +15,16 @@ const PRESET_COLORS = [
   '#6b7280',
 ]
 
+const LONG_PRESS_MS = 500
+
 interface Props {
   userId: string | null
   initialServerIds?: string[]
   onChange: (serverIds: string[]) => void
+  longPressMs?: number
 }
 
-export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
+export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs = LONG_PRESS_MS }: Props) {
   const userTags = useUserTags(userId)
 
   const [selectedDexieIds, setSelectedDexieIds] = useState<Set<number>>(new Set())
@@ -39,7 +42,10 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
     )
   }, [userTags]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [manageMode, setManageMode] = useState(false)
+  const [popoverTagId, setPopoverTagId] = useState<number | null>(null)
+  const [renamingTagId, setRenamingTagId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[4])
@@ -62,6 +68,34 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
     }
     setSelectedDexieIds(next)
     onChange(computeServerIds(next))
+  }
+
+  function startLongPress(dexieId: number) {
+    longPressTimer.current = setTimeout(() => {
+      setPopoverTagId(dexieId)
+    }, longPressMs)
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer.current !== null) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  function openRename(dexieId: number, currentName: string) {
+    setPopoverTagId(null)
+    setRenamingTagId(dexieId)
+    setRenameValue(currentName)
+  }
+
+  async function commitRename(dexieId: number) {
+    const tag = userTags.find((t) => t.id === dexieId)
+    if (tag && renameValue.trim()) {
+      await renameTag(tag, renameValue.trim())
+    }
+    setRenamingTagId(null)
+    setRenameValue('')
   }
 
   async function handleCreate() {
@@ -107,47 +141,73 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" onClick={() => setPopoverTagId(null)}>
       <div className="flex flex-wrap gap-2 min-h-[32px]">
         {userTags.map((tag) => {
-          const selected = tag.id !== undefined && selectedDexieIds.has(tag.id)
-          const showDelete = manageMode && !selected
+          const dexieId = tag.id
+          if (dexieId === undefined) return null
+          const selected = selectedDexieIds.has(dexieId)
+
+          if (renamingTagId === dexieId) {
+            return (
+              <input
+                key={dexieId}
+                autoFocus
+                className="px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-white outline-none focus:ring-2 focus:ring-white w-28"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => commitRename(dexieId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); void commitRename(dexieId) }
+                  if (e.key === 'Escape') { setRenamingTagId(null); setRenameValue('') }
+                }}
+              />
+            )
+          }
+
           return (
-            <span
-              key={tag.id}
-              className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : 'opacity-60'
-              }`}
-              style={{ backgroundColor: tag.color ?? '#6b7280', color: '#fff' }}
-            >
+            <div key={dexieId} className="relative">
               <button
                 type="button"
-                onClick={() => tag.id !== undefined && toggleTag(tag.id)}
-                className="cursor-pointer"
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+                  selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : 'opacity-60 hover:opacity-90'
+                }`}
+                style={{ backgroundColor: tag.color ?? '#6b7280', color: '#fff' }}
+                onClick={(e) => { e.stopPropagation(); toggleTag(dexieId) }}
+                onPointerDown={(e) => { e.stopPropagation(); startLongPress(dexieId) }}
+                onPointerUp={cancelLongPress}
+                onPointerCancel={cancelLongPress}
+                onPointerLeave={cancelLongPress}
+                onContextMenu={(e) => { e.preventDefault(); setPopoverTagId(dexieId) }}
               >
                 {tag.name}
                 {!tag.serverId && <span className="ml-1 opacity-70 text-xs">↻</span>}
               </button>
-              {showDelete && (
-                <button
-                  type="button"
-                  aria-label="×"
-                  onClick={() => deleteTag(tag)}
-                  className="ml-1 leading-none cursor-pointer hover:opacity-75"
+
+              {popoverTagId === dexieId && (
+                <div
+                  className="absolute bottom-full left-0 mb-1 z-10 flex flex-col rounded-lg bg-slate-700 shadow-lg overflow-hidden text-sm"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  ×
-                </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-left hover:bg-slate-600 text-white cursor-pointer whitespace-nowrap"
+                    onClick={() => openRename(dexieId, tag.name)}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-left hover:bg-red-700 text-red-400 cursor-pointer whitespace-nowrap"
+                    onClick={() => { setPopoverTagId(null); void deleteTag(tag) }}
+                  >
+                    Delete
+                  </button>
+                </div>
               )}
-            </span>
+            </div>
           )
         })}
-        <button
-          type="button"
-          onClick={() => setManageMode((v) => !v)}
-          className="px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-slate-300 hover:bg-slate-500 transition-colors cursor-pointer"
-        >
-          {manageMode ? 'Done' : 'Manage'}
-        </button>
         <button
           type="button"
           onClick={() => setShowCreate((v) => !v)}
@@ -168,7 +228,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                handleCreate()
+                void handleCreate()
               }
             }}
           />
@@ -188,7 +248,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => void handleCreate()}
               disabled={!newTagName.trim() || creating}
               className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-blue-500 transition-colors cursor-pointer"
             >
