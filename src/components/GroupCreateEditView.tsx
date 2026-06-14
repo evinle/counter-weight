@@ -2,8 +2,20 @@ import { useState } from 'react'
 import { createGroup, updateGroup } from '../hooks/useGroups'
 import { useUserTags } from '../hooks/useTags'
 import { ScreenTitle } from './ScreenTitle'
+import { EmojiButton } from './EmojiButton'
 import type { Group, GroupConditions, FieldCondition, Priority, TimerStatus, Tag } from '../db/schema'
 import { PRIORITIES, TIMER_STATUSES } from '../db/schema'
+
+const PRESET_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#6b7280',
+]
 
 type ConditionField = FieldCondition['field']
 
@@ -153,45 +165,37 @@ export function GroupCreateEditView({ existing, onDone, onCancel, userId }: Prop
           <label htmlFor="group-name" className="text-sm text-slate-400">
             Name
           </label>
-          <input
-            id="group-name"
-            aria-label="Name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Group name"
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              id="group-name"
+              aria-label="Name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Group name"
+              className="flex-1 rounded-lg p-3 bg-slate-700 text-white text-base placeholder:text-slate-400 min-h-[52px]"
+            />
+            <EmojiButton value={emoji} onChange={setEmoji} />
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex flex-col gap-1 flex-1">
-            <label htmlFor="group-emoji" className="text-sm text-slate-400">
-              Emoji
-            </label>
-            <input
-              id="group-emoji"
-              aria-label="Emoji"
-              type="text"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              placeholder="🔴"
-              className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
-            />
-          </div>
-          <div className="flex flex-col gap-1 flex-1">
-            <label htmlFor="group-color" className="text-sm text-slate-400">
-              Color
-            </label>
-            <input
-              id="group-color"
-              aria-label="Color"
-              type="text"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              placeholder="#ef4444"
-              className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
-            />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-slate-400">Color</span>
+            <div className="flex gap-2 flex-wrap">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor((prev) => prev === c ? '' : c)}
+                  aria-label={c}
+                  className={`w-7 h-7 rounded-full transition-all cursor-pointer ${
+                    color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
