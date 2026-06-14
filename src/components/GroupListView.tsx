@@ -1,64 +1,76 @@
-import { useState } from 'react'
-import { useGroups, deleteGroup } from '../hooks/useGroups'
-import { ScreenTitle } from './ScreenTitle'
-import type { Group } from '../db/schema'
+import { useState } from "react";
+import { useGroups, deleteGroup } from "../hooks/useGroups";
+import { ScreenTitle } from "./ScreenTitle";
+import type { Group } from "../db/schema";
 
 interface Props {
-  userId: string | null
-  onEdit: (group: Group) => void
-  onCreateNew: () => void
-  onDone: () => void
+  userId: string | null;
+  onEdit: (group: Group) => void;
+  onCreateNew: () => void;
+  onDone: () => void;
 }
 
 export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
-  const groups = useGroups(userId)
-  const [confirmingId, setConfirmingId] = useState<number | null>(null)
+  const groups = useGroups(userId);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   async function handleConfirmDelete(group: Group) {
-    await deleteGroup(group)
-    setConfirmingId(null)
+    await deleteGroup(group);
+    setConfirmingId(null);
   }
 
   return (
     <div className="flex flex-col h-full overflow-auto">
-      <div className="flex items-center justify-between pr-4">
+      <div className="flex items-baseline justify-between pr-4">
         <ScreenTitle title="Groups" />
-        <div className="flex items-center gap-2">
+        <button
+          aria-label="Done"
+          onClick={onDone}
+          className="text-base font-medium text-blue-400 hover:text-blue-300 px-2"
+        >
+          Done
+        </button>
+      </div>
+
+      <ul className="flex flex-col gap-2 p-4">
+        <li>
           <button
             aria-label="New group"
             onClick={onCreateNew}
-            className="text-sm text-blue-400 hover:text-blue-300"
+            className="w-full flex items-center justify-center gap-3 bg-blue-600 rounded-xl px-4 py-4 text-base font-medium text-white hover:bg-blue-500 active:bg-blue-700 transition-colors"
           >
-            + New
+            <span className="text-xl w-7 text-center">＋</span>
+            New group
           </button>
-          <button
-            aria-label="Done"
-            onClick={onDone}
-            className="text-sm text-slate-400 hover:text-slate-200"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-      <ul className="flex flex-col gap-2 p-4">
+        </li>
+
         {groups.map((group) => (
-          <li key={group.id} className="bg-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
-            {group.emoji && <span className="text-xl">{group.emoji}</span>}
-            <span className="flex-1 text-sm font-medium text-white">{group.name}</span>
+          <li
+            key={group.id}
+            className="bg-slate-800 rounded-xl flex items-center gap-3 px-4 py-4"
+          >
+            {group.emoji ? (
+              <span className="text-xl w-7 text-center">{group.emoji}</span>
+            ) : (
+              <span className="w-7" />
+            )}
+            <span className="flex-1 text-base font-medium text-white">
+              {group.name}
+            </span>
 
             {confirmingId === group.id ? (
               <div className="flex gap-2">
                 <button
                   aria-label="Confirm delete"
                   onClick={() => handleConfirmDelete(group)}
-                  className="text-xs text-red-400 border border-red-500/40 rounded-lg px-2 py-1"
+                  className="text-base font-medium text-white bg-red-700 rounded-xl px-4 py-3 min-h-[48px] hover:bg-red-600 active:scale-95 transition-all"
                 >
-                  Delete
+                  DROP?
                 </button>
                 <button
                   aria-label="Cancel"
                   onClick={() => setConfirmingId(null)}
-                  className="text-xs text-slate-400 border border-slate-600 rounded-lg px-2 py-1"
+                  className="text-base font-medium text-white bg-slate-600 rounded-xl px-4 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -68,16 +80,16 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
                 <button
                   aria-label={`Edit ${group.name}`}
                   onClick={() => onEdit(group)}
-                  className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg px-2 py-1"
+                  className="text-base font-medium text-white bg-slate-600 rounded-xl px-4 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
                 >
                   Edit
                 </button>
                 <button
                   aria-label={`Delete ${group.name}`}
                   onClick={() => setConfirmingId(group.id ?? null)}
-                  className="text-xs text-slate-400 hover:text-red-400 border border-slate-600 rounded-lg px-2 py-1"
+                  className="text-base font-medium text-white bg-slate-600 rounded-xl w-12 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
                 >
-                  Delete
+                  🗑️
                 </button>
               </div>
             )}
@@ -85,5 +97,5 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
         ))}
       </ul>
     </div>
-  )
+  );
 }
