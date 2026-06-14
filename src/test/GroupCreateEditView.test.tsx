@@ -82,7 +82,8 @@ describe('GroupCreateEditView', () => {
 
   it('pre-populates the form when editing an existing group', async () => {
     const id = await db.groups.add({ ...BASE_GROUP }) as number
-    const existing = await db.groups.get(id) as Group
+    const existing = await db.groups.get(id)
+    if (!existing) throw new Error('group not found')
 
     render(<GroupCreateEditView userId="user-1" onDone={() => {}} existing={existing} />)
 
@@ -91,7 +92,8 @@ describe('GroupCreateEditView', () => {
 
   it('updates the group in Dexie when editing', async () => {
     const id = await db.groups.add({ ...BASE_GROUP }) as number
-    const existing = await db.groups.get(id) as Group
+    const existing = await db.groups.get(id)
+    if (!existing) throw new Error('group not found')
 
     render(<GroupCreateEditView userId="user-1" onDone={() => {}} existing={existing} />)
 
