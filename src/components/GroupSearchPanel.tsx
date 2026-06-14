@@ -46,19 +46,7 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
         }`}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            fillRule="evenodd"
-            d="M3 4a1 1 0 011-1h12a1 1 0 01.707 1.707L13 9.414V15a1 1 0 01-.553.894l-4 2A1 1 0 017 17v-7.586L3.293 5.707A1 1 0 013 5V4z"
-            clipRule="evenodd"
-          />
-        </svg>
+        <span className="text-xl leading-none" aria-hidden="true">🎚️</span>
       </button>
 
       {/* Active filter badge */}
@@ -77,9 +65,7 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
       )}
 
       {/* Tap-away overlay */}
-      {open && (
-        <div className="fixed inset-0 z-10" onClick={close} />
-      )}
+      {open && <div className="fixed inset-0 z-10" onClick={close} />}
 
       {/* Floating dropdown */}
       {open && (
@@ -112,7 +98,9 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
                   }`}
                 >
                   {group.emoji ? (
-                    <span className="text-xl w-7 text-center">{group.emoji}</span>
+                    <span className="text-xl w-7 text-center">
+                      {group.emoji}
+                    </span>
                   ) : (
                     <span className="w-7" />
                   )}
@@ -124,7 +112,10 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
 
           <div className="border-t border-slate-700">
             <button
-              onClick={() => { close(); onManageGroups(); }}
+              onClick={() => {
+                close();
+                onManageGroups();
+              }}
               className="w-full text-left px-4 py-4 text-base text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
             >
               Manage groups →

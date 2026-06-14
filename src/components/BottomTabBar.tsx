@@ -30,12 +30,12 @@ function TabButton({ active, label, icon, onClick }: TabButtonProps) {
       onClick={onClick}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`flex-1 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors ${
+      className={`flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
         active ? "text-blue-400" : "text-slate-500"
       }`}
     >
-      <span className="text-xl leading-none">{icon}</span>
-      <span className="text-[10px] font-medium">{label}</span>
+      <span className="text-2xl leading-none">{icon}</span>
+      <span className="text-xs font-medium">{label}</span>
     </button>
   );
 }
