@@ -30,6 +30,26 @@ export function useTagsMap(): Map<string, Tag> {
   )
 }
 
+export async function deleteTag(tag: Tag): Promise<void> {
+  const { id, serverId } = tag
+  if (id === undefined) return
+  if (!serverId) {
+    await db.tags.delete(id)
+    return
+  }
+  await db.tags.update(id, { syncStatus: SyncStatuses.Deleted })
+  const timers = await db.timers.filter((t) => t.tagIds.includes(serverId)).toArray()
+  await Promise.all(
+    timers.map((t) => {
+      if (t.id === undefined) return Promise.resolve()
+      return db.timers.update(t.id, {
+        tagIds: t.tagIds.filter((sid) => sid !== serverId),
+        syncStatus: SyncStatuses.Pending,
+      })
+    }),
+  )
+}
+
 export async function createTag(
   data: Pick<Tag, 'name' | 'color' | 'emoji'>,
   userId: string | null,

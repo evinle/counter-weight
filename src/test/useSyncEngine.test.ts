@@ -585,3 +585,28 @@ describe('reconcile call shape', () => {
     )
   })
 })
+
+describe('tag deletion drain', () => {
+  it('calls trpc.tags.delete for a deleted synced tag then hard-deletes it from Dexie', async () => {
+    const id = await db.tags.add({
+      serverId: 'srv-tag-1',
+      userId: 'user-1',
+      name: 'Work',
+      color: '#3b82f6',
+      emoji: null,
+      version: 1,
+      syncStatus: SyncStatuses.Deleted,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(trpc.tags.delete.mutate).mockResolvedValueOnce({ ok: true })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const tag = await db.tags.get(id)
+      expect(tag).toBeUndefined()
+    })
+    expect(trpc.tags.delete.mutate).toHaveBeenCalledWith({ serverId: 'srv-tag-1' })
+  })
+})

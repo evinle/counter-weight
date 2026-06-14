@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useUserTags, createTag } from '../hooks/useTags'
+import { useUserTags, createTag, deleteTag } from '../hooks/useTags'
 import { SyncStatuses } from '../db/schema'
 import { db } from '../db'
 import { trpc } from '../lib/trpc'
@@ -38,6 +38,8 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
       ),
     )
   }, [userTags]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [manageMode, setManageMode] = useState(false)
 
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[4])
@@ -109,21 +111,43 @@ export function TagPicker({ userId, initialServerIds = [], onChange }: Props) {
       <div className="flex flex-wrap gap-2 min-h-[32px]">
         {userTags.map((tag) => {
           const selected = tag.id !== undefined && selectedDexieIds.has(tag.id)
+          const showDelete = manageMode && !selected
           return (
-            <button
+            <span
               key={tag.id}
-              type="button"
-              onClick={() => tag.id !== undefined && toggleTag(tag.id)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer ${
-                selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : 'opacity-60 hover:opacity-90'
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : 'opacity-60'
               }`}
               style={{ backgroundColor: tag.color ?? '#6b7280', color: '#fff' }}
             >
-              {tag.name}
-              {!tag.serverId && <span className="ml-1 opacity-70 text-xs">↻</span>}
-            </button>
+              <button
+                type="button"
+                onClick={() => tag.id !== undefined && toggleTag(tag.id)}
+                className="cursor-pointer"
+              >
+                {tag.name}
+                {!tag.serverId && <span className="ml-1 opacity-70 text-xs">↻</span>}
+              </button>
+              {showDelete && (
+                <button
+                  type="button"
+                  aria-label="×"
+                  onClick={() => deleteTag(tag)}
+                  className="ml-1 leading-none cursor-pointer hover:opacity-75"
+                >
+                  ×
+                </button>
+              )}
+            </span>
           )
         })}
+        <button
+          type="button"
+          onClick={() => setManageMode((v) => !v)}
+          className="px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-slate-300 hover:bg-slate-500 transition-colors cursor-pointer"
+        >
+          {manageMode ? 'Done' : 'Manage'}
+        </button>
         <button
           type="button"
           onClick={() => setShowCreate((v) => !v)}
