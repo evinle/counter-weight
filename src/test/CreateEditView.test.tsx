@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { db } from '../db'
 import { createTimer } from '../hooks/useTimers'
 import * as useTimersMod from '../hooks/useTimers'
@@ -24,6 +24,10 @@ beforeEach(async () => {
   useToastStore.setState({ toasts: [] })
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('CreateEditView — edit mode', () => {
   it('hides time inputs and shows a read-only snapshot by default', async () => {
     const id = await createTimer(BASE, null)
@@ -36,29 +40,25 @@ describe('CreateEditView — edit mode', () => {
     expect(screen.getByText(/edit time/i)).toBeInTheDocument()
   })
 
-  it('reveals time inputs after clicking Edit time', async () => {
-    const id = await createTimer(BASE, null)
-    const existing = await db.timers.get(id!)
+  describe('when time edit is unlocked', () => {
+    beforeEach(async () => {
+      const id = await createTimer(BASE, null)
+      const existing = await db.timers.get(id!)
+      render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+      fireEvent.click(screen.getByText(/edit time/i))
+    })
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    it('shows the mode toggle and duration inputs', () => {
+      expect(screen.getByRole('button', { name: /from now/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /at time/i })).toBeInTheDocument()
+    })
 
-    fireEvent.click(screen.getByText(/edit time/i))
+    it('returns to locked state after cancel', () => {
+      fireEvent.click(screen.getByText(/cancel time edit/i))
 
-    expect(screen.getByRole('button', { name: /from now/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /at time/i })).toBeInTheDocument()
-  })
-
-  it('hides time inputs again after cancelling the time edit', async () => {
-    const id = await createTimer(BASE, null)
-    const existing = await db.timers.get(id!)
-
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
-
-    fireEvent.click(screen.getByText(/edit time/i))
-    fireEvent.click(screen.getByText(/cancel time edit/i))
-
-    expect(screen.queryByRole('button', { name: /from now/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/edit time/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /from now/i })).not.toBeInTheDocument()
+      expect(screen.getByText(/edit time/i)).toBeInTheDocument()
+    })
   })
 
   it('preserves targetDatetime in Dexie when submitting without unlocking time', async () => {
@@ -79,7 +79,10 @@ describe('CreateEditView — edit mode', () => {
     })
   })
 
-  it('shows an error toast when editTimer signals a blocked extension', async () => {
+  it('shows an error toast when a second extension is blocked', async () => {
+    // Spy on editTimer to return false — the "second extension blocked" path.
+    // The guard logic itself is covered in useTimers.test.ts; this test only
+    // verifies the component's UI response (show toast, don't close the form).
     vi.spyOn(useTimersMod, 'editTimer').mockResolvedValueOnce(false)
 
     const id = await createTimer(BASE, null)
@@ -94,8 +97,6 @@ describe('CreateEditView — edit mode', () => {
       expect(useToastStore.getState().toasts).toHaveLength(1)
       expect(useToastStore.getState().toasts[0].variant).toBe('error')
     })
-
-    vi.restoreAllMocks()
   })
 })
 
