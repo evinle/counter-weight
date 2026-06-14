@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
 import { SyncStatuses } from '../db/schema'
 import type { Group } from '../db/schema'

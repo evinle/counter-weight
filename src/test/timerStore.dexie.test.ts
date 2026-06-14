@@ -19,6 +19,7 @@ const BASE_DB_TIMER = {
   userId: null,
   syncStatus: 'synced',
   version: null,
+  tagIds: [],
 } satisfies Omit<Timer, 'id' | 'targetDatetime'>
 
 describe("timerStore Dexie writes", () => {

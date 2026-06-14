@@ -66,6 +66,7 @@ const FIRED_TIMER = {
   userId: null,
   syncStatus: 'synced',
   version: null,
+  tagIds: [],
 } satisfies Timer
 
 beforeEach(() => {

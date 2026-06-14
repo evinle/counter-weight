@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { SyncStatuses } from '../db/schema'
-import type { Group, GroupConditions } from '../db/schema'
+import type { Group } from '../db/schema'
 
 export function useGroups(userId: string | null): Group[] {
   return (

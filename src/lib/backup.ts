@@ -46,6 +46,7 @@ function coerceTimer(raw: unknown): Omit<Timer, 'id'> | null {
     updatedAt: parseDate(r.updatedAt) ?? new Date(),
     serverId: typeof r.serverId === 'string' ? r.serverId : null,
     userId: typeof r.userId === 'string' ? r.userId : null,
+    tagIds: Array.isArray(r.tagIds) ? r.tagIds.filter((t): t is string => typeof t === 'string') : [],
     syncStatus: 'synced',
     version: typeof r.version === 'number' ? r.version : null,
   }

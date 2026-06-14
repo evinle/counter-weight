@@ -18,6 +18,7 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     userId: null,
     syncStatus: "synced",
     version: null,
+    tagIds: [],
     ...overrides,
   };
 }

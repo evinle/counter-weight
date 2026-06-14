@@ -11,6 +11,7 @@ const BASE = {
   status: 'active',
   priority: 'medium',
   recurrenceRule: null,
+  tagIds: [],
 } satisfies Omit<Timer, 'id' | 'createdAt' | 'updatedAt' | 'originalTargetDatetime' | 'serverId' | 'userId' | 'syncStatus' | 'version'>
 
 beforeEach(async () => {
@@ -89,7 +90,7 @@ describe('editTimer', () => {
   it('allows first deadline extension', async () => {
     const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z') // 2h later
-    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const timer = await db.timers.get(id!)
     expect(timer?.targetDatetime.getTime()).toBe(extended.getTime())
   })
@@ -97,9 +98,9 @@ describe('editTimer', () => {
   it('blocks a second extension', async () => {
     const id = await createTimer(BASE, null)
     const first = new Date('2026-06-01T14:00:00Z')
-    await editTimer(id!, { targetDatetime: first, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: first, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const second = new Date('2026-06-01T16:00:00Z')
-    await editTimer(id!, { targetDatetime: second, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: second, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const timer = await db.timers.get(id!)
     // targetDatetime should still be `first`, not `second`
     expect(timer?.targetDatetime.getTime()).toBe(first.getTime())
@@ -117,9 +118,9 @@ describe('editTimer', () => {
   it('allows reducing the deadline even after an extension', async () => {
     const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z')
-    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const earlier = new Date('2026-06-01T11:00:00Z')
-    await editTimer(id!, { targetDatetime: earlier, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: earlier, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const timer = await db.timers.get(id!)
     expect(timer?.targetDatetime.getTime()).toBe(earlier.getTime())
   })
@@ -127,7 +128,7 @@ describe('editTimer', () => {
   it('sets syncStatus pending on a successful edit', async () => {
     const id = await createTimer(BASE, null)
     const extended = new Date('2026-06-01T14:00:00Z')
-    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium' })
+    await editTimer(id!, { targetDatetime: extended, title: 'Test', emoji: null, priority: 'medium', tagIds: [] })
     const timer = await db.timers.get(id!)
     expect(timer?.syncStatus).toBe('pending')
   })
@@ -233,6 +234,7 @@ describe('bulkImportTimers', () => {
         status: 'active',
         priority: 'medium',
         recurrenceRule: null,
+        tagIds: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         serverId: null,

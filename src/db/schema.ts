@@ -1,6 +1,6 @@
-import type { GroupConditions } from '@cw/filters'
+import type { FieldCondition, GroupConditions } from '@cw/filters'
 
-export type { GroupConditions }
+export type { FieldCondition, GroupConditions }
 
 export const TIMER_STATUSES = ['active', 'fired', 'completed', 'missed', 'cancelled'] as const
 export type TimerStatus = typeof TIMER_STATUSES[number]

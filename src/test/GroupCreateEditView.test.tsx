@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
 import { SyncStatuses } from '../db/schema'
 import type { Group } from '../db/schema'
@@ -45,7 +45,7 @@ describe('GroupCreateEditView', () => {
 
   it('calls onDone after saving', async () => {
     const onDone = vi.fn()
-    render(<GroupCreateEditView userId="user-1" onDone={onDone} />)
+    render(<GroupCreateEditView userId="user-1" onDone={onDone} onCancel={() => {}} />)
 
     fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
       target: { value: 'My Group' },
@@ -85,7 +85,7 @@ describe('GroupCreateEditView', () => {
     const existing = await db.groups.get(id)
     if (!existing) throw new Error('group not found')
 
-    render(<GroupCreateEditView userId="user-1" onDone={() => {}} existing={existing} />)
+    render(<GroupCreateEditView userId="user-1" onDone={() => {}} onCancel={() => {}} existing={existing} />)
 
     expect(screen.getByRole('textbox', { name: /name/i })).toHaveValue('High Priority')
   })
@@ -95,7 +95,7 @@ describe('GroupCreateEditView', () => {
     const existing = await db.groups.get(id)
     if (!existing) throw new Error('group not found')
 
-    render(<GroupCreateEditView userId="user-1" onDone={() => {}} existing={existing} />)
+    render(<GroupCreateEditView userId="user-1" onDone={() => {}} onCancel={() => {}} existing={existing} />)
 
     fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
       target: { value: 'Renamed Group' },

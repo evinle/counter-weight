@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { fromPartial } from '@total-typescript/shoehorn'
 import { TRPCClientError } from '@trpc/client'
 import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -49,6 +50,7 @@ const BASE_TIMER = {
   status: 'active' as const,
   priority: 'medium' as const,
   recurrenceRule: null,
+  tagIds: [] as string[],
   createdAt: new Date(),
   updatedAt: new Date(),
   userId: 'user-1',
@@ -75,10 +77,10 @@ describe('useSyncEngine', () => {
       syncStatus: 'pending',
     })
 
-    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce(fromPartial({
       serverId: 'srv-uuid',
       version: 1,
-    })
+    }))
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
@@ -143,25 +145,16 @@ describe('useSyncEngine', () => {
   })
 
   it('reconcile: adds a server record not present in Dexie', async () => {
-    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({ serverId: 'x', version: 1 })
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce(fromPartial({ serverId: 'x', version: 1 }))
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
       serverNow: '2026-06-08T00:00:00.000Z',
-      timers: [{
+      timers: [fromPartial({
         id: 'srv-new',
         title: 'From Server',
-        description: null,
-        emoji: null,
-        targetDatetime: '2026-06-01T12:00:00.000Z',
-        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
         status: 'active',
-        priority: 'medium',
-        recurrenceRule: null,
         version: 1,
-        createdAt: '2026-05-01T00:00:00.000Z',
-        updatedAt: '2026-05-01T00:00:00.000Z',
         userId: 'user-1',
-        eventbridgeScheduleId: null,
-      }],
+      })],
     })
 
     renderHook(() => useSyncEngine({ user: USER }))
@@ -182,22 +175,13 @@ describe('useSyncEngine', () => {
 
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
       serverNow: '2026-06-08T00:00:00.000Z',
-      timers: [{
+      timers: [fromPartial({
         id: 'srv-existing',
         title: 'Updated By Server',
-        description: null,
-        emoji: null,
-        targetDatetime: '2026-06-01T12:00:00.000Z',
-        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
         status: 'active',
-        priority: 'medium',
-        recurrenceRule: null,
         version: 2,
-        createdAt: '2026-05-01T00:00:00.000Z',
-        updatedAt: '2026-05-01T00:00:00.000Z',
         userId: 'user-1',
-        eventbridgeScheduleId: null,
-      }],
+      })],
     })
 
     renderHook(() => useSyncEngine({ user: USER }))
@@ -212,14 +196,14 @@ describe('useSyncEngine', () => {
 
 describe('live query drain trigger', () => {
   it('drains a pending timer added after mount without calling reconcile', async () => {
-    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValue({ serverId: 'x', version: 1 })
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValue(fromPartial({ serverId: 'x', version: 1 }))
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValue({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
 
     vi.clearAllMocks()
-    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce({ serverId: 'srv-live', version: 1 })
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce(fromPartial({ serverId: 'srv-live', version: 1 }))
 
     const id = await db.timers.add({
       ...BASE_TIMER,
@@ -327,22 +311,13 @@ describe('triggerSync', () => {
     vi.clearAllMocks()
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
       serverNow: '2026-06-08T00:00:00.000Z',
-      timers: [{
+      timers: [fromPartial({
         id: 'srv-trigger-new',
         title: 'Pulled By triggerSync',
-        description: null,
-        emoji: null,
-        targetDatetime: '2026-06-01T12:00:00.000Z',
-        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
         status: 'active',
-        priority: 'medium',
-        recurrenceRule: null,
         version: 1,
-        createdAt: '2026-05-01T00:00:00.000Z',
-        updatedAt: '2026-05-01T00:00:00.000Z',
         userId: 'user-1',
-        eventbridgeScheduleId: null,
-      }],
+      })],
     })
 
     await triggerSync()
@@ -368,22 +343,13 @@ describe('triggerSync', () => {
     vi.clearAllMocks()
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
       serverNow: '2026-06-08T00:00:00.000Z',
-      timers: [{
+      timers: [fromPartial({
         id: 'srv-stale',
         title: 'Refreshed By triggerSync',
-        description: null,
-        emoji: null,
-        targetDatetime: '2026-06-01T12:00:00.000Z',
-        originalTargetDatetime: '2026-06-01T12:00:00.000Z',
         status: 'active',
-        priority: 'medium',
-        recurrenceRule: null,
         version: 3,
-        createdAt: '2026-05-01T00:00:00.000Z',
-        updatedAt: '2026-05-01T00:00:00.000Z',
         userId: 'user-1',
-        eventbridgeScheduleId: null,
-      }],
+      })],
     })
 
     await triggerSync()
@@ -431,15 +397,13 @@ describe('tag drain', () => {
     vi.mocked(trpc.tags.upsert.mutate).mockRejectedValueOnce(conflictError)
     vi.mocked(trpc.tags.reconcile.query)
       .mockResolvedValueOnce({
-        tags: [{
+        tags: [fromPartial({
           id: 'tag-existing',
           name: 'Server Name',
           color: '#ffffff',
           emoji: null,
           version: 5,
-          createdAt: '2026-05-01T00:00:00.000Z',
-          updatedAt: '2026-05-01T00:00:00.000Z',
-        }],
+        })],
         serverNow: '2026-06-08T00:00:00.000Z',
       })
       .mockResolvedValueOnce(EMPTY_TAGS_RECONCILE)
@@ -470,7 +434,7 @@ describe('tag delete drain', () => {
   it('drains a deleted tag: calls server delete then hard-deletes from Dexie', async () => {
     const id = await db.tags.add({ ...BASE_TAG, serverId: 'tag-srv-1', syncStatus: SyncStatuses.Deleted })
 
-    vi.mocked(trpc.tags.delete.mutate).mockResolvedValueOnce(undefined)
+    vi.mocked(trpc.tags.delete.mutate).mockResolvedValueOnce({ ok: true })
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 
     renderHook(() => useSyncEngine({ user: USER }))
@@ -508,15 +472,12 @@ describe('tag delete drain', () => {
     vi.mocked(trpc.tags.delete.mutate).mockRejectedValueOnce(new Error('network error'))
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-14T00:00:00.000Z' })
     vi.mocked(trpc.tags.reconcile.query).mockResolvedValueOnce({
-      tags: [{
+      tags: [fromPartial({
         id: 'tag-srv-3',
         name: 'Work',
-        color: '#ff0000',
-        emoji: null,
         version: 1,
-        createdAt: '2026-05-01T00:00:00.000Z',
         updatedAt: '2026-06-09T00:00:00.000Z', // older than local deletion
-      }],
+      })],
       serverNow: '2026-06-14T00:00:00.000Z',
     })
 
