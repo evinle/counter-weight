@@ -5,7 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
 import { SyncStatuses } from '../db/schema'
-import { useSyncEngine, triggerSync } from '../hooks/useSyncEngine'
+import { useSyncEngine } from '../hooks/useSyncEngine'
 import type { AuthUser } from '../hooks/useAuth'
 
 // Mock the tRPC client
@@ -297,7 +297,8 @@ describe('drain routing by status', () => {
 
 describe('triggerSync', () => {
   it('is a no-op when user is null', async () => {
-    await triggerSync()
+    const { result } = renderHook(() => useSyncEngine({ user: null }))
+    await result.current.triggerSync()
     expect(trpc.timers.reconcile.query).not.toHaveBeenCalled()
     expect(trpc.timers.upsert.mutate).not.toHaveBeenCalled()
   })
@@ -305,7 +306,7 @@ describe('triggerSync', () => {
   it('adds a server record not present in Dexie without calling upsert', async () => {
     // Let the mount sync settle with an empty reconcile response, then trigger
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
-    renderHook(() => useSyncEngine({ user: USER }))
+    const { result } = renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
 
     vi.clearAllMocks()
@@ -320,7 +321,7 @@ describe('triggerSync', () => {
       })],
     })
 
-    await triggerSync()
+    await result.current.triggerSync()
 
     const timers = await db.timers.toArray()
     expect(timers.some(t => t.serverId === 'srv-trigger-new' && t.title === 'Pulled By triggerSync')).toBe(true)
@@ -337,7 +338,7 @@ describe('triggerSync', () => {
 
     // Let the mount sync settle with an empty reconcile response, then trigger
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
-    renderHook(() => useSyncEngine({ user: USER }))
+    const { result } = renderHook(() => useSyncEngine({ user: USER }))
     await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
 
     vi.clearAllMocks()
@@ -352,7 +353,7 @@ describe('triggerSync', () => {
       })],
     })
 
-    await triggerSync()
+    await result.current.triggerSync()
 
     const timer = await db.timers.get(id)
     expect(timer?.title).toBe('Refreshed By triggerSync')

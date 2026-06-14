@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { isTRPCClientError } from "@trpc/client";
 import { db } from "../db";
 import { SyncStatuses, TimerStatuses } from "../db/schema";
@@ -9,8 +9,7 @@ import type { AuthUser } from "./useAuth";
 
 const LAST_SYNCED_KEY = "cw:lastSyncedAt";
 
-let syncRunning = false;
-let currentUser: AuthUser | null = null;
+type RunningRef = { current: boolean };
 
 type ServerTimer = Awaited<ReturnType<typeof trpc.timers.list.query>>[number];
 type ServerTag = Awaited<ReturnType<typeof trpc.tags.reconcile.query>>["tags"][number];
@@ -407,19 +406,19 @@ const PIPELINE: AdapterStep[] = [
   wrapAdapter(timerAdapter),
 ];
 
-async function drainAll(user: AuthUser) {
-  if (syncRunning) return;
-  syncRunning = true;
+async function drainAll(user: AuthUser, running: RunningRef) {
+  if (running.current) return;
+  running.current = true;
   try {
     for (const step of PIPELINE) await step.drain(user);
   } finally {
-    syncRunning = false;
+    running.current = false;
   }
 }
 
-async function reconcileAll(user: AuthUser) {
-  if (syncRunning) return;
-  syncRunning = true;
+async function reconcileAll(user: AuthUser, running: RunningRef) {
+  if (running.current) return;
+  running.current = true;
   try {
     const since = localStorage.getItem(LAST_SYNCED_KEY);
     let latestServerNow: string | undefined;
@@ -428,24 +427,17 @@ async function reconcileAll(user: AuthUser) {
     }
     if (latestServerNow) localStorage.setItem(LAST_SYNCED_KEY, latestServerNow);
   } finally {
-    syncRunning = false;
+    running.current = false;
   }
 }
 
-async function sync(user: AuthUser) {
-  await drainAll(user);
-  await reconcileAll(user);
-}
-
-export async function triggerSync(): Promise<void> {
-  if (!currentUser) return;
-  await reconcileAll(currentUser);
+async function sync(user: AuthUser, running: RunningRef) {
+  await drainAll(user, running);
+  await reconcileAll(user, running);
 }
 
 export function useSyncEngine({ user }: { user: AuthUser | null }) {
-  useEffect(() => {
-    currentUser = user;
-  }, [user]);
+  const running = useRef(false);
 
   const pendingTimers = useLiveQuery(
     (): Promise<Timer[]> =>
@@ -462,19 +454,19 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
 
   useEffect(() => {
     if (!user || !pendingTimers.length) return;
-    drainAll(user);
+    drainAll(user, running);
   }, [pendingTimers, user?.userId]);
 
   useEffect(() => {
     if (!user) return;
 
-    sync(user);
+    sync(user, running);
 
     function handleOnline() {
-      sync(user!);
+      sync(user!, running);
     }
     function handleVisibility() {
-      if (document.visibilityState === "visible") sync(user!);
+      if (document.visibilityState === "visible") sync(user!, running);
     }
 
     window.addEventListener("online", handleOnline);
@@ -485,4 +477,11 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [user?.userId]);
+
+  return {
+    triggerSync: async () => {
+      if (!user) return;
+      await reconcileAll(user, running);
+    },
+  };
 }
