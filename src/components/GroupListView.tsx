@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useGroups, deleteGroup } from "../hooks/useGroups";
 import { ScreenTitle } from "./ScreenTitle";
 import type { Group } from "../db/schema";
@@ -13,11 +13,24 @@ interface Props {
 export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
   const groups = useGroups(userId);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const dropTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function handleConfirmDelete(group: Group) {
-    await deleteGroup(group);
-    setConfirmingId(null);
+  function armDrop(id: number) {
+    setConfirmingId(id);
+    dropTimeoutRef.current = setTimeout(() => setConfirmingId(null), 2000);
   }
+
+  async function confirmDrop(group: Group) {
+    if (dropTimeoutRef.current) clearTimeout(dropTimeoutRef.current);
+    setConfirmingId(null);
+    await deleteGroup(group);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (dropTimeoutRef.current) clearTimeout(dropTimeoutRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-auto">
@@ -59,22 +72,13 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
             </span>
 
             {confirmingId === group.id ? (
-              <div className="flex gap-2">
-                <button
-                  aria-label="Confirm delete"
-                  onClick={() => handleConfirmDelete(group)}
-                  className="text-base font-medium text-white bg-red-700 rounded-xl px-4 py-3 min-h-[48px] hover:bg-red-600 active:scale-95 transition-all"
-                >
-                  DROP?
-                </button>
-                <button
-                  aria-label="Cancel"
-                  onClick={() => setConfirmingId(null)}
-                  className="text-base font-medium text-white bg-slate-600 rounded-xl px-4 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                aria-label="Confirm delete"
+                onClick={() => void confirmDrop(group)}
+                className="text-base font-medium text-white bg-red-700 rounded-xl px-4 py-3 min-h-[48px] hover:bg-red-600 active:scale-95 transition-all"
+              >
+                DROP?
+              </button>
             ) : (
               <div className="flex gap-2">
                 <button
@@ -86,7 +90,7 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
                 </button>
                 <button
                   aria-label={`Delete ${group.name}`}
-                  onClick={() => setConfirmingId(group.id ?? null)}
+                  onClick={() => armDrop(group.id ?? 0)}
                   className="text-base font-medium text-white bg-slate-600 rounded-xl w-12 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
                 >
                   🗑️
