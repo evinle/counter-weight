@@ -299,7 +299,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
     const selectClass =
       "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none";
     const inputClass =
-      "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none";
+      "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none min-w-0";
 
     if (draft.field === "tags") {
       return (
