@@ -41,6 +41,45 @@ export function useNotifications({
   );
 
   useEffect(() => {
+    // status.state uses 'prompt' where NotificationPermission uses 'default'
+    const fromStatusState = (state: PermissionState): NotificationPermission =>
+      state === "prompt" ? "default" : state;
+
+    const syncFromNotification = () => {
+      if ("Notification" in window) setPermission(Notification.permission);
+    };
+
+    let cleanup: (() => void) | undefined;
+
+    if ("permissions" in navigator) {
+      navigator.permissions
+        .query({ name: "notifications" })
+        .then((status) => {
+          setPermission(fromStatusState(status.state));
+          const onChange = () => setPermission(fromStatusState(status.state));
+          status.addEventListener("change", onChange);
+          cleanup = () => status.removeEventListener("change", onChange);
+        })
+        .catch(() =>
+          console.warn(
+            "[useNotifications] failed to query notifications status change",
+          ),
+        );
+    }
+
+    // Fallback for Safari, which doesn't support permissions.query for notifications
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") syncFromNotification();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cleanup?.();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       console.warn("No user, skipping notifications registration");
       return;
@@ -57,7 +96,12 @@ export function useNotifications({
     }
 
     subscribeAndRegister()
-      .then(() => console.log("[useNotifications] Successfully registered"))
+      .then(() => {
+        console.log("[useNotifications] Successfully registered");
+        setPermission(
+          "Notification" in window ? Notification.permission : "denied",
+        );
+      })
       .catch((err) => console.error("[useNotifications]", err));
   }, [user, permission]);
 

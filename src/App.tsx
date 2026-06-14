@@ -207,7 +207,8 @@ export function App() {
           </div>
         )}
         {notifPermission === "default" &&
-          activeAction === ActiveAction.None && (
+          activeAction === ActiveAction.None &&
+          state === "authenticated" && (
             <div
               className="fixed left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
               style={{ bottom: "calc(var(--spacing-bottom-bar-inset) + 1rem)" }}
