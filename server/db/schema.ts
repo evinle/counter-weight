@@ -1,6 +1,7 @@
 import {
   pgTable, pgEnum, text, uuid, timestamp, integer, jsonb, index, unique, primaryKey,
 } from 'drizzle-orm/pg-core'
+import type { GroupConditions } from '../api/routers/groups.js'
 
 export const TimerStatus = {
   Active: 'active',
@@ -142,6 +143,25 @@ export const timerTags = pgTable(
     tagId: uuid('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
   },
   (t) => [primaryKey({ columns: [t.timerId, t.tagId] })],
+)
+
+export const groups = pgTable(
+  'groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => users.id),
+    name: text('name').notNull(),
+    emoji: text('emoji'),
+    color: text('color'),
+    conditions: jsonb('conditions').$type<GroupConditions>().notNull().default({ op: 'AND', conditions: [] }),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('groups_user_idx').on(t.userId),
+    index('groups_updated_at_idx').on(t.updatedAt),
+  ],
 )
 
 export const timerEvents = pgTable('timer_events', {

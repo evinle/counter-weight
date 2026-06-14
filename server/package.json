@@ -10,6 +10,7 @@
     "migrate:aws": "dotenv -- tsx scripts/migrate.ts"
   },
   "dependencies": {
+    "@cw/filters": "*",
     "@aws-sdk/client-scheduler": "^3.1057.0",
     "@aws-sdk/client-secrets-manager": "^3.0.0",
     "@aws/durable-execution-sdk-js": "^1.1.7",

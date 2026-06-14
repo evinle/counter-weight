@@ -7,6 +7,7 @@ import { createContext } from "./context.js";
 import { authRouter } from "./routers/auth.js";
 import { timersRouter } from "./routers/timers.js";
 import { tagsRouter } from "./routers/tags.js";
+import { groupsRouter } from "./routers/groups.js";
 import { pushSubscriptionsRouter } from "./routers/pushSubscriptions.js";
 import { router } from "./router.js";
 import { parseEnv } from "../env.js";
@@ -18,6 +19,7 @@ export const appRouter = router({
   auth: authRouter,
   timers: timersRouter,
   tags: tagsRouter,
+  groups: groupsRouter,
   pushSubscriptions: pushSubscriptionsRouter,
 });
 

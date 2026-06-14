@@ -6,6 +6,7 @@ import { mockEnv } from '../../test/envHelpers.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
 import { createFakeTagsDb } from '../../test/fakes/tagsDb.js'
+import { createFakeGroupsDb } from '../../test/fakes/groupsDb.js'
 import type { FakeTimersDb } from '../../test/fakes/timersDb.js'
 import type { FakeScheduler } from '../../test/fakes/scheduler.js'
 import type { FakeTagsDb } from '../../test/fakes/tagsDb.js'
@@ -64,7 +65,7 @@ const EXISTING_TIMER = {
 } satisfies TimerRecord
 
 function makeCtx(userId: string | null, timersDb: FakeTimersDb, scheduler: Scheduler, tagsDb?: FakeTagsDb) {
-  return { userId, db: createFakeDb(), timersDb, tagsDb: tagsDb ?? createFakeTagsDb(), scheduler, userAgent: null }
+  return { userId, db: createFakeDb(), timersDb, tagsDb: tagsDb ?? createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler, userAgent: null }
 }
 
 let fakeDb: FakeTimersDb

@@ -23,6 +23,11 @@ vi.mock('../lib/trpc', () => ({
       delete: { mutate: vi.fn() },
       reconcile: { query: vi.fn() },
     },
+    groups: {
+      upsert: { mutate: vi.fn() },
+      delete: { mutate: vi.fn() },
+      reconcile: { query: vi.fn() },
+    },
   },
   idToken: 'mock-token',
   setIdToken: vi.fn(),
@@ -31,6 +36,7 @@ vi.mock('../lib/trpc', () => ({
 import { trpc } from '../lib/trpc'
 
 const EMPTY_TAGS_RECONCILE = { tags: [], serverNow: '2026-06-08T00:00:00.000Z' }
+const EMPTY_GROUPS_RECONCILE = { groups: [], serverNow: '2026-06-08T00:00:00.000Z' }
 
 const USER = { userId: 'user-1', email: 'user@example.com', firstName: 'Test' } satisfies AuthUser
 
@@ -52,9 +58,11 @@ const BASE_TIMER = {
 beforeEach(async () => {
   await db.timers.clear()
   await db.tags.clear()
+  await db.groups.clear()
   vi.clearAllMocks()
   localStorage.clear()
   vi.mocked(trpc.tags.reconcile.query).mockResolvedValue(EMPTY_TAGS_RECONCILE)
+  vi.mocked(trpc.groups.reconcile.query).mockResolvedValue(EMPTY_GROUPS_RECONCILE)
   // Reset module-level currentUser between tests
   renderHook(() => useSyncEngine({ user: null }))
 })
