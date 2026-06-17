@@ -1,13 +1,15 @@
 export const STORAGE_PREFIX = 'cw'
 export const STORAGE_SEP = ':'
 
-const LOCAL_STORAGE_KEYS = ['LastSyncedAt', 'Bootstrapped', 'LastUser'] as const
+const LOCAL_STORAGE_KEYS = ['LastSyncedAt', 'Bootstrapped', 'LastUser', 'SortMode', 'SortDirection'] as const
 export type LocalStorageKey = typeof LOCAL_STORAGE_KEYS[number]
 
 export const StorageKey = {
   LastSyncedAt: `${STORAGE_PREFIX}${STORAGE_SEP}lastSyncedAt`,
   Bootstrapped: `${STORAGE_PREFIX}${STORAGE_SEP}bootstrapped`,
   LastUser: `${STORAGE_PREFIX}${STORAGE_SEP}lastUser`,
+  SortMode: `${STORAGE_PREFIX}${STORAGE_SEP}sortMode`,
+  SortDirection: `${STORAGE_PREFIX}${STORAGE_SEP}sortDirection`,
 } as const satisfies Record<LocalStorageKey, string>
 export type StorageKey = typeof StorageKey[keyof typeof StorageKey]
 

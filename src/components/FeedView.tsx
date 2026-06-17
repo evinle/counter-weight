@@ -1,7 +1,10 @@
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
+import { useSortMode } from "../hooks/useSortMode";
 import { TimerCard } from "./TimerCard";
 import { GroupSearchPanel } from "./GroupSearchPanel";
+import { SortModes, SortDirections } from "../lib/sort";
+import type { SortMode } from "../lib/sort";
 import type { Timer } from "../db/schema";
 
 interface Props {
@@ -10,9 +13,23 @@ interface Props {
   userId: string | null;
 }
 
+const SORT_MODE_LABELS: Record<SortMode, string> = {
+  smart: "Smart",
+  targetDatetime: "Date",
+  createdAt: "Created",
+  priority: "Priority",
+  title: "Title",
+};
+
+const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
+
 export function FeedView({ onEdit, onManageGroups, userId }: Props) {
-  const timers = useFilteredFeed();
+  const { mode, setMode, direction, setDirection } = useSortMode();
+  const timers = useFilteredFeed(mode, direction);
   const tagsMap = useTagsMap();
+
+  const toggleDirection = () =>
+    setDirection(direction === SortDirections.Asc ? SortDirections.Desc : SortDirections.Asc);
 
   const renderTimersContent = () =>
     timers.length === 0 ? (
@@ -34,6 +51,33 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
         <h1 className="text-2xl font-bold tracking-tight text-white">Timers</h1>
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
       </div>
+
+      <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
+        <button
+          onClick={toggleDirection}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          aria-label={direction === SortDirections.Asc ? "Ascending" : "Descending"}
+        >
+          {direction === SortDirections.Asc ? "↑" : "↓"}
+        </button>
+
+        <div className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+          {ALL_SORT_MODES.map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex-shrink-0 snap-start px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                mode === m
+                  ? "bg-slate-600 text-white"
+                  : "text-slate-400 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              {SORT_MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {renderTimersContent()}
     </div>
   );
