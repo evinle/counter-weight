@@ -14,11 +14,11 @@ interface Props {
 }
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
-  smart: "Smart",
-  targetDatetime: "Date",
-  createdAt: "Created",
-  priority: "Priority",
-  title: "Title",
+  smart: "⚡ Smart",
+  targetDatetime: "📅 Date",
+  createdAt: "🕐 Created",
+  priority: "🔥 Priority",
+  title: "🔤 Title",
 };
 
 const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
