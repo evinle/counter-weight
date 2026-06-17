@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useScrollEdges } from "../hooks/useScrollEdges";
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
 import { useSortMode } from "../hooks/useSortMode";
@@ -29,6 +30,7 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
   const timers = useFilteredFeed(mode, direction);
   const tagsMap = useTagsMap();
   const activePillRef = useRef<HTMLButtonElement>(null);
+  const { scrollRef, showLeft, showRight } = useScrollEdges();
 
   useEffect(() => {
     activePillRef.current?.scrollIntoView({ behavior: "instant", block: "nearest", inline: "start" });
@@ -67,21 +69,25 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
           {direction === SortDirections.Asc ? "↑" : "↓"}
         </button>
 
-        <div className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
-          {ALL_SORT_MODES.map((m) => (
-            <button
-              key={m}
-              ref={mode === m ? activePillRef : null}
-              onClick={() => setMode(m)}
-              className={`flex-shrink-0 snap-start px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                mode === m
-                  ? "bg-slate-600 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-slate-700"
-              }`}
-            >
-              {SORT_MODE_LABELS[m]}
-            </button>
-          ))}
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          {showLeft && <span className="flex-shrink-0 text-slate-500 text-xl">‹</span>}
+          <div ref={scrollRef} className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0">
+            {ALL_SORT_MODES.map((m) => (
+              <button
+                key={m}
+                ref={mode === m ? activePillRef : null}
+                onClick={() => setMode(m)}
+                className={`flex-shrink-0 snap-start px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  mode === m
+                    ? "bg-slate-600 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                {SORT_MODE_LABELS[m]}
+              </button>
+            ))}
+          </div>
+          {showRight && <span className="flex-shrink-0 text-slate-500 text-xl">›</span>}
         </div>
       </div>
 
