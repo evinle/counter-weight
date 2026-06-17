@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isTRPCClientError } from "@trpc/client";
 import { db } from "../db";
 import { SyncStatuses, TimerStatuses } from "../db/schema";
@@ -438,6 +438,17 @@ async function sync(user: AuthUser, running: RunningRef) {
 
 export function useSyncEngine({ user }: { user: AuthUser | null }) {
   const running = useRef(false);
+  const [syncing, setSyncing] = useState(false);
+
+  async function runWithState(fn: () => Promise<void>) {
+    if (running.current) return;
+    setSyncing(true);
+    try {
+      await fn();
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const pendingTimers = useLiveQuery(
     (): Promise<Timer[]> =>
@@ -454,19 +465,19 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
 
   useEffect(() => {
     if (!user || !pendingTimers.length) return;
-    drainAll(user, running);
+    runWithState(() => drainAll(user, running));
   }, [pendingTimers, user?.userId]);
 
   useEffect(() => {
     if (!user) return;
 
-    sync(user, running);
+    runWithState(() => sync(user, running));
 
     function handleOnline() {
-      sync(user!, running);
+      runWithState(() => sync(user!, running));
     }
     function handleVisibility() {
-      if (document.visibilityState === "visible") sync(user!, running);
+      if (document.visibilityState === "visible") runWithState(() => sync(user!, running));
     }
 
     window.addEventListener("online", handleOnline);
@@ -479,9 +490,10 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
   }, [user?.userId]);
 
   return {
+    syncing,
     triggerSync: async () => {
       if (!user) return;
-      await reconcileAll(user, running);
+      await runWithState(() => reconcileAll(user, running));
     },
   };
 }

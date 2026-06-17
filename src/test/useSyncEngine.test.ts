@@ -295,6 +295,47 @@ describe('drain routing by status', () => {
   })
 })
 
+describe('syncing state', () => {
+  it('is false when no sync is running', () => {
+    const { result } = renderHook(() => useSyncEngine({ user: null }))
+    expect(result.current.syncing).toBe(false)
+  })
+
+  it('is true during auto-sync on mount, false after it resolves', async () => {
+    let resolveReconcile!: () => void
+    const reconcilePromise = new Promise<{ timers: []; serverNow: string }>((res) => {
+      resolveReconcile = () => res({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+    })
+    vi.mocked(trpc.timers.reconcile.query).mockReturnValueOnce(reconcilePromise)
+
+    const { result } = renderHook(() => useSyncEngine({ user: USER }))
+    await waitFor(() => expect(result.current.syncing).toBe(true))
+
+    resolveReconcile()
+    await waitFor(() => expect(result.current.syncing).toBe(false))
+  })
+
+  it('is true while triggerSync is in flight, false after it resolves', async () => {
+    let resolveReconcile!: () => void
+    const reconcilePromise = new Promise<{ timers: []; serverNow: string }>((res) => {
+      resolveReconcile = () => res({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+    })
+    vi.mocked(trpc.timers.reconcile.query)
+      .mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+      .mockReturnValueOnce(reconcilePromise)
+
+    const { result } = renderHook(() => useSyncEngine({ user: USER }))
+    await waitFor(() => expect(trpc.timers.reconcile.query).toHaveBeenCalledTimes(1))
+
+    const syncPromise = result.current.triggerSync()
+    await waitFor(() => expect(result.current.syncing).toBe(true))
+
+    resolveReconcile()
+    await syncPromise
+    await waitFor(() => expect(result.current.syncing).toBe(false))
+  })
+})
+
 describe('triggerSync', () => {
   it('is a no-op when user is null', async () => {
     const { result } = renderHook(() => useSyncEngine({ user: null }))

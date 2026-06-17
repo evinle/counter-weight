@@ -16,6 +16,7 @@ import { Tab, ActiveAction } from "./lib/navigation";
 import type { Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
+import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useNotifications } from "./hooks/useNotifications";
 import { LoginView } from "./components/LoginView";
 import { UnclaimedTimersModal } from "./components/UnclaimedTimersModal";
@@ -37,7 +38,10 @@ export function App() {
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user } = useAuth();
-  useSyncEngine({ user });
+  const { syncing, triggerSync } = useSyncEngine({ user });
+  const { containerRef, pullDistance } = usePullToRefresh({
+    onRefresh: user ? triggerSync : null,
+  });
 
   const [unclaimedDismissed, setUnclaimedDismissed] = useState(false);
   useEffect(() => {
@@ -246,7 +250,21 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
+      <div ref={containerRef} className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
+        {(pullDistance > 0 || syncing) && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-50 w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg"
+            style={{
+              top: syncing && pullDistance === 0 ? "8px" : `${pullDistance - 36}px`,
+              transition: pullDistance === 0 ? "top 0.15s ease-out" : "none",
+            }}
+          >
+            {syncing
+              ? <div className="w-5 h-5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+              : <span className="text-slate-300 text-sm leading-none">↓</span>
+            }
+          </div>
+        )}
         <ToastContainer />
         {swDebug && (
           <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
