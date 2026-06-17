@@ -60,7 +60,7 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
       </div>
 
-      <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
+      <div className="sticky top-0 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
         <button
           onClick={toggleDirection}
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
