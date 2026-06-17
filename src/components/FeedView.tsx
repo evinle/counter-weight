@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
 import { useSortMode } from "../hooks/useSortMode";
@@ -27,6 +28,11 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
   const { mode, setMode, direction, setDirection } = useSortMode();
   const timers = useFilteredFeed(mode, direction);
   const tagsMap = useTagsMap();
+  const activePillRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    activePillRef.current?.scrollIntoView({ behavior: "instant", block: "nearest", inline: "start" });
+  }, [mode]);
 
   const toggleDirection = () =>
     setDirection(direction === SortDirections.Asc ? SortDirections.Desc : SortDirections.Asc);
@@ -65,6 +71,7 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
           {ALL_SORT_MODES.map((m) => (
             <button
               key={m}
+              ref={mode === m ? activePillRef : null}
               onClick={() => setMode(m)}
               className={`flex-shrink-0 snap-start px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 mode === m
