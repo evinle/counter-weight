@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
+import { timerScheduleKeys } from "../scheduler.js";
 
 export type InsertTimerVals = {
   userId: string
@@ -128,7 +129,7 @@ export const timersRouter = router({
           });
 
         await ctx.scheduler.updateSchedule(
-          `timer-${input.serverId}`,
+          timerScheduleKeys(input.serverId).deadline,
           new Date(input.targetDatetime),
           {
             serverId: input.serverId,
@@ -162,7 +163,7 @@ export const timersRouter = router({
       });
 
       await ctx.scheduler.createSchedule(
-        `timer-${created.serverId}`,
+        timerScheduleKeys(created.serverId).deadline,
         new Date(input.targetDatetime),
         {
           serverId: created.serverId,
@@ -190,7 +191,7 @@ export const timersRouter = router({
         eventType: EventType.Completed,
       });
 
-      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`);
+      await ctx.scheduler.deleteSchedule(timerScheduleKeys(input.serverId).deadline);
 
       return { ok: true };
     }),
@@ -211,7 +212,7 @@ export const timersRouter = router({
         eventType: EventType.Cancelled,
       });
 
-      await ctx.scheduler.deleteSchedule(`timer-${input.serverId}`);
+      await ctx.scheduler.deleteSchedule(timerScheduleKeys(input.serverId).deadline);
 
       return { ok: true };
     }),

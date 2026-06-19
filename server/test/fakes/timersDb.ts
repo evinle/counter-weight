@@ -11,7 +11,7 @@ export type FakeTimersDb = TimersDb & {
 }
 
 export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTimersDb {
-  let idCounter = 0
+  let eventIdCounter = 0
   const timers: FakeTimer[] = opts.timers ? [...opts.timers] : []
   const timerEvents: FakeTimerEvent[] = []
 
@@ -28,9 +28,8 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
     },
 
     async insertTimer(vals: InsertTimerVals) {
-      idCounter++
       const row: FakeTimer = {
-        id: `timer-${idCounter}`,
+        id: crypto.randomUUID(),
         eventbridgeScheduleId: null,
         version: 1,
         createdAt: new Date(),
@@ -66,8 +65,8 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
     },
 
     async insertTimerEvent(vals) {
-      idCounter++
-      timerEvents.push({ id: `event-${idCounter}`, ...vals, occurredAt: new Date() })
+      eventIdCounter++
+      timerEvents.push({ id: `event-${eventIdCounter}`, ...vals, occurredAt: new Date() })
     },
 
     async reconcile(userId, since) {

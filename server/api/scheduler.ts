@@ -7,6 +7,32 @@ import {
   FlexibleTimeWindowMode,
 } from "@aws-sdk/client-scheduler";
 
+// `declare const` emits no JS — _scheduleKey exists only as a type-level identity.
+// `unique symbol` means TypeScript guarantees this symbol is distinct from every other symbol
+// in the program, making it an unforgeable brand key.
+// The intersection `string & { readonly [_scheduleKey]: true }` means ScheduleKey is assignable
+// to string (so it can be passed anywhere a string is expected), but a plain string is not
+// assignable to ScheduleKey — the only path in is through isScheduleKey's type guard.
+declare const _scheduleKey: unique symbol;
+export type ScheduleKey = string & { readonly [_scheduleKey]: true };
+
+export function timerScheduleKeys(serverId: string): { deadline: ScheduleKey; lead: ScheduleKey } {
+  return {
+    deadline: scheduleKey(`timer-${serverId}`),
+    lead: scheduleKey(`timer-lead-${serverId}`),
+  };
+}
+
+// After isScheduleKey returns true, TypeScript narrows s to ScheduleKey — no `as` cast needed.
+function scheduleKey(s: string): ScheduleKey {
+  if (!isScheduleKey(s)) throw new Error(`Invalid ScheduleKey: "${s}"`);
+  return s;
+}
+
+export function isScheduleKey(s: string): s is ScheduleKey {
+  return /^timer(-lead)?-/.test(s);
+}
+
 export type SchedulePayload = {
   serverId: string;
   userId: string;
