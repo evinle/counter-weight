@@ -33,6 +33,8 @@ const BASE_INPUT = {
   recurrenceRule: null,
   version: undefined,
   tagIds: [],
+  timerType: 'reminder',
+  leadTimeMs: null,
 } satisfies TimerUpsertInput
 
 const EXISTING_TAG = {
@@ -60,6 +62,8 @@ const EXISTING_TIMER = {
   eventbridgeScheduleId: null,
   version: 1,
   tagIds: [],
+  timerType: 'reminder',
+  leadTimeMs: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies TimerRecord

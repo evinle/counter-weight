@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { Timer, Tag, Group } from './schema'
-import { migrateV1toV2, migrateV2toV3, migrateV4toV5 } from './migrations'
+import { migrateV1toV2, migrateV2toV3, migrateV4toV5, migrateV5toV6 } from './migrations'
 
 class CounterWeightDB extends Dexie {
   timers!: EntityTable<Timer, 'id'>
@@ -42,6 +42,15 @@ class CounterWeightDB extends Dexie {
       tags: '++id, syncStatus, userId, serverId',
       groups: '++id, syncStatus, userId, serverId',
     })
+    this.version(7).stores({
+      timers: '++id, status, targetDatetime, priority, syncStatus, serverId, userId',
+      tags: '++id, syncStatus, userId, serverId',
+      groups: '++id, syncStatus, userId, serverId',
+    }).upgrade(tx =>
+      tx.table('timers').toCollection().modify(timer => {
+        Object.assign(timer, migrateV5toV6(timer))
+      })
+    )
   }
 }
 

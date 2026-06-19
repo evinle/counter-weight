@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { migrateV1toV2, migrateV2toV3 } from '../db/migrations'
-import type { TimerV1, TimerV2 } from '../db/schema'
+import { migrateV1toV2, migrateV2toV3, migrateV5toV6 } from '../db/migrations'
+import type { TimerV1, TimerV2, TimerV5 } from '../db/schema'
 
 const V1_FIXTURE = {
   title: 'Test',
@@ -27,6 +27,45 @@ describe('migrateV1toV2', () => {
     expect(v2.title).toBe('Test')
     expect(v2.status).toBe('active')
     expect(v2.groupId).toBeNull()
+  })
+})
+
+const V5_FIXTURE = {
+  title: 'My task',
+  description: null,
+  emoji: null,
+  targetDatetime: new Date('2026-06-01T12:00:00Z'),
+  originalTargetDatetime: new Date('2026-06-01T12:00:00Z'),
+  status: 'active',
+  priority: 'medium',
+  recurrenceRule: null,
+  serverId: null,
+  userId: null,
+  syncStatus: 'synced',
+  version: null,
+  tagIds: ['tag-a', 'tag-b'],
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
+} satisfies TimerV5
+
+describe('migrateV5toV6', () => {
+  it('defaults timerType to reminder', () => {
+    expect(migrateV5toV6(V5_FIXTURE).timerType).toBe('reminder')
+  })
+
+  it('defaults leadTimeMs to null', () => {
+    expect(migrateV5toV6(V5_FIXTURE).leadTimeMs).toBeNull()
+  })
+
+  it('defaults workSessions to empty array', () => {
+    expect(migrateV5toV6(V5_FIXTURE).workSessions).toEqual([])
+  })
+
+  it('preserves V5 fields', () => {
+    const v6 = migrateV5toV6(V5_FIXTURE)
+    expect(v6.title).toBe('My task')
+    expect(v6.status).toBe('active')
+    expect(v6.tagIds).toEqual(['tag-a', 'tag-b'])
   })
 })
 

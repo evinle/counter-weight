@@ -3,6 +3,12 @@ import {
 } from 'drizzle-orm/pg-core'
 import type { GroupConditions } from '../api/routers/groups.js'
 
+export const TimerType = {
+  Reminder: 'reminder',
+  Task: 'task',
+} as const satisfies Record<string, string>
+export type TimerType = typeof TimerType[keyof typeof TimerType]
+
 export const TimerStatus = {
   Active: 'active',
   Fired: 'fired',
@@ -73,6 +79,8 @@ export const timers = pgTable(
     priority: priorityEnum('priority').notNull().default('medium'),
     recurrenceRule: jsonb('recurrence_rule').$type<RecurrenceRule | null>(),
     eventbridgeScheduleId: text('eventbridge_schedule_id'), // M3 populates this
+    timerType: text('timer_type').notNull().default('reminder').$type<TimerType>(),
+    leadTimeMs: integer('lead_time_ms'),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

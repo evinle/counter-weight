@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
-import type { Priority, RecurrenceRule } from "../../db/schema.js";
+import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 
 export type InsertTimerVals = {
   userId: string
@@ -15,6 +15,8 @@ export type InsertTimerVals = {
   priority: Priority
   recurrenceRule: RecurrenceRule | null
   tagIds: string[]
+  timerType: TimerType
+  leadTimeMs: number | null
 }
 
 export type UpdateTimerVals = {
@@ -26,6 +28,8 @@ export type UpdateTimerVals = {
   priority: Priority
   recurrenceRule: RecurrenceRule | null
   tagIds: string[]
+  timerType: TimerType
+  leadTimeMs: number | null
 }
 
 export type TimerRecord = {
@@ -42,6 +46,8 @@ export type TimerRecord = {
   eventbridgeScheduleId: string | null
   version: number
   tagIds: string[]
+  timerType: TimerType
+  leadTimeMs: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -80,6 +86,8 @@ export const timerUpsertInput = z.object({
   recurrenceRule: z.object({ cron: z.string(), tz: z.string() }).nullable(),
   version: z.number().int().optional(),
   tagIds: z.array(z.string().uuid()).default([]),
+  timerType: z.enum(['reminder', 'task']),
+  leadTimeMs: z.number().int().nonnegative().nullable(),
 });
 
 export const timersRouter = router({
@@ -108,6 +116,8 @@ export const timersRouter = router({
             priority: input.priority,
             recurrenceRule: input.recurrenceRule,
             tagIds: input.tagIds,
+            timerType: input.timerType,
+            leadTimeMs: input.leadTimeMs,
           },
         );
 
@@ -141,6 +151,8 @@ export const timersRouter = router({
         priority: input.priority,
         recurrenceRule: input.recurrenceRule,
         tagIds: input.tagIds,
+        timerType: input.timerType,
+        leadTimeMs: input.leadTimeMs,
       });
 
       await ctx.timersDb.insertTimerEvent({

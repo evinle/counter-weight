@@ -54,7 +54,27 @@ export type TimerV4 = Omit<TimerV3, 'isFlagged' | 'groupId'>
 
 export type TimerV5 = TimerV4 & { tagIds: string[] }
 
-export type Timer = TimerV5
+export const TimerType = {
+  Reminder: 'reminder',
+  Task: 'task',
+} as const satisfies Record<string, string>
+export type TimerType = typeof TimerType[keyof typeof TimerType]
+export function isTimerType(v: unknown): v is TimerType {
+  return Object.values(TimerType).includes(v as TimerType)
+}
+
+export interface WorkSession {
+  startedAt: Date
+  endedAt: Date | null
+}
+
+export type TimerV6 = TimerV5 & {
+  timerType: TimerType
+  leadTimeMs: number | null
+  workSessions: WorkSession[]
+}
+
+export type Timer = TimerV6
 
 export interface Tag {
   id?: number
