@@ -25,3 +25,12 @@ The default global sort mode. Computes an urgency score per timer: `priorityWeig
 
 ### Sync Adapter
 A typed interface that wraps a single synced entity (timers, tags, groups) and plugs into the generic drain/reconcile loop in `useSyncEngine`. Each adapter provides `getPending`, `drain`, `getServerRecords`, `mapToLocal`, and conflict resolution hooks. Server wins on CONFLICT for all adapters.
+
+### Recurring Timer
+A timer with a non-null `recurrenceRule`. When the user completes a recurring timer, the server spawns a new timer instance for the next occurrence. The rule is copied verbatim to the spawned timer so the series continues indefinitely. Recurrence is a cloud-only feature — the UI disables it for guest users.
+
+### Recurrence Rule
+`{ cron: string; tz: string }` stored on a timer. `cron` is standard 5-field syntax (`minute hour day month weekday`); `tz` is an IANA timezone string. Acts as a spawn template — it is never executed in-place. The next occurrence is always the first future time matching the rule, computed from the moment of user dismissal.
+
+### Occurrence
+A single timer instance in a recurring series. Each occurrence is an independent timer row with its own `serverId` and `targetDatetime`. Completing an occurrence moves it to history and spawns the next. A missed or ignored occurrence does not automatically spawn the next — the series resumes from the next future match when the user eventually dismisses.

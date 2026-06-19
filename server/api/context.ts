@@ -77,13 +77,15 @@ export async function createContext({ req }: { req: FastifyRequest }) {
   const auth = req.headers.authorization;
   const userAgent = req.headers['user-agent'] ?? null;
 
-  if (!auth?.startsWith("Bearer ")) return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
+  const now = new Date();
+
+  if (!auth?.startsWith("Bearer ")) return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, now, userAgent };
 
   try {
     const payload = await getVerifier().verify(auth.slice(7));
-    return { userId: payload.sub, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
+    return { userId: payload.sub, db, timersDb, tagsDb, groupsDb, scheduler, now, userAgent };
   } catch {
-    return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, userAgent };
+    return { userId: null, db, timersDb, tagsDb, groupsDb, scheduler, now, userAgent };
   }
 }
 

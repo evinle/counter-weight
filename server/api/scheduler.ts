@@ -37,6 +37,7 @@ export type SchedulePayload = {
   serverId: string;
   userId: string;
   targetDatetime: string;
+  kind?: 'lead' | 'deadline';
 };
 
 export type Scheduler = {
@@ -92,18 +93,26 @@ export class AwsScheduler implements Scheduler {
     targetDatetime: Date,
     payload: SchedulePayload,
   ): Promise<void> {
-    await this.client.send(
-      new UpdateScheduleCommand({
-        Name: name,
-        ScheduleExpression: toExpression(targetDatetime),
-        FlexibleTimeWindow: { Mode: FlexibleTimeWindowMode.OFF },
-        Target: {
-          Arn: this.targetArn,
-          RoleArn: this.roleArn,
-          Input: JSON.stringify(payload),
-        },
-      }),
-    );
+    try {
+      await this.client.send(
+        new UpdateScheduleCommand({
+          Name: name,
+          ScheduleExpression: toExpression(targetDatetime),
+          FlexibleTimeWindow: { Mode: FlexibleTimeWindowMode.OFF },
+          Target: {
+            Arn: this.targetArn,
+            RoleArn: this.roleArn,
+            Input: JSON.stringify(payload),
+          },
+        }),
+      );
+    } catch (err) {
+      if (err instanceof ResourceNotFoundException) {
+        await this.createSchedule(name, targetDatetime, payload);
+        return;
+      }
+      throw err;
+    }
   }
 
   async deleteSchedule(name: string): Promise<void> {

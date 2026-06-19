@@ -109,6 +109,61 @@ describe('handleTimerFired', () => {
     expect(fakeDb.subscriptions).toHaveLength(2)
   })
 
+  // --- Cycle 4 ---
+
+  it('sends "Reminder: {title}" for kind=lead', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleTimerFired({ ...PAYLOAD, kind: 'lead' }, fakeDb, sendNotification)
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Reminder: Test timer' }),
+    )
+  })
+
+  it('sends "{title}" for kind=deadline', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleTimerFired({ ...PAYLOAD, kind: 'deadline' }, fakeDb, sendNotification)
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Test timer' }),
+    )
+  })
+
+  it('does not write a Fired event for kind=lead', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleTimerFired({ ...PAYLOAD, kind: 'lead' }, fakeDb, sendNotification)
+
+    // Assert
+    expect(fakeDb.timerEvents).toHaveLength(0)
+  })
+
+  it('defaults to deadline text when kind is absent (backward compat)', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Test timer' }),
+    )
+  })
+
   // --- Cycle 3 ---
 
   it('deletes a push_subscription row when sendNotification rejects with statusCode 410', async () => {

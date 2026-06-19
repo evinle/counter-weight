@@ -128,15 +128,31 @@ export const timersRouter = router({
             message: "Version mismatch or not found",
           });
 
-        await ctx.scheduler.updateSchedule(
-          timerScheduleKeys(input.serverId).deadline,
-          new Date(input.targetDatetime),
-          {
-            serverId: input.serverId,
-            userId: ctx.userId,
-            targetDatetime: input.targetDatetime,
-          },
-        );
+        const deadlineDatetime = new Date(input.targetDatetime);
+        const keys = timerScheduleKeys(input.serverId);
+
+        await ctx.scheduler.updateSchedule(keys.deadline, deadlineDatetime, {
+          serverId: input.serverId,
+          userId: ctx.userId,
+          targetDatetime: input.targetDatetime,
+          kind: 'deadline',
+        });
+
+        if (input.leadTimeMs !== null) {
+          const leadDatetime = new Date(deadlineDatetime.getTime() - input.leadTimeMs);
+          if (leadDatetime > ctx.now) {
+            await ctx.scheduler.updateSchedule(keys.lead, leadDatetime, {
+              serverId: input.serverId,
+              userId: ctx.userId,
+              targetDatetime: input.targetDatetime,
+              kind: 'lead',
+            });
+          } else {
+            await ctx.scheduler.deleteSchedule(keys.lead);
+          }
+        } else {
+          await ctx.scheduler.deleteSchedule(keys.lead);
+        }
 
         return updated;
       }
@@ -162,15 +178,27 @@ export const timersRouter = router({
         eventType: EventType.Created,
       });
 
-      await ctx.scheduler.createSchedule(
-        timerScheduleKeys(created.serverId).deadline,
-        new Date(input.targetDatetime),
-        {
-          serverId: created.serverId,
-          userId: ctx.userId,
-          targetDatetime: input.targetDatetime,
-        },
-      );
+      const deadlineDatetime = new Date(input.targetDatetime);
+      const keys = timerScheduleKeys(created.serverId);
+
+      await ctx.scheduler.createSchedule(keys.deadline, deadlineDatetime, {
+        serverId: created.serverId,
+        userId: ctx.userId,
+        targetDatetime: input.targetDatetime,
+        kind: 'deadline',
+      });
+
+      if (input.leadTimeMs !== null) {
+        const leadDatetime = new Date(deadlineDatetime.getTime() - input.leadTimeMs);
+        if (leadDatetime > ctx.now) {
+          await ctx.scheduler.createSchedule(keys.lead, leadDatetime, {
+            serverId: created.serverId,
+            userId: ctx.userId,
+            targetDatetime: input.targetDatetime,
+            kind: 'lead',
+          });
+        }
+      }
 
       return created;
     }),
@@ -191,7 +219,9 @@ export const timersRouter = router({
         eventType: EventType.Completed,
       });
 
-      await ctx.scheduler.deleteSchedule(timerScheduleKeys(input.serverId).deadline);
+      const completeKeys = timerScheduleKeys(input.serverId);
+      await ctx.scheduler.deleteSchedule(completeKeys.deadline);
+      await ctx.scheduler.deleteSchedule(completeKeys.lead);
 
       return { ok: true };
     }),
@@ -212,7 +242,9 @@ export const timersRouter = router({
         eventType: EventType.Cancelled,
       });
 
-      await ctx.scheduler.deleteSchedule(timerScheduleKeys(input.serverId).deadline);
+      const cancelKeys = timerScheduleKeys(input.serverId);
+      await ctx.scheduler.deleteSchedule(cancelKeys.deadline);
+      await ctx.scheduler.deleteSchedule(cancelKeys.lead);
 
       return { ok: true };
     }),

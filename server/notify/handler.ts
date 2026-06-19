@@ -40,7 +40,7 @@ function isGoneError(e: unknown): e is { statusCode: number } {
 }
 
 export async function handleTimerFired(
-  payload: { serverId: string; userId: string; targetDatetime: string },
+  payload: { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' },
   db: NotifyDb,
   sendNotification: SendNotification,
 ): Promise<void> {
@@ -70,7 +70,11 @@ export async function handleTimerFired(
           p256dh: sub.subscription.p256dh,
           auth: sub.subscription.auth,
         },
-        { serverId: timer.id, title: timer.title, emoji: timer.emoji ?? "" },
+        {
+          serverId: timer.id,
+          title: payload.kind === 'lead' ? `Reminder: ${timer.title}` : timer.title,
+          emoji: timer.emoji ?? "",
+        },
       ),
     ),
   );
@@ -90,9 +94,11 @@ export async function handleTimerFired(
     }),
   );
 
-  await db.insertTimerEvent({
-    timerId: timer.id,
-    userId: payload.userId,
-    eventType: EventType.Fired,
-  });
+  if (payload.kind !== 'lead') {
+    await db.insertTimerEvent({
+      timerId: timer.id,
+      userId: payload.userId,
+      eventType: EventType.Fired,
+    });
+  }
 }

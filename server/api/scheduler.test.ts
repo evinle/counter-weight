@@ -41,6 +41,21 @@ function makeScheduler() {
   return { scheduler: new AwsScheduler(client, 'arn:aws:lambda:::function:notify', 'arn:aws:iam:::role/scheduler'), send }
 }
 
+describe('AwsScheduler.updateSchedule', () => {
+  it('falls back to create when the schedule does not exist', async () => {
+    const { scheduler, send } = makeScheduler()
+    send
+      .mockRejectedValueOnce(new ResourceNotFoundException({ message: 'Not found', Message: 'Not found', $metadata: {} }))
+      .mockResolvedValueOnce({})
+
+    await expect(
+      scheduler.updateSchedule('timer-123', new Date(), { serverId: 'srv-1', userId: 'u1', targetDatetime: '2026-06-01T12:00:00Z' }),
+    ).resolves.toBeUndefined()
+
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('AwsScheduler.deleteSchedule', () => {
   it('resolves silently when the schedule is already gone', async () => {
     const { scheduler, send } = makeScheduler()
