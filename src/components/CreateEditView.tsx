@@ -253,7 +253,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           )}
         </div>
         {leadTimeMs !== null && (
-          <div className="flex gap-2 bg-slate-700 rounded-xl px-4 py-2">
+          <div className="flex gap-2">
             <SpinnerField
               label="Minutes"
               value={leadMins}
