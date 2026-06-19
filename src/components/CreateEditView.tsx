@@ -36,17 +36,24 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     existing?.priority ?? "medium",
   );
   const [tagIds, setTagIds] = useState<string[]>(existing?.tagIds ?? []);
-  const [timerType, setTimerType] = useState<TimerTypeT>(existing?.timerType ?? TimerType.Reminder);
-  const [leadTimeMs, setLeadTimeMs] = useState<number | null>(existing?.leadTimeMs ?? null);
+  const [timerType, setTimerType] = useState<TimerTypeT>(
+    existing?.timerType ?? TimerType.Reminder,
+  );
+  const [leadTimeMs, setLeadTimeMs] = useState<number | null>(
+    existing?.leadTimeMs ?? null,
+  );
   const leadMins = leadTimeMs != null ? Math.floor(leadTimeMs / 60_000) : 0;
-  const leadSecs = leadTimeMs != null ? Math.floor((leadTimeMs % 60_000) / 1_000) : 0;
+  const leadSecs =
+    leadTimeMs != null ? Math.floor((leadTimeMs % 60_000) / 1_000) : 0;
   function setLeadTime(mins: number, secs: number) {
     setLeadTimeMs((mins * 60 + secs) * 1_000);
   }
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
   const [timeEditUnlocked, setTimeEditUnlocked] = useState(false);
   const [duration, setDuration] = useState<DurationValue>(() =>
-    existing ? snapshotDurationFor(existing) : { days: 0, hours: 0, minutes: 5, seconds: 0 },
+    existing
+      ? snapshotDurationFor(existing)
+      : { days: 0, hours: 0, minutes: 5, seconds: 0 },
   );
   const [atTime, setAtTime] = useState<Date>(() => {
     if (existing) return new Date(existing.targetDatetime);
@@ -69,32 +76,62 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     if (existing?.id !== undefined) {
       const targetDatetime = timeEditUnlocked
         ? mode === TimerMode.FromNow
-          ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
+          ? new Date(
+              Date.now() +
+                durationToMs(
+                  duration.days,
+                  duration.hours,
+                  duration.minutes,
+                  duration.seconds,
+                ),
+            )
           : atTime
         : undefined;
-      const result = await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds, timerType, leadTimeMs });
+      const result = await editTimer(existing.id, {
+        targetDatetime,
+        title,
+        emoji,
+        priority,
+        tagIds,
+        timerType,
+        leadTimeMs,
+      });
       if (result === false) {
-        useToastStore.getState().show({ message: 'Timer can only be extended once', variant: 'error' });
+        useToastStore.getState().show({
+          message: "Timer can only be extended once",
+          variant: "error",
+        });
         return;
       }
     } else {
       const targetDatetime =
         mode === TimerMode.FromNow
-          ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
+          ? new Date(
+              Date.now() +
+                durationToMs(
+                  duration.days,
+                  duration.hours,
+                  duration.minutes,
+                  duration.seconds,
+                ),
+            )
           : atTime;
-      await createTimer({
-        title,
-        emoji: emoji || null,
-        description: null,
-        targetDatetime,
-        status: "active",
-        priority,
-        recurrenceRule: null,
-        tagIds,
-        timerType,
-        leadTimeMs,
-        workSessions: [],
-      }, userId);
+      await createTimer(
+        {
+          title,
+          emoji: emoji || null,
+          description: null,
+          targetDatetime,
+          status: "active",
+          priority,
+          recurrenceRule: null,
+          tagIds,
+          timerType,
+          leadTimeMs,
+          workSessions: [],
+        },
+        userId,
+      );
     }
     onDone();
   };
@@ -170,25 +207,27 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
             <button
               type="button"
               onClick={cancelTimeEdit}
-              className="text-sm text-slate-400 text-center w-full active:opacity-60 transition-opacity"
+              className="text-sm text-slate-500 text-center w-full active:opacity-60 transition-opacity"
             >
               Cancel time edit
             </button>
           )}
         </>
-      ) : existing && (
-        <div className="flex items-center justify-between">
-          <span className="text-slate-300 text-base">
-            {existing.targetDatetime.toLocaleString()}
-          </span>
-          <button
-            type="button"
-            onClick={() => setTimeEditUnlocked(true)}
-            className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
-          >
-            Edit time
-          </button>
-        </div>
+      ) : (
+        existing && (
+          <div className="flex items-center justify-between">
+            <span className="text-slate-300 text-base">
+              {existing.targetDatetime.toLocaleString()}
+            </span>
+            <button
+              type="button"
+              onClick={() => setTimeEditUnlocked(true)}
+              className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
+            >
+              Edit time
+            </button>
+          </div>
+        )
       )}
 
       <div className="flex flex-col gap-1">
@@ -226,49 +265,52 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           aria-label="Task"
           className="w-5 h-5 rounded accent-blue-500"
           checked={timerType === TimerType.Task}
-          onChange={(e) => setTimerType(e.target.checked ? TimerType.Task : TimerType.Reminder)}
+          onChange={(e) =>
+            setTimerType(e.target.checked ? TimerType.Task : TimerType.Reminder)
+          }
         />
         <span className="text-sm text-slate-400">Task</span>
       </label>
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Lead time</span>
-          {leadTimeMs === null ? (
+          <span className="text-sm text-slate-400">Remind me before</span>
+          {leadTimeMs === null && (
             <button
               type="button"
               onClick={() => setLeadTimeMs(0)}
               className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
             >
-              Add lead time
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setLeadTimeMs(null)}
-              className="text-sm text-slate-400 active:opacity-60 transition-opacity"
-            >
-              Remove lead time
+              Set time
             </button>
           )}
         </div>
         {leadTimeMs !== null && (
-          <div className="flex gap-2">
-            <SpinnerField
-              label="Minutes"
-              value={leadMins}
-              onChange={(m) => setLeadTime(m, leadSecs)}
-              min={0}
-              max={1439}
-              clamp
-            />
-            <SpinnerField
-              label="Seconds"
-              value={leadSecs}
-              onChange={(s) => setLeadTime(leadMins, s)}
-              min={0}
-              max={59}
-            />
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-2">
+              <SpinnerField
+                label="Minutes"
+                value={leadMins}
+                onChange={(m) => setLeadTime(m, leadSecs)}
+                min={0}
+                max={1439}
+                clamp
+              />
+              <SpinnerField
+                label="Seconds"
+                value={leadSecs}
+                onChange={(s) => setLeadTime(leadMins, s)}
+                min={0}
+                max={59}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setLeadTimeMs(null)}
+              className="text-sm text-slate-500 active:opacity-60 transition-opacity"
+            >
+              Cancel reminder
+            </button>
           </div>
         )}
       </div>
