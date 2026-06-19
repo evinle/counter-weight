@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db } from '../db'
 import { SyncStatuses } from '../db/schema'
 import type { Group } from '../db/schema'
@@ -20,6 +20,10 @@ const BASE_GROUP = {
 
 beforeEach(async () => {
   await db.groups.clear()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('GroupListView', () => {
@@ -71,18 +75,23 @@ describe('GroupListView', () => {
     })
   })
 
-  it('cancels deletion if the user taps elsewhere before confirming', async () => {
+  it('cancels deletion automatically after 2 seconds without confirmation', async () => {
     const id = await db.groups.add({ ...BASE_GROUP, name: 'High Priority' }) as number
 
     render(<GroupListView userId="user-1" onEdit={() => {}} onCreateNew={() => {}} onDone={() => {}} />)
 
     await waitFor(() => expect(screen.getByText('High Priority')).toBeInTheDocument())
+
+    vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: /delete high priority/i }))
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(screen.getByRole('button', { name: /confirm delete/i })).toBeInTheDocument()
+
+    await act(async () => { vi.advanceTimersByTime(2000) })
+    vi.useRealTimers()
 
     const group = await db.groups.get(id)
     expect(group?.syncStatus).toBe(SyncStatuses.Synced)
-    expect(screen.getByText('High Priority')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /confirm delete/i })).toBeNull()
   })
 
   it('calls onEdit with the group when the edit button is tapped', async () => {
