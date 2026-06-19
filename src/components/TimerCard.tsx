@@ -115,9 +115,9 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
         {!isOverdue && (
           <button
             onClick={() => onEdit(timer)}
-            className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
+            className="w-12 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
           >
-            Edit
+            ✏️
           </button>
         )}
 
@@ -126,7 +126,7 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
             onClick={() => {
               if (timer.id !== undefined) startWork(timer.id);
             }}
-            className="w-12 py-3 rounded-xl bg-blue-800 text-white text-base font-medium min-h-[48px] hover:bg-blue-600 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            className="w-12 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
               <polygon points="4,2 16,9 4,16" />
