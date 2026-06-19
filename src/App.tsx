@@ -134,9 +134,11 @@ export function App() {
           .filter((t): t is typeof t & { id: number } => t.id !== undefined)
           .map((t) => ({
             id: t.id,
+            serverId: t.serverId,
             title: t.title,
             emoji: t.emoji ?? undefined,
             targetDatetime: t.targetDatetime.toISOString(),
+            leadTimeMs: t.leadTimeMs,
           })),
       });
     }

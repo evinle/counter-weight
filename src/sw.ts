@@ -8,6 +8,8 @@ import {
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import type { PrecacheEntry } from "workbox-precaching";
 import { createNotifyTimer } from "./sw.notify";
+import { createScheduler } from "./sw.scheduler";
+import type { SyncTimerEntry } from "./sw.scheduler";
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<PrecacheEntry>;
@@ -20,15 +22,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html")));
 
-type SyncTimerEntry = {
-  id: number;
-  serverId: string | null;
-  title: string;
-  emoji: string | undefined;
-  targetDatetime: string;
-};
-
 const notifyTimer = createNotifyTimer({ registration: self.registration });
+const scheduler = createScheduler({ notify: notifyTimer });
 
 type PushPayload = {
   serverId: string;
@@ -57,28 +52,12 @@ function parsePushPayload(data: unknown): PushPayload | null {
   return { serverId: d.serverId, title: d.title, emoji: d.emoji };
 }
 
-const handles = new Map<number, ReturnType<typeof setTimeout>>();
 const firedServerIds = new Set<string>();
 
 self.addEventListener("message", (event) => {
   const timers = parseSyncTimers(event.data);
   if (!timers) return;
-
-  for (const handle of handles.values()) clearTimeout(handle);
-  handles.clear();
-
-  for (const timer of timers) {
-    const delay = Math.max(
-      0,
-      new Date(timer.targetDatetime).getTime() - Date.now(),
-    );
-    const handle = setTimeout(() => {
-      handles.delete(timer.id);
-      if (timer.serverId) firedServerIds.add(timer.serverId);
-      notifyTimer(timer);
-    }, delay);
-    handles.set(timer.id, handle);
-  }
+  scheduler.sync(timers);
 });
 
 self.addEventListener("push", (event) => {
@@ -107,7 +86,7 @@ self.addEventListener("push", (event) => {
       }
 
       return self.registration.showNotification(title, {
-        body: "Timer complete",
+        body: "Time's up",
         icon: "/icon-192.png",
         tag: payload.serverId,
       });
