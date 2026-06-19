@@ -43,6 +43,13 @@
       "when": 1781848998645,
       "tag": "0005_sweet_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781869653238,
+      "tag": "0006_awesome_ser_duncan",
+      "breakpoints": true
     }
   ]
 }

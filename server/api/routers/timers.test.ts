@@ -36,6 +36,7 @@ const BASE_INPUT = {
   tagIds: [],
   timerType: 'reminder',
   leadTimeMs: null,
+  workSessions: [],
 } satisfies TimerUpsertInput
 
 const EXISTING_TAG = {
@@ -65,6 +66,7 @@ const EXISTING_TIMER = {
   tagIds: [],
   timerType: 'reminder',
   leadTimeMs: null,
+  workSessions: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies TimerRecord
@@ -434,6 +436,52 @@ describe('timers.reconcile', () => {
 
     // Assert
     expect(result.timers[0].tagIds).toEqual([EXISTING_TAG.id])
+  })
+})
+
+describe('timers.upsert — workSessions', () => {
+  it('insert path persists workSessions on the timer', async () => {
+    // Arrange
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+    const sessions = [
+      { startedAt: '2026-06-01T10:00:00.000Z', endedAt: '2026-06-01T11:00:00.000Z' },
+      { startedAt: '2026-06-01T13:00:00.000Z', endedAt: null },
+    ]
+
+    // Act
+    await caller.timers.upsert({ ...BASE_INPUT, workSessions: sessions })
+
+    // Assert
+    expect(fakeDb.timers[0].workSessions).toEqual(sessions)
+  })
+
+  it('update path persists workSessions on the timer', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [EXISTING_TIMER] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+    const sessions = [{ startedAt: '2026-06-01T10:00:00.000Z', endedAt: '2026-06-01T11:00:00.000Z' }]
+
+    // Act
+    await caller.timers.upsert({ ...BASE_INPUT, serverId: EXISTING_TIMER.id, version: 1, workSessions: sessions })
+
+    // Assert
+    expect(fakeDb.timers[0].workSessions).toEqual(sessions)
+  })
+})
+
+describe('timers.reconcile — workSessions', () => {
+  it('returns workSessions for each timer', async () => {
+    // Arrange
+    const sessions = [{ startedAt: '2026-06-01T10:00:00.000Z', endedAt: null }]
+    const timerWithSessions = { ...EXISTING_TIMER, workSessions: sessions }
+    fakeDb = createFakeTimersDb({ timers: [timerWithSessions] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    const result = await caller.timers.reconcile({ since: null, records: [] })
+
+    // Assert
+    expect(result.timers[0].workSessions).toEqual(sessions)
   })
 })
 

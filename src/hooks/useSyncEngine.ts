@@ -66,7 +66,10 @@ function mapServerTimer(s: ServerTimer): Omit<Timer, "id"> {
     tagIds: s.tagIds,
     timerType: s.timerType,
     leadTimeMs: s.leadTimeMs,
-    workSessions: [],
+    workSessions: (s.workSessions ?? []).map((ws) => ({
+      startedAt: new Date(ws.startedAt),
+      endedAt: ws.endedAt ? new Date(ws.endedAt) : null,
+    })),
     createdAt: new Date(s.createdAt),
     updatedAt: new Date(s.updatedAt),
     syncStatus: SyncStatuses.Synced,
@@ -288,6 +291,10 @@ const timerAdapter: SyncAdapter<Timer, ServerTimer> = {
       tagIds: timer.tagIds,
       timerType: timer.timerType,
       leadTimeMs: timer.leadTimeMs,
+      workSessions: timer.workSessions.map((ws) => ({
+        startedAt: ws.startedAt.toISOString(),
+        endedAt: ws.endedAt?.toISOString() ?? null,
+      })),
     });
     return { serverId: result.serverId, version: result.version };
   },

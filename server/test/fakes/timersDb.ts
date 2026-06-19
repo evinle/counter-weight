@@ -37,7 +37,7 @@ export function createFakeTimersDb(opts: { timers?: FakeTimer[] } = {}): FakeTim
         ...vals,
       }
       timers.push(row)
-      return { serverId: row.id, version: row.version, tagIds: row.tagIds }
+      return { serverId: row.id, version: row.version, tagIds: row.tagIds, workSessions: row.workSessions }
     },
 
     async updateTimer(where, vals: UpdateTimerVals) {

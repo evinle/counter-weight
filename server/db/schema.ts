@@ -2,6 +2,7 @@ import {
   pgTable, pgEnum, text, uuid, timestamp, integer, jsonb, index, unique, primaryKey,
 } from 'drizzle-orm/pg-core'
 import type { GroupConditions } from '../api/routers/groups.js'
+import type { WorkSessionJson } from '../api/routers/timers.js'
 
 export const TimerType = {
   Reminder: 'reminder',
@@ -81,6 +82,7 @@ export const timers = pgTable(
     eventbridgeScheduleId: text('eventbridge_schedule_id'), // M3 populates this
     timerType: text('timer_type').notNull().default('reminder').$type<TimerType>(),
     leadTimeMs: integer('lead_time_ms'),
+    workSessions: jsonb('work_sessions').$type<WorkSessionJson[]>().notNull().default([]),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

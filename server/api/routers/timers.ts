@@ -5,6 +5,8 @@ import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 import { timerScheduleKeys } from "../scheduler.js";
 
+export type WorkSessionJson = { startedAt: string; endedAt: string | null }
+
 export type InsertTimerVals = {
   userId: string
   title: string
@@ -18,6 +20,7 @@ export type InsertTimerVals = {
   tagIds: string[]
   timerType: TimerType
   leadTimeMs: number | null
+  workSessions: WorkSessionJson[]
 }
 
 export type UpdateTimerVals = {
@@ -31,6 +34,7 @@ export type UpdateTimerVals = {
   tagIds: string[]
   timerType: TimerType
   leadTimeMs: number | null
+  workSessions: WorkSessionJson[]
 }
 
 export type TimerRecord = {
@@ -49,6 +53,7 @@ export type TimerRecord = {
   tagIds: string[]
   timerType: TimerType
   leadTimeMs: number | null
+  workSessions: WorkSessionJson[]
   createdAt: Date
   updatedAt: Date
 }
@@ -75,6 +80,11 @@ export type TimersDb = {
   reconcile(userId: string, since: Date | null): Promise<TimerRecord[]>;
 };
 
+const workSessionJsonSchema = z.object({
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime().nullable(),
+})
+
 export const timerUpsertInput = z.object({
   serverId: z.string().uuid().nullable(),
   title: z.string().min(1),
@@ -89,6 +99,7 @@ export const timerUpsertInput = z.object({
   tagIds: z.array(z.string().uuid()).default([]),
   timerType: z.enum(['reminder', 'task']),
   leadTimeMs: z.number().int().nonnegative().nullable(),
+  workSessions: z.array(workSessionJsonSchema).default([]),
 });
 
 export const timersRouter = router({
@@ -119,6 +130,7 @@ export const timersRouter = router({
             tagIds: input.tagIds,
             timerType: input.timerType,
             leadTimeMs: input.leadTimeMs,
+            workSessions: input.workSessions,
           },
         );
 
@@ -170,6 +182,7 @@ export const timersRouter = router({
         tagIds: input.tagIds,
         timerType: input.timerType,
         leadTimeMs: input.leadTimeMs,
+        workSessions: input.workSessions,
       });
 
       await ctx.timersDb.insertTimerEvent({

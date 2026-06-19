@@ -1,0 +1,1 @@
+ALTER TABLE "timers" ADD COLUMN "work_sessions" jsonb DEFAULT '[]'::jsonb NOT NULL;

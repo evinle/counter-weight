@@ -408,6 +408,67 @@ describe('triggerSync', () => {
   })
 })
 
+describe('workSessions sync', () => {
+  it('drain includes workSessions as ISO strings in the upsert payload', async () => {
+    // Arrange — pending timer with two work sessions
+    const sessions = [
+      { startedAt: new Date('2026-06-01T10:00:00.000Z'), endedAt: new Date('2026-06-01T11:00:00.000Z') },
+      { startedAt: new Date('2026-06-01T13:00:00.000Z'), endedAt: null },
+    ]
+    await db.timers.add({
+      ...BASE_TIMER,
+      serverId: null,
+      syncStatus: 'pending',
+      workSessions: sessions,
+    })
+
+    vi.mocked(trpc.timers.upsert.mutate).mockResolvedValueOnce(fromPartial({ serverId: 'srv-ws', version: 1 }))
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(() => expect(trpc.timers.upsert.mutate).toHaveBeenCalled())
+    expect(trpc.timers.upsert.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workSessions: [
+          { startedAt: '2026-06-01T10:00:00.000Z', endedAt: '2026-06-01T11:00:00.000Z' },
+          { startedAt: '2026-06-01T13:00:00.000Z', endedAt: null },
+        ],
+      }),
+    )
+  })
+
+  it('reconcile deserialises workSessions ISO strings to Date objects in Dexie', async () => {
+    vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({
+      serverNow: '2026-06-08T00:00:00.000Z',
+      timers: [fromPartial({
+        id: 'srv-ws',
+        title: 'With Sessions',
+        status: 'active',
+        version: 1,
+        userId: 'user-1',
+        workSessions: [
+          { startedAt: '2026-06-01T10:00:00.000Z', endedAt: '2026-06-01T11:00:00.000Z' },
+          { startedAt: '2026-06-01T13:00:00.000Z', endedAt: null },
+        ],
+      })],
+    })
+
+    renderHook(() => useSyncEngine({ user: USER }))
+
+    await waitFor(async () => {
+      const timers = await db.timers.toArray()
+      const timer = timers.find(t => t.serverId === 'srv-ws')
+      expect(timer?.workSessions).toHaveLength(2)
+      expect(timer?.workSessions[0].startedAt).toBeInstanceOf(Date)
+      expect(timer?.workSessions[0].startedAt).toEqual(new Date('2026-06-01T10:00:00.000Z'))
+      expect(timer?.workSessions[0].endedAt).toBeInstanceOf(Date)
+      expect(timer?.workSessions[0].endedAt).toEqual(new Date('2026-06-01T11:00:00.000Z'))
+      expect(timer?.workSessions[1].endedAt).toBeNull()
+    })
+  })
+})
+
 describe('tag drain', () => {
   const BASE_TAG = {
     userId: 'user-1',
