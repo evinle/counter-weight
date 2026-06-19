@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createTimer, editTimer } from "../hooks/useTimers";
 import { useToastStore } from "../hooks/useToast";
 import { DurationInput } from "./DurationInput";
@@ -143,10 +143,34 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     ? existing.targetDatetime > existing.originalTargetDatetime
     : false;
 
+  function maskLeadTime(newRemainingMs: number) {
+    if (leadTimeMs === null) return;
+    const r = msToDuration(Math.max(0, newRemainingMs));
+    const newShowDays = r.days >= 1;
+    const newShowHours = newShowDays || r.hours >= 1;
+    const newShowMins = newShowHours || r.minutes >= 1;
+    const d = msToDuration(leadTimeMs);
+    const masked = durationToMs(
+      newShowDays ? d.days : 0,
+      newShowHours ? d.hours : 0,
+      newShowMins ? d.minutes : 0,
+      d.seconds,
+    );
+    if (masked !== leadTimeMs) setLeadTimeMs(masked);
+  }
+
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
-        return <DurationInput value={duration} onChange={setDuration} />;
+        return (
+          <DurationInput
+            value={duration}
+            onChange={(d) => {
+              setDuration(d);
+              maskLeadTime(durationToMs(d.days, d.hours, d.minutes, d.seconds));
+            }}
+          />
+        );
       case TimerMode.AtTime:
         return (
           <DateTimeInput
@@ -176,19 +200,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const showLeadDays = remainingDuration.days >= 1;
   const showLeadHours = showLeadDays || remainingDuration.hours >= 1;
   const showLeadMinutes = showLeadHours || remainingDuration.minutes >= 1;
-
-  useEffect(() => {
-    if (leadTimeMs === null) return;
-    const { days, hours, minutes, seconds } = msToDuration(leadTimeMs);
-    const masked = durationToMs(
-      showLeadDays ? days : 0,
-      showLeadHours ? hours : 0,
-      showLeadMinutes ? minutes : 0,
-      seconds,
-    );
-    if (masked !== leadTimeMs) setLeadTimeMs(masked);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLeadDays, showLeadHours, showLeadMinutes]);
 
   return (
     <form
