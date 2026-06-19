@@ -46,7 +46,11 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
         }`}
       >
-        <span className="text-xl leading-none" aria-hidden="true">🎚️</span>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="4" width="16" height="2" rx="1" />
+          <rect x="5" y="9" width="10" height="2" rx="1" />
+          <rect x="8" y="14" width="4" height="2" rx="1" />
+        </svg>
       </button>
 
       {/* Active filter badge */}

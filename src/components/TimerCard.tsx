@@ -71,14 +71,14 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
         </span>
       </div>
 
-      <div className="flex items-baseline gap-4">
+      <div className="flex flex-col items-baseline gap-1">
         <span
           className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? "text-red-400" : "text-white"}`}
         >
           {formatDuration(remaining)}
         </span>
         {isTask && hasSessions && (
-          <span className="text-2xl font-mono tabular-nums tracking-tight text-emerald-400">
+          <span className="text-lg font-mono tabular-nums tracking-tight text-emerald-400">
             {formatDuration(elapsed)}
           </span>
         )}
@@ -99,29 +99,7 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
       )}
 
       <div className="flex items-center gap-3 mt-1">
-        {isTask && !hasOpenSession && (
-          <button
-            onClick={() => {
-              if (timer.id !== undefined) startWork(timer.id);
-            }}
-            className="w-12 py-3 rounded-xl bg-blue-700 text-white text-base font-medium min-h-[48px] hover:bg-blue-600 active:scale-95 transition-all cursor-pointer"
-          >
-            ▶
-          </button>
-        )}
-
-        {isTask && hasOpenSession && (
-          <button
-            onClick={() => {
-              if (timer.id !== undefined) endWork(timer.id);
-            }}
-            className="w-12 py-3 rounded-xl bg-amber-700 text-white text-base font-medium min-h-[48px] hover:bg-amber-600 active:scale-95 transition-all cursor-pointer"
-          >
-            ⏸
-          </button>
-        )}
-
-        {(!isTask || hasSessions || hasOpenSession) && (
+        {
           <button
             onClick={() => {
               if (timer.id === undefined) return;
@@ -132,7 +110,7 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
           >
             Done
           </button>
-        )}
+        }
 
         {!isOverdue && (
           <button
@@ -140,6 +118,33 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
             className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-base font-medium min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
           >
             Edit
+          </button>
+        )}
+
+        {isTask && !hasOpenSession && (
+          <button
+            onClick={() => {
+              if (timer.id !== undefined) startWork(timer.id);
+            }}
+            className="w-12 py-3 rounded-xl bg-blue-800 text-white text-base font-medium min-h-[48px] hover:bg-blue-600 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+              <polygon points="4,2 16,9 4,16" />
+            </svg>
+          </button>
+        )}
+
+        {isTask && hasOpenSession && (
+          <button
+            onClick={() => {
+              if (timer.id !== undefined) endWork(timer.id);
+            }}
+            className="w-12 py-3 rounded-xl bg-amber-700 text-white text-base font-medium min-h-[48px] hover:bg-amber-600 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+              <rect x="3" y="2" width="4" height="14" rx="1" />
+              <rect x="11" y="2" width="4" height="14" rx="1" />
+            </svg>
           </button>
         )}
 
