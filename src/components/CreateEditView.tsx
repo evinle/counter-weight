@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createTimer, editTimer } from "../hooks/useTimers";
 import { useToastStore } from "../hooks/useToast";
 import { DurationInput } from "./DurationInput";
@@ -43,7 +43,12 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     existing?.leadTimeMs ?? null,
   );
   const leadDuration = msToDuration(leadTimeMs ?? 0);
-  function setLeadTime(days: number, hours: number, mins: number, secs: number) {
+  function setLeadTime(
+    days: number,
+    hours: number,
+    mins: number,
+    secs: number,
+  ) {
     setLeadTimeMs(durationToMs(days, hours, mins, secs));
   }
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
@@ -156,14 +161,34 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const showTimeEditor = !existing || timeEditUnlocked;
 
   const remainingMs = (() => {
-    if (!showTimeEditor && existing) return timeRemaining(existing.targetDatetime);
-    if (mode === TimerMode.AtTime) return atTime.getTime() - Date.now();
-    return durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds);
+    if (!showTimeEditor && existing)
+      return timeRemaining(existing.targetDatetime);
+    if (mode === TimerMode.AtTime)
+      return atTime.getTime() - new Date().getTime();
+    return durationToMs(
+      duration.days,
+      duration.hours,
+      duration.minutes,
+      duration.seconds,
+    );
   })();
   const remainingDuration = msToDuration(Math.max(0, remainingMs));
   const showLeadDays = remainingDuration.days >= 1;
   const showLeadHours = showLeadDays || remainingDuration.hours >= 1;
   const showLeadMinutes = showLeadHours || remainingDuration.minutes >= 1;
+
+  useEffect(() => {
+    if (leadTimeMs === null) return;
+    const { days, hours, minutes, seconds } = msToDuration(leadTimeMs);
+    const masked = durationToMs(
+      showLeadDays ? days : 0,
+      showLeadHours ? hours : 0,
+      showLeadMinutes ? minutes : 0,
+      seconds,
+    );
+    if (masked !== leadTimeMs) setLeadTimeMs(masked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLeadDays, showLeadHours, showLeadMinutes]);
 
   return (
     <form
@@ -300,7 +325,14 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
                 <SpinnerField
                   label="Days"
                   value={leadDuration.days}
-                  onChange={(d) => setLeadTime(d, leadDuration.hours, leadDuration.minutes, leadDuration.seconds)}
+                  onChange={(d) =>
+                    setLeadTime(
+                      d,
+                      leadDuration.hours,
+                      leadDuration.minutes,
+                      leadDuration.seconds,
+                    )
+                  }
                   min={0}
                   max={999}
                   clamp
@@ -310,7 +342,14 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
                 <SpinnerField
                   label="Hours"
                   value={leadDuration.hours}
-                  onChange={(h) => setLeadTime(leadDuration.days, h, leadDuration.minutes, leadDuration.seconds)}
+                  onChange={(h) =>
+                    setLeadTime(
+                      leadDuration.days,
+                      h,
+                      leadDuration.minutes,
+                      leadDuration.seconds,
+                    )
+                  }
                   min={0}
                   max={23}
                 />
@@ -319,7 +358,14 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
                 <SpinnerField
                   label="Minutes"
                   value={leadDuration.minutes}
-                  onChange={(m) => setLeadTime(leadDuration.days, leadDuration.hours, m, leadDuration.seconds)}
+                  onChange={(m) =>
+                    setLeadTime(
+                      leadDuration.days,
+                      leadDuration.hours,
+                      m,
+                      leadDuration.seconds,
+                    )
+                  }
                   min={0}
                   max={59}
                 />
@@ -327,7 +373,14 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
               <SpinnerField
                 label="Seconds"
                 value={leadDuration.seconds}
-                onChange={(s) => setLeadTime(leadDuration.days, leadDuration.hours, leadDuration.minutes, s)}
+                onChange={(s) =>
+                  setLeadTime(
+                    leadDuration.days,
+                    leadDuration.hours,
+                    leadDuration.minutes,
+                    s,
+                  )
+                }
                 min={0}
                 max={59}
               />

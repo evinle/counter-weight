@@ -259,6 +259,27 @@ describe('CreateEditView — leadTimeMs', () => {
     expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
   })
 
+  it('resets a hidden field to 0 when it becomes visible again', () => {
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+
+    // Expand duration to 2 hours so Hours field appears
+    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    // Set lead time hours to 1
+    const fields = leadTimeFields()
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^hours$/i }), { target: { value: '1' } })
+    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toHaveValue('01')
+
+    // Shrink duration below 1 hour — Hours field hides
+    fireEvent.change(screen.getAllByRole('textbox', { name: /^hours$/i })[0], { target: { value: '0' } })
+    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
+
+    // Expand duration back above 1 hour — Hours field reappears, should be 0
+    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
+    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toHaveValue('00')
+  })
+
   it('shows all four spinners when remaining time is >= 1 day', async () => {
     const futureTarget = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
