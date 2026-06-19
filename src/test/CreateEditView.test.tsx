@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { db } from '../db'
 import { createTimer } from '../hooks/useTimers'
@@ -167,6 +167,10 @@ describe('CreateEditView — timerType checkbox', () => {
   })
 })
 
+function leadTimeFields() {
+  return screen.getByTestId('lead-time-fields')
+}
+
 describe('CreateEditView — leadTimeMs', () => {
   it('lead time field is hidden by default, stores null on submit', async () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
@@ -182,10 +186,10 @@ describe('CreateEditView — leadTimeMs', () => {
     })
   })
 
-  it('clicking Add lead time reveals Minutes and Seconds spinners', () => {
+  it('clicking Set time reveals Minutes and Seconds spinners', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /add lead time/i }))
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
     expect(screen.getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
@@ -195,7 +199,7 @@ describe('CreateEditView — leadTimeMs', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Test' } })
-    fireEvent.click(screen.getByRole('button', { name: /add lead time/i }))
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
     fireEvent.change(screen.getByRole('textbox', { name: /^minutes$/i }), { target: { value: '10' } })
     fireEvent.change(screen.getByRole('textbox', { name: /^seconds$/i }), { target: { value: '30' } })
     fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
@@ -207,7 +211,8 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('existing lead time decomposes into minute and second spinners', async () => {
-    const id = await createTimer({ ...BASE, leadTimeMs: (15 * 60 + 45) * 1000 }, null)
+    const futureTarget = new Date(Date.now() + 30 * 60 * 1000) // 30 min from now — enough for Minutes to show
+    const id = await createTimer({ ...BASE, targetDatetime: futureTarget, leadTimeMs: (15 * 60 + 45) * 1000 }, null)
     const existing = await db.timers.get(id!)
 
     render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
@@ -216,13 +221,93 @@ describe('CreateEditView — leadTimeMs', () => {
     expect(screen.getByRole('textbox', { name: /^seconds$/i })).toHaveValue('45')
   })
 
+  it('stores lead time correctly across all four fields', async () => {
+    const futureTarget = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days from now
+    const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
+    const existing = await db.timers.get(id!)
+
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = leadTimeFields()
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^days$/i }), { target: { value: '1' } })
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^minutes$/i }), { target: { value: '30' } })
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^seconds$/i }), { target: { value: '15' } })
+    fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+    const expectedMs = (1 * 86400 + 2 * 3600 + 30 * 60 + 15) * 1000
+    await waitFor(async () => {
+      const timer = await db.timers.get(id!)
+      expect(timer?.leadTimeMs).toBe(expectedMs)
+    })
+  })
+
+  it('updates visible lead time columns when duration is changed', () => {
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+    // Default 5 min duration — lead time shows Minutes + Seconds, not Hours
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = leadTimeFields()
+    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
+
+    // Change DurationInput Hours to 2 (the only "Hours" spinner at this point)
+    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
+
+    // Now remaining is 2h 5m — Hours should appear in lead time
+    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
+  })
+
+  it('shows all four spinners when remaining time is >= 1 day', async () => {
+    const futureTarget = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
+    const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
+    const existing = await db.timers.get(id!)
+
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = leadTimeFields()
+    expect(within(fields).getByRole('textbox', { name: /^days$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
+  })
+
+  it('shows Hours, Minutes and Seconds when remaining time is >= 1 hour', async () => {
+    const futureTarget = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2 hours from now
+    const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
+    const existing = await db.timers.get(id!)
+
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = leadTimeFields()
+    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
+    expect(within(fields).queryByRole('textbox', { name: /^days$/i })).not.toBeInTheDocument()
+  })
+
+  it('shows only Minutes and Seconds when remaining time is < 1 hour', () => {
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+    // Default duration is 5 min — less than 1 hour
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = leadTimeFields()
+    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
+    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
+    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
+    expect(within(fields).queryByRole('textbox', { name: /^days$/i })).not.toBeInTheDocument()
+  })
+
   it('removing lead time stores null', async () => {
     const id = await createTimer({ ...BASE, leadTimeMs: 900000 }, null)
     const existing = await db.timers.get(id!)
 
     render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /remove lead time/i }))
+    fireEvent.click(screen.getByRole('button', { name: /cancel reminder/i }))
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
 
     await waitFor(async () => {

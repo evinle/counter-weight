@@ -42,11 +42,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const [leadTimeMs, setLeadTimeMs] = useState<number | null>(
     existing?.leadTimeMs ?? null,
   );
-  const leadMins = leadTimeMs != null ? Math.floor(leadTimeMs / 60_000) : 0;
-  const leadSecs =
-    leadTimeMs != null ? Math.floor((leadTimeMs % 60_000) / 1_000) : 0;
-  function setLeadTime(mins: number, secs: number) {
-    setLeadTimeMs((mins * 60 + secs) * 1_000);
+  const leadDuration = msToDuration(leadTimeMs ?? 0);
+  function setLeadTime(days: number, hours: number, mins: number, secs: number) {
+    setLeadTimeMs(durationToMs(days, hours, mins, secs));
   }
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
   const [timeEditUnlocked, setTimeEditUnlocked] = useState(false);
@@ -156,6 +154,16 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   }
 
   const showTimeEditor = !existing || timeEditUnlocked;
+
+  const remainingMs = (() => {
+    if (!showTimeEditor && existing) return timeRemaining(existing.targetDatetime);
+    if (mode === TimerMode.AtTime) return atTime.getTime() - Date.now();
+    return durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds);
+  })();
+  const remainingDuration = msToDuration(Math.max(0, remainingMs));
+  const showLeadDays = remainingDuration.days >= 1;
+  const showLeadHours = showLeadDays || remainingDuration.hours >= 1;
+  const showLeadMinutes = showLeadHours || remainingDuration.minutes >= 1;
 
   return (
     <form
@@ -287,19 +295,39 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         </div>
         {leadTimeMs !== null && (
           <div className="flex flex-col gap-4">
-            <div className="flex gap-2">
-              <SpinnerField
-                label="Minutes"
-                value={leadMins}
-                onChange={(m) => setLeadTime(m, leadSecs)}
-                min={0}
-                max={1439}
-                clamp
-              />
+            <div className="flex gap-2" data-testid="lead-time-fields">
+              {showLeadDays && (
+                <SpinnerField
+                  label="Days"
+                  value={leadDuration.days}
+                  onChange={(d) => setLeadTime(d, leadDuration.hours, leadDuration.minutes, leadDuration.seconds)}
+                  min={0}
+                  max={999}
+                  clamp
+                />
+              )}
+              {showLeadHours && (
+                <SpinnerField
+                  label="Hours"
+                  value={leadDuration.hours}
+                  onChange={(h) => setLeadTime(leadDuration.days, h, leadDuration.minutes, leadDuration.seconds)}
+                  min={0}
+                  max={23}
+                />
+              )}
+              {showLeadMinutes && (
+                <SpinnerField
+                  label="Minutes"
+                  value={leadDuration.minutes}
+                  onChange={(m) => setLeadTime(leadDuration.days, leadDuration.hours, m, leadDuration.seconds)}
+                  min={0}
+                  max={59}
+                />
+              )}
               <SpinnerField
                 label="Seconds"
-                value={leadSecs}
-                onChange={(s) => setLeadTime(leadMins, s)}
+                value={leadDuration.seconds}
+                onChange={(s) => setLeadTime(leadDuration.days, leadDuration.hours, leadDuration.minutes, s)}
                 min={0}
                 max={59}
               />
