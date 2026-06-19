@@ -3,6 +3,7 @@ import {
   formatDuration,
   getHistoryAnnotation,
   HistoryTiming,
+  effortElapsed,
 } from "../lib/countdown";
 
 describe("timeRemaining", () => {
@@ -44,6 +45,34 @@ describe("formatDuration", () => {
 
   it("formats negative multi-day duration", () => {
     expect(formatDuration(-90_061_000)).toBe("-1d 01:01:01");
+  });
+});
+
+describe("effortElapsed", () => {
+  it("sums a single completed session", () => {
+    const sessions = [
+      { startedAt: new Date("2026-06-19T10:00:00Z"), endedAt: new Date("2026-06-19T10:30:00Z") },
+    ];
+    expect(effortElapsed(sessions, new Date("2026-06-19T11:00:00Z"))).toBe(30 * 60 * 1000);
+  });
+
+  it("treats null endedAt as running up to now", () => {
+    const sessions = [
+      { startedAt: new Date("2026-06-19T10:00:00Z"), endedAt: null },
+    ];
+    expect(effortElapsed(sessions, new Date("2026-06-19T10:45:00Z"))).toBe(45 * 60 * 1000);
+  });
+
+  it("sums multiple sessions", () => {
+    const sessions = [
+      { startedAt: new Date("2026-06-19T09:00:00Z"), endedAt: new Date("2026-06-19T09:20:00Z") },
+      { startedAt: new Date("2026-06-19T10:00:00Z"), endedAt: new Date("2026-06-19T10:10:00Z") },
+    ];
+    expect(effortElapsed(sessions, new Date("2026-06-19T11:00:00Z"))).toBe(30 * 60 * 1000);
+  });
+
+  it("returns 0 for zero sessions", () => {
+    expect(effortElapsed([], new Date("2026-06-19T10:00:00Z"))).toBe(0);
   });
 });
 

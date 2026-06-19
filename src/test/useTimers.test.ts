@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers, claimTimers, removeUnclaimedTimers } from '../hooks/useTimers'
+import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers, claimTimers, removeUnclaimedTimers, startWork, endWork, doneTask } from '../hooks/useTimers'
 import { TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
 
@@ -223,6 +223,69 @@ describe('removeUnclaimedTimers', () => {
     const all = await db.timers.toArray()
     expect(all).toHaveLength(1)
     expect(all[0].userId).toBe('user-1')
+  })
+})
+
+describe('startWork', () => {
+  it('appends a new open session', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await startWork(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.workSessions).toHaveLength(1)
+    expect(timer?.workSessions[0].endedAt).toBeNull()
+  })
+
+  it('no-ops if a session is already open', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await startWork(id!)
+    await startWork(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.workSessions).toHaveLength(1)
+  })
+
+  it('appends a second session after the first is closed', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await startWork(id!)
+    await endWork(id!)
+    await startWork(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.workSessions).toHaveLength(2)
+    expect(timer?.workSessions[1].endedAt).toBeNull()
+  })
+})
+
+describe('endWork', () => {
+  it('closes the last open session', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await startWork(id!)
+    await endWork(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.workSessions[0].endedAt).not.toBeNull()
+  })
+
+  it('no-ops when no open session exists', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await endWork(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.workSessions).toHaveLength(0)
+  })
+})
+
+describe('doneTask', () => {
+  it('closes an open session and completes the timer', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await startWork(id!)
+    await doneTask(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.status).toBe('completed')
+    expect(timer?.workSessions[0].endedAt).not.toBeNull()
+  })
+
+  it('completes the timer even with no open session', async () => {
+    const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
+    await doneTask(id!)
+    const timer = await db.timers.get(id!)
+    expect(timer?.status).toBe('completed')
   })
 })
 

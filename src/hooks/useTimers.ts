@@ -134,6 +134,35 @@ export async function removeUnclaimedTimers(): Promise<void> {
   await db.timers.bulkDelete(ids)
 }
 
+export async function startWork(id: number): Promise<void> {
+  const timer = await db.timers.get(id)
+  if (!timer) return
+  const hasOpenSession = timer.workSessions.some(s => s.endedAt === null)
+  if (hasOpenSession) return
+  await db.timers.update(id, {
+    workSessions: [...timer.workSessions, { startedAt: new Date(), endedAt: null }],
+    updatedAt: new Date(),
+    syncStatus: SyncStatuses.Pending,
+  })
+}
+
+export async function endWork(id: number): Promise<void> {
+  const timer = await db.timers.get(id)
+  if (!timer) return
+  const now = new Date()
+  const sessions = timer.workSessions.map((s, i) =>
+    i === timer.workSessions.length - 1 && s.endedAt === null
+      ? { ...s, endedAt: now }
+      : s
+  )
+  await db.timers.update(id, { workSessions: sessions, updatedAt: now, syncStatus: SyncStatuses.Pending })
+}
+
+export async function doneTask(id: number): Promise<void> {
+  await endWork(id)
+  await completeTimer(id)
+}
+
 export async function bulkImportTimers(timers: Omit<Timer, 'id'>[]): Promise<void> {
   await db.timers.bulkAdd(timers)
 }

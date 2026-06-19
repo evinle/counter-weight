@@ -34,3 +34,9 @@ A timer with a non-null `recurrenceRule`. When the user completes a recurring ti
 
 ### Occurrence
 A single timer instance in a recurring series. Each occurrence is an independent timer row with its own `serverId` and `targetDatetime`. Completing an occurrence moves it to history and spawns the next. A missed or ignored occurrence does not automatically spawn the next — the series resumes from the next future match when the user eventually dismisses.
+
+### Task Timer
+A timer with `timerType: 'task'` that tracks active work effort via Work Sessions. Unlike a Reminder timer, a Task timer shows a work count-up alongside the deadline countdown, and its Done action closes any open session before completing. The deadline countdown goes negative (overtime) when the deadline passes with a session still open.
+
+### Work Session
+A `{ startedAt: Date, endedAt: Date | null }` record stored in `timer.workSessions[]`. A null `endedAt` means the session is currently open (work is in progress). At most one open session exists at a time. `startWork` appends a new open session; `endWork` closes the last open one by setting `endedAt`.

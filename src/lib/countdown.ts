@@ -1,3 +1,12 @@
+import type { WorkSession } from '../db/schema'
+
+export function effortElapsed(sessions: WorkSession[], now: Date): number {
+  return sessions.reduce((total, s) => {
+    const end = s.endedAt ?? now
+    return total + (end.getTime() - s.startedAt.getTime())
+  }, 0)
+}
+
 export function timeRemaining(target: Date): number {
   return target.getTime() - Date.now();
 }

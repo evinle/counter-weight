@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
 import { useAnimatedCountdown } from '../hooks/useAnimatedCountdown'
+import { useAnimatedElapsed } from '../hooks/useAnimatedElapsed'
 import { formatDuration } from '../lib/countdown'
-import { completeTimer, cancelTimer } from '../hooks/useTimers'
+import { completeTimer, cancelTimer, startWork, endWork, doneTask } from '../hooks/useTimers'
+import { TimerType } from '../db/schema'
 import type { Timer, Priority, Tag } from '../db/schema'
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
@@ -20,6 +22,10 @@ interface Props {
 export function TimerCard({ timer, tagsMap, onEdit }: Props) {
   const remaining = useAnimatedCountdown(timer.targetDatetime)
   const isOverdue = remaining <= 0
+  const elapsed = useAnimatedElapsed(timer.workSessions)
+  const isTask = timer.timerType === TimerType.Task
+  const hasOpenSession = timer.workSessions.some(s => s.endedAt === null)
+  const hasSessions = timer.workSessions.length > 0
   const [dropArmed, setDropArmed] = useState(false)
   const dropTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -57,9 +63,16 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
         </span>
       </div>
 
-      <span className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? 'text-red-400' : 'text-white'}`}>
-        {formatDuration(remaining)}
-      </span>
+      <div className="flex items-baseline gap-4">
+        <span className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? 'text-red-400' : 'text-white'}`}>
+          {formatDuration(remaining)}
+        </span>
+        {isTask && hasOpenSession && (
+          <span className="text-2xl font-mono tabular-nums tracking-tight text-emerald-400">
+            {formatDuration(elapsed)}
+          </span>
+        )}
+      </div>
 
       {resolvedTags.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -76,12 +89,36 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
       )}
 
       <div className="flex items-center gap-3 mt-1">
-        <button
-          onClick={() => { if (timer.id !== undefined) completeTimer(timer.id) }}
-          className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all cursor-pointer"
-        >
-          Done
-        </button>
+        {isTask && !hasOpenSession && (
+          <button
+            onClick={() => { if (timer.id !== undefined) startWork(timer.id) }}
+            className="flex-1 py-3 rounded-xl bg-blue-700 text-white text-base font-medium min-h-[48px] hover:bg-blue-600 active:scale-95 transition-all cursor-pointer"
+          >
+            Start Working
+          </button>
+        )}
+
+        {isTask && hasOpenSession && (
+          <button
+            onClick={() => { if (timer.id !== undefined) endWork(timer.id) }}
+            className="flex-1 py-3 rounded-xl bg-amber-700 text-white text-base font-medium min-h-[48px] hover:bg-amber-600 active:scale-95 transition-all cursor-pointer"
+          >
+            End Session
+          </button>
+        )}
+
+        {(!isTask || hasSessions || hasOpenSession) && (
+          <button
+            onClick={() => {
+              if (timer.id === undefined) return
+              if (isTask) doneTask(timer.id)
+              else completeTimer(timer.id)
+            }}
+            className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all cursor-pointer"
+          >
+            Done
+          </button>
+        )}
 
         {!isOverdue && (
           <button
