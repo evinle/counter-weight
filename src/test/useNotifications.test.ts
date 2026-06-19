@@ -5,6 +5,7 @@ import { useNotifications } from '../hooks/useNotifications.js'
 import { useTimerStore } from '../store/timerStore.js'
 import { useToastStore } from '../hooks/useToast.js'
 import type { AuthUser } from '../hooks/useAuth.js'
+import { TimerType } from '../db/schema.js'
 import type { Timer } from '../db/schema.js'
 
 // jsdom doesn't include Notification — stub it globally for these tests
@@ -67,6 +68,9 @@ const FIRED_TIMER = {
   syncStatus: 'synced',
   version: null,
   tagIds: [],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
 } satisfies Timer
 
 beforeEach(() => {

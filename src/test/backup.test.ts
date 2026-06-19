@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { exportTimers, importTimers } from "../lib/backup";
+import { TimerType } from "../db/schema";
 import type { Timer } from "../db/schema";
 
 function makeTimer(overrides: Partial<Timer> = {}): Timer {
@@ -19,6 +20,9 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     syncStatus: "synced",
     version: null,
     tagIds: [],
+    timerType: TimerType.Reminder,
+    leadTimeMs: null,
+    workSessions: [],
     ...overrides,
   };
 }

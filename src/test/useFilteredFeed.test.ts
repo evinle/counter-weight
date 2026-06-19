@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { SyncStatuses } from '../db/schema'
+import { SyncStatuses, TimerType } from '../db/schema'
 import type { Group, Timer } from '../db/schema'
 import { getFilteredFeed } from '../hooks/useFilteredFeed'
 
@@ -19,6 +19,9 @@ const BASE_TIMER = {
   syncStatus: SyncStatuses.Synced,
   version: null,
   tagIds: [],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies Omit<Timer, 'id' | 'title'>

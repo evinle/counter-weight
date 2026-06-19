@@ -64,6 +64,9 @@ function mapServerTimer(s: ServerTimer): Omit<Timer, "id"> {
     recurrenceRule: s.recurrenceRule as { cron: string; tz: string } | null,
     version: s.version,
     tagIds: s.tagIds,
+    timerType: s.timerType,
+    leadTimeMs: s.leadTimeMs,
+    workSessions: [],
     createdAt: new Date(s.createdAt),
     updatedAt: new Date(s.updatedAt),
     syncStatus: SyncStatuses.Synced,
@@ -283,6 +286,8 @@ const timerAdapter: SyncAdapter<Timer, ServerTimer> = {
       recurrenceRule: timer.recurrenceRule,
       version: timer.version ?? undefined,
       tagIds: timer.tagIds,
+      timerType: timer.timerType,
+      leadTimeMs: timer.leadTimeMs,
     });
     return { serverId: result.serverId, version: result.version };
   },

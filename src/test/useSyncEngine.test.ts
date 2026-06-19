@@ -4,7 +4,7 @@ import { TRPCClientError } from '@trpc/client'
 import { renderHook, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db'
-import { SyncStatuses } from '../db/schema'
+import { SyncStatuses, TimerType } from '../db/schema'
 import { useSyncEngine } from '../hooks/useSyncEngine'
 import type { AuthUser } from '../hooks/useAuth'
 
@@ -51,6 +51,9 @@ const BASE_TIMER = {
   priority: 'medium' as const,
   recurrenceRule: null,
   tagIds: [] as string[],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
   createdAt: new Date(),
   updatedAt: new Date(),
   userId: 'user-1',
@@ -122,6 +125,8 @@ describe('useSyncEngine', () => {
       userId: 'user-1',
       eventbridgeScheduleId: null,
       tagIds: [],
+      timerType: TimerType.Reminder,
+      leadTimeMs: null,
     })
     vi.mocked(trpc.timers.reconcile.query).mockResolvedValueOnce({ timers: [], serverNow: '2026-06-08T00:00:00.000Z' })
 

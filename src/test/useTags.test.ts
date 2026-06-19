@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { SyncStatuses } from '../db/schema'
+import { SyncStatuses, TimerType } from '../db/schema'
 import type { Tag, Timer } from '../db/schema'
 import { deleteTag } from '../hooks/useTags'
 
@@ -30,6 +30,9 @@ const BASE_TIMER = {
   syncStatus: SyncStatuses.Synced,
   version: 1,
   tagIds: ['srv-tag-1'],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies Omit<Timer, 'id'>

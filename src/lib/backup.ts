@@ -1,5 +1,5 @@
 import type { Timer } from '../db/schema'
-import { isTimerStatus, isPriority } from '../db/schema'
+import { isTimerStatus, isPriority, isTimerType } from '../db/schema'
 
 export interface ImportResult {
   timers: Omit<Timer, 'id'>[]
@@ -47,6 +47,9 @@ function coerceTimer(raw: unknown): Omit<Timer, 'id'> | null {
     serverId: typeof r.serverId === 'string' ? r.serverId : null,
     userId: typeof r.userId === 'string' ? r.userId : null,
     tagIds: Array.isArray(r.tagIds) ? r.tagIds.filter((t): t is string => typeof t === 'string') : [],
+    timerType: isTimerType(r.timerType) ? r.timerType : 'reminder',
+    leadTimeMs: typeof r.leadTimeMs === 'number' ? r.leadTimeMs : null,
+    workSessions: [],
     syncStatus: 'synced',
     version: typeof r.version === 'number' ? r.version : null,
   }

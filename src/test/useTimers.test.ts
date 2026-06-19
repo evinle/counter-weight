@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
 import { createTimer, cancelTimer, completeTimer, editTimer, bulkImportTimers, claimTimers, removeUnclaimedTimers } from '../hooks/useTimers'
+import { TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
 
 const BASE = {
@@ -12,6 +13,9 @@ const BASE = {
   priority: 'medium',
   recurrenceRule: null,
   tagIds: [],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
 } satisfies Omit<Timer, 'id' | 'createdAt' | 'updatedAt' | 'originalTargetDatetime' | 'serverId' | 'userId' | 'syncStatus' | 'version'>
 
 beforeEach(async () => {
@@ -235,6 +239,9 @@ describe('bulkImportTimers', () => {
         priority: 'medium',
         recurrenceRule: null,
         tagIds: [],
+        timerType: TimerType.Reminder,
+        leadTimeMs: null,
+        workSessions: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         serverId: null,

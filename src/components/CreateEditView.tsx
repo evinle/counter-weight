@@ -5,11 +5,12 @@ import { DurationInput } from "./DurationInput";
 import { DateTimeInput } from "./DateTimeInput";
 import { EmojiButton } from "./EmojiButton";
 import { TagPicker } from "./TagPicker";
+import { SpinnerField } from "./SpinnerField";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
-import { PRIORITIES, isPriority } from "../db/schema";
-import type { Timer, Priority } from "../db/schema";
+import { PRIORITIES, isPriority, TimerType } from "../db/schema";
+import type { Timer, Priority, TimerType as TimerTypeT } from "../db/schema";
 
 const TimerMode = {
   FromNow: "from-now",
@@ -35,6 +36,13 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     existing?.priority ?? "medium",
   );
   const [tagIds, setTagIds] = useState<string[]>(existing?.tagIds ?? []);
+  const [timerType, setTimerType] = useState<TimerTypeT>(existing?.timerType ?? TimerType.Reminder);
+  const [leadTimeMs, setLeadTimeMs] = useState<number | null>(existing?.leadTimeMs ?? null);
+  const leadMins = leadTimeMs != null ? Math.floor(leadTimeMs / 60_000) : 0;
+  const leadSecs = leadTimeMs != null ? Math.floor((leadTimeMs % 60_000) / 1_000) : 0;
+  function setLeadTime(mins: number, secs: number) {
+    setLeadTimeMs((mins * 60 + secs) * 1_000);
+  }
   const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
   const [timeEditUnlocked, setTimeEditUnlocked] = useState(false);
   const [duration, setDuration] = useState<DurationValue>(() =>
@@ -64,7 +72,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           ? new Date(Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds))
           : atTime
         : undefined;
-      const result = await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds });
+      const result = await editTimer(existing.id, { targetDatetime, title, emoji, priority, tagIds, timerType, leadTimeMs });
       if (result === false) {
         useToastStore.getState().show({ message: 'Timer can only be extended once', variant: 'error' });
         return;
@@ -83,6 +91,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         priority,
         recurrenceRule: null,
         tagIds,
+        timerType,
+        leadTimeMs,
+        workSessions: [],
       }, userId);
     }
     onDone();
@@ -207,6 +218,59 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           initialServerIds={existing?.tagIds}
           onChange={setTagIds}
         />
+      </div>
+
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          aria-label="Task"
+          className="w-5 h-5 rounded accent-blue-500"
+          checked={timerType === TimerType.Task}
+          onChange={(e) => setTimerType(e.target.checked ? TimerType.Task : TimerType.Reminder)}
+        />
+        <span className="text-sm text-slate-400">Task</span>
+      </label>
+
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Lead time</span>
+          {leadTimeMs === null ? (
+            <button
+              type="button"
+              onClick={() => setLeadTimeMs(0)}
+              className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
+            >
+              Add lead time
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLeadTimeMs(null)}
+              className="text-sm text-slate-400 active:opacity-60 transition-opacity"
+            >
+              Remove lead time
+            </button>
+          )}
+        </div>
+        {leadTimeMs !== null && (
+          <div className="flex gap-2 bg-slate-700 rounded-xl px-4 py-2">
+            <SpinnerField
+              label="Minutes"
+              value={leadMins}
+              onChange={(m) => setLeadTime(m, leadSecs)}
+              min={0}
+              max={1439}
+              clamp
+            />
+            <SpinnerField
+              label="Seconds"
+              value={leadSecs}
+              onChange={(s) => setLeadTime(leadMins, s)}
+              min={0}
+              max={59}
+            />
+          </div>
+        )}
       </div>
 
       <button

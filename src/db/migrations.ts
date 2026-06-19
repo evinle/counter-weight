@@ -1,3 +1,4 @@
+import { TimerType } from './schema'
 import type { TimerV1, TimerV2, TimerV3, TimerV4, TimerV5, TimerV6 } from './schema'
 
 export function migrateV1toV2(timer: TimerV1): TimerV2 {
@@ -26,5 +27,5 @@ export function migrateV4toV5(timer: TimerV4): TimerV5 {
 }
 
 export function migrateV5toV6(timer: TimerV5): TimerV6 {
-  return { ...timer, timerType: 'reminder', leadTimeMs: null, workSessions: [] }
+  return { ...timer, timerType: TimerType.Reminder, leadTimeMs: null, workSessions: [] }
 }

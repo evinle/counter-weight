@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { HISTORY_STATUSES, SyncStatuses } from '../db/schema'
-import type { Priority, Timer } from '../db/schema'
+import type { Priority, Timer, TimerType } from '../db/schema'
 
 export function useActiveTimers(): Timer[] {
   return (
@@ -97,6 +97,8 @@ export async function editTimer(
     emoji: string | null
     priority: Priority
     tagIds: string[]
+    timerType?: TimerType
+    leadTimeMs?: number | null
   },
 ) {
   const current = await db.timers.get(id)
@@ -108,9 +110,11 @@ export async function editTimer(
     if (isAlreadyExtended && isExtending) return false
   }
 
-  const { targetDatetime, ...rest } = params
+  const { targetDatetime, timerType, leadTimeMs, ...rest } = params
   const updates: Parameters<typeof db.timers.update>[1] = { ...rest, updatedAt: new Date(), syncStatus: 'pending' }
   if (targetDatetime !== undefined) updates.targetDatetime = targetDatetime
+  if (timerType !== undefined) updates.timerType = timerType
+  if (leadTimeMs !== undefined) updates.leadTimeMs = leadTimeMs
 
   await db.timers.update(id, updates)
 }

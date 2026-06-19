@@ -15,6 +15,7 @@ export function usePullToRefresh({ onRefresh, threshold = 70 }: Options) {
 
   useEffect(() => {
     if (!container || !onRefresh) return;
+    const refresh = onRefresh;
 
     function onTouchStart(e: TouchEvent) {
       if (container!.scrollTop > 0) return;
@@ -41,7 +42,7 @@ export function usePullToRefresh({ onRefresh, threshold = 70 }: Options) {
       setPullDistance(0);
       if (dist >= threshold && !refreshing.current) {
         refreshing.current = true;
-        onRefresh().finally(() => { refreshing.current = false; });
+        refresh().finally(() => { refreshing.current = false; });
       }
     }
 

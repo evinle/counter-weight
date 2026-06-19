@@ -3,6 +3,7 @@ import { beforeEach, describe, it, expect } from "vitest";
 import { waitFor } from '@testing-library/react'
 import { useTimerStore } from "../store/timerStore";
 import { db } from "../db";
+import { TimerType } from "../db/schema";
 import type { Timer } from "../db/schema";
 
 const BASE_DB_TIMER = {
@@ -20,6 +21,9 @@ const BASE_DB_TIMER = {
   syncStatus: 'synced',
   version: null,
   tagIds: [],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
 } satisfies Omit<Timer, 'id' | 'targetDatetime'>
 
 describe("timerStore Dexie writes", () => {

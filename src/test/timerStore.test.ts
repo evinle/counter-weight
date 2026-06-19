@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { vi, beforeEach, afterEach, describe, it, expect } from "vitest";
 import { useTimerStore } from "../store/timerStore";
+import { TimerType } from "../db/schema";
 import type { Timer } from "../db/schema";
 
 function makeTimer(overrides: Partial<Timer> = {}): Timer {
@@ -22,6 +23,9 @@ function makeTimer(overrides: Partial<Timer> = {}): Timer {
     syncStatus: 'synced',
     version: null,
     tagIds: [],
+    timerType: TimerType.Reminder,
+    leadTimeMs: null,
+    workSessions: [],
     ...overrides,
   };
 }

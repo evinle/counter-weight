@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from '../db'
-import { isSyncStatus } from '../db/schema'
+import { isSyncStatus, TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
 
 describe('isSyncStatus', () => {
@@ -34,6 +34,9 @@ describe('db', () => {
       description: null,
       recurrenceRule: null,
       tagIds: [],
+      timerType: TimerType.Reminder,
+      leadTimeMs: null,
+      workSessions: [],
       createdAt: new Date(),
       updatedAt: new Date(),
       serverId: null,
@@ -58,6 +61,9 @@ describe('db', () => {
       description: null,
       recurrenceRule: null,
       tagIds: [],
+      timerType: TimerType.Reminder,
+      leadTimeMs: null,
+      workSessions: [],
       createdAt: new Date(),
       updatedAt: new Date(),
       serverId: null,
@@ -91,6 +97,9 @@ describe('history query', () => {
       userId: null,
       syncStatus: 'synced',
       version: null,
+      timerType: TimerType.Reminder,
+      leadTimeMs: null,
+      workSessions: [],
     } satisfies Partial<Timer>
 
     await db.timers.add({ ...base, title: 'Active', targetDatetime: new Date('2026-03-01'), status: 'active' })

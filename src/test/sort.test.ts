@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sortTimers, SortModes } from '../lib/sort'
-import type { SortMode, SortDirection } from '../lib/sort'
-import { SyncStatuses } from '../db/schema'
+import type { SortMode } from '../lib/sort'
+import { SyncStatuses, TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
 
 const NOW = new Date('2026-06-17T12:00:00Z')
@@ -17,6 +17,9 @@ const BASE_TIMER: Omit<Timer, 'id' | 'title' | 'priority' | 'targetDatetime' | '
   syncStatus: SyncStatuses.Synced,
   version: null,
   tagIds: [],
+  timerType: TimerType.Reminder,
+  leadTimeMs: null,
+  workSessions: [],
   updatedAt: NOW,
 }
 
