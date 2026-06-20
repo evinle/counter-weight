@@ -10,18 +10,23 @@ function presetSelect() {
   return screen.getByRole('combobox', { name: /recurrence/i })
 }
 
-function timeInput() {
-  return screen.getByLabelText(/time of day/i)
+function hourSpinner() {
+  return screen.getByLabelText('Hour')
+}
+
+function minuteSpinner() {
+  return screen.getByLabelText('Minute')
 }
 
 describe('RecurrencePicker — default state', () => {
-  it('defaults to Every day with time input visible', () => {
+  it('defaults to Every day with time spinners visible', () => {
     render(
       <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
     )
 
     expect(presetSelect()).toHaveValue('daily')
-    expect(timeInput()).toBeInTheDocument()
+    expect(hourSpinner()).toBeInTheDocument()
+    expect(minuteSpinner()).toBeInTheDocument()
   })
 })
 
@@ -86,7 +91,8 @@ describe('RecurrencePicker — presets', () => {
       <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
     )
 
-    fireEvent.change(timeInput(), { target: { value: '14:30' } })
+    fireEvent.change(hourSpinner(), { target: { value: '14' } })
+    fireEvent.change(minuteSpinner(), { target: { value: '30' } })
 
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ cron: '30 14 * * *' }),
@@ -150,9 +156,7 @@ describe('RecurrencePicker — Custom', () => {
 
     fireEvent.change(presetSelect(), { target: { value: 'custom' } })
     fireEvent.change(customSelect(), { target: { value: 'monthly' } })
-    fireEvent.change(screen.getByRole('spinbutton', { name: /day of month/i }), {
-      target: { value: '15' },
-    })
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '15' } })
 
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('0 9 15 * *')
@@ -166,15 +170,13 @@ describe('RecurrencePicker — Custom', () => {
 
     fireEvent.change(presetSelect(), { target: { value: 'custom' } })
     fireEvent.change(customSelect(), { target: { value: 'every-n-days' } })
-    fireEvent.change(screen.getByRole('spinbutton', { name: /every/i }), {
-      target: { value: '3' },
-    })
+    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '3' } })
 
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('0 9 */3 * *')
   })
 
-  it('Custom Every N hours: no time input, correct cron', () => {
+  it('Custom Every N hours: no time spinners, correct cron', () => {
     const onChange = vi.fn()
     render(
       <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
@@ -182,11 +184,10 @@ describe('RecurrencePicker — Custom', () => {
 
     fireEvent.change(presetSelect(), { target: { value: 'custom' } })
     fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByRole('spinbutton', { name: /every/i }), {
-      target: { value: '2' },
-    })
+    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '2' } })
 
-    expect(screen.queryByLabelText(/time of day/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Minute')).not.toBeInTheDocument()
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('0 */2 * * *')
   })
@@ -202,9 +203,7 @@ describe('RecurrencePicker — Custom', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /unit/i }), {
       target: { value: 'minutes' },
     })
-    fireEvent.change(screen.getByRole('spinbutton', { name: /every/i }), {
-      target: { value: '30' },
-    })
+    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '30' } })
 
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('*/30 * * * *')
@@ -222,7 +221,8 @@ describe('RecurrencePicker — pre-population', () => {
     )
 
     expect(presetSelect()).toHaveValue('daily')
-    expect(timeInput()).toHaveValue('14:30')
+    expect(hourSpinner()).toHaveValue('14')
+    expect(minuteSpinner()).toHaveValue('30')
   })
 
   it('pre-populates "Every weekday" from a weekday cron rule', () => {
