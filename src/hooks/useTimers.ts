@@ -99,6 +99,7 @@ export async function editTimer(
     tagIds: string[]
     timerType?: TimerType
     leadTimeMs?: number | null
+    recurrenceRule?: { cron: string; tz: string } | null
   },
 ) {
   const current = await db.timers.get(id)
@@ -110,11 +111,12 @@ export async function editTimer(
     if (isAlreadyExtended && isExtending) return false
   }
 
-  const { targetDatetime, timerType, leadTimeMs, ...rest } = params
+  const { targetDatetime, timerType, leadTimeMs, recurrenceRule, ...rest } = params
   const updates: Parameters<typeof db.timers.update>[1] = { ...rest, updatedAt: new Date(), syncStatus: 'pending' }
   if (targetDatetime !== undefined) updates.targetDatetime = targetDatetime
   if (timerType !== undefined) updates.timerType = timerType
   if (leadTimeMs !== undefined) updates.leadTimeMs = leadTimeMs
+  if (recurrenceRule !== undefined) updates.recurrenceRule = recurrenceRule
 
   await db.timers.update(id, updates)
 }

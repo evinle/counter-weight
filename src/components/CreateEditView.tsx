@@ -7,6 +7,7 @@ import { EmojiButton } from "./EmojiButton";
 import { TagPicker } from "./TagPicker";
 import { SpinnerField } from "./SpinnerField";
 import { OptionalField } from "./OptionalField";
+import { RecurrencePicker } from "./RecurrencePicker";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
@@ -42,6 +43,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   );
   const [leadTimeMs, setLeadTimeMs] = useState<number | null>(
     existing?.leadTimeMs ?? null,
+  );
+  const [recurrenceRule, setRecurrenceRule] = useState<{ cron: string; tz: string } | null>(
+    existing?.recurrenceRule ?? null,
   );
   const leadDuration = msToDuration(leadTimeMs ?? 0);
   function setLeadTime(
@@ -99,6 +103,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         tagIds,
         timerType,
         leadTimeMs,
+        recurrenceRule,
       });
       if (result === false) {
         useToastStore.getState().show({
@@ -128,7 +133,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           targetDatetime,
           status: "active",
           priority,
-          recurrenceRule: null,
+          recurrenceRule,
           tagIds,
           timerType,
           leadTimeMs,
@@ -391,6 +396,26 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           />
         </div>
       </OptionalField>
+
+      {userId !== null && (
+        <OptionalField
+          label="Recurrence"
+          activateLabel="Set recurrence"
+          clearLabel="Remove recurrence"
+          active={recurrenceRule !== null}
+          onActivate={() => {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+            setRecurrenceRule({ cron: '0 9 * * *', tz })
+          }}
+          onClear={() => setRecurrenceRule(null)}
+        >
+          <RecurrencePicker
+            value={recurrenceRule}
+            targetDatetime={atTime}
+            onChange={setRecurrenceRule}
+          />
+        </OptionalField>
+      )}
 
       <button
         type="submit"

@@ -64,11 +64,22 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
           {timer.emoji && <span className="mr-2">{timer.emoji}</span>}
           {timer.title}
         </span>
-        <span
-          className={`text-sm font-semibold uppercase shrink-0 ${PRIORITY_COLOURS[timer.priority]}`}
-        >
-          {timer.priority}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {timer.recurrenceRule !== null && (
+            <span
+              data-testid="recurring-indicator"
+              className="text-xs text-slate-400"
+              title="Recurring"
+            >
+              ↻
+            </span>
+          )}
+          <span
+            className={`text-sm font-semibold uppercase ${PRIORITY_COLOURS[timer.priority]}`}
+          >
+            {timer.priority}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col items-baseline gap-1">
