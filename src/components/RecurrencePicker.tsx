@@ -347,20 +347,21 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
             />
             Last day of month
           </label>
-          {!customLastDay && (
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-slate-400">Day of month</span>
-              <div className="flex">
-                <SpinnerField value={customDom} onChange={handleCustomDom} min={1} max={31} clamp label="Day" />
-              </div>
-            </div>
-          )}
+          <div className="flex gap-2">
+            {!customLastDay && (
+              <SpinnerField value={customDom} onChange={handleCustomDom} min={1} max={31} clamp label="Day" />
+            )}
+            <SpinnerField value={customHour} onChange={handleCustomHour} min={0} max={23} clamp label="Hour" />
+            <SpinnerField value={customMinute} onChange={handleCustomMinute} min={0} max={59} clamp label="Minute" />
+          </div>
         </div>
       )}
 
       {preset === Preset.Custom && customFlavour === CustomFlavour.EveryNDays && (
-        <div className="flex">
+        <div className="flex gap-2">
           <SpinnerField value={customEveryN} onChange={handleCustomEveryN} min={2} max={90} clamp label="Every" />
+          <SpinnerField value={customHour} onChange={handleCustomHour} min={0} max={23} clamp label="Hour" />
+          <SpinnerField value={customMinute} onChange={handleCustomMinute} min={0} max={59} clamp label="Minute" />
         </div>
       )}
 
@@ -371,13 +372,10 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
         </div>
       )}
 
-      {preset === Preset.Custom && customFlavour !== CustomFlavour.EveryNHoursMinutes && (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-400">Time of day</span>
-          <div className="flex gap-2">
-            <SpinnerField value={customHour} onChange={handleCustomHour} min={0} max={23} clamp label="Hour" />
-            <SpinnerField value={customMinute} onChange={handleCustomMinute} min={0} max={59} clamp label="Minute" />
-          </div>
+      {preset === Preset.Custom && customFlavour === CustomFlavour.Weekly && (
+        <div className="flex gap-2">
+          <SpinnerField value={customHour} onChange={handleCustomHour} min={0} max={23} clamp label="Hour" />
+          <SpinnerField value={customMinute} onChange={handleCustomMinute} min={0} max={59} clamp label="Minute" />
         </div>
       )}
     </div>
