@@ -10,16 +10,17 @@
     "migrate:aws": "dotenv -- tsx scripts/migrate.ts"
   },
   "dependencies": {
-    "@cw/filters": "*",
     "@aws-sdk/client-scheduler": "^3.1057.0",
     "@aws-sdk/client-secrets-manager": "^3.0.0",
     "@aws/durable-execution-sdk-js": "^1.1.7",
+    "@cw/filters": "*",
     "@fastify/aws-lambda": "^4.0.0",
     "@fastify/compress": "^8.3.1",
     "@fastify/cookie": "^11.0.0",
     "@fastify/cors": "^10.0.0",
     "@trpc/server": "^11.0.0",
     "aws-jwt-verify": "^4.0.0",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.40.0",
     "fastify": "^5.0.0",
     "postgres": "^3.4.0",
