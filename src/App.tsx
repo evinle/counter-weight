@@ -34,7 +34,9 @@ export function App() {
     ActiveAction.None,
   );
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
-  const [editGroup, setEditGroup] = useState<import("./db/schema").Group | undefined>();
+  const [editGroup, setEditGroup] = useState<
+    import("./db/schema").Group | undefined
+  >();
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user } = useAuth();
@@ -252,19 +254,26 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div ref={containerRef} className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top">
+      <div
+        ref={containerRef}
+        className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top"
+      >
         {(pullDistance > 0 || syncing) && (
           <div
             className="absolute left-1/2 -translate-x-1/2 z-50 w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg"
             style={{
-              top: syncing && pullDistance === 0 ? "8px" : `${pullDistance - 36}px`,
+              top:
+                syncing && pullDistance === 0
+                  ? "calc(env(safe-area-inset-top) + 24px)"
+                  : `${pullDistance - 36}px`,
               transition: pullDistance === 0 ? "top 0.15s ease-out" : "none",
             }}
           >
-            {syncing
-              ? <div className="w-5 h-5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
-              : <span className="text-slate-300 text-sm leading-none">↓</span>
-            }
+            {syncing ? (
+              <div className="w-5 h-5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+            ) : (
+              <span className="text-slate-300 text-sm leading-none">↓</span>
+            )}
           </div>
         )}
         <ToastContainer />
