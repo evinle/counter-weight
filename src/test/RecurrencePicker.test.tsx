@@ -176,7 +176,7 @@ describe('RecurrencePicker — Custom', () => {
     expect(lastCall?.cron).toBe('0 9 */3 * *')
   })
 
-  it('Custom Every N hours: no time spinners, correct cron', () => {
+  it('Custom Every HM: hours only, correct cron; time spinners hidden', () => {
     const onChange = vi.fn()
     render(
       <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
@@ -184,7 +184,7 @@ describe('RecurrencePicker — Custom', () => {
 
     fireEvent.change(presetSelect(), { target: { value: 'custom' } })
     fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '2' } })
 
     expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Minute')).not.toBeInTheDocument()
@@ -192,7 +192,7 @@ describe('RecurrencePicker — Custom', () => {
     expect(lastCall?.cron).toBe('0 */2 * * *')
   })
 
-  it('Custom Every N minutes: produces */N minute cron', () => {
+  it('Custom Every HM: minutes only, correct cron', () => {
     const onChange = vi.fn()
     render(
       <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
@@ -200,13 +200,44 @@ describe('RecurrencePicker — Custom', () => {
 
     fireEvent.change(presetSelect(), { target: { value: 'custom' } })
     fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByRole('combobox', { name: /unit/i }), {
-      target: { value: 'minutes' },
-    })
-    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '30' } })
 
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('*/30 * * * *')
+  })
+
+  it('Custom Every HM: hours and minutes combined, total-minutes cron', () => {
+    const onChange = vi.fn()
+    render(
+      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
+    )
+
+    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
+    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '30' } })
+
+    const lastCall = onChange.mock.calls.at(-1)?.[0]
+    expect(lastCall?.cron).toBe('*/90 * * * *')
+  })
+
+  it('Custom Every HM: both zero suppresses emit', () => {
+    const onChange = vi.fn()
+    render(
+      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
+    )
+
+    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
+    // default hours=2; set both to 0
+    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '0' } })
+
+    const calls = onChange.mock.calls
+    // last two changes (hours=0, minutes=0) must not have produced an emit
+    expect(calls.at(-1)?.[0].cron).not.toBe('0 */0 * * *')
+    expect(calls.at(-1)?.[0].cron).not.toBe('*/0 * * * *')
   })
 })
 

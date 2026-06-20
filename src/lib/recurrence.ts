@@ -34,12 +34,9 @@ export function buildCustomEveryNDaysCron(time: string, n: number): string {
   return `${min} ${hour} */${n} * *`
 }
 
-export function buildCustomEveryNHoursCron(n: number): string {
-  return `0 */${n} * * *`
-}
-
-export function buildCustomEveryNMinutesCron(n: number): string {
-  return `*/${n} * * * *`
+export function buildCustomEveryHMCron(hours: number, minutes: number): string {
+  if (minutes === 0) return `0 */${hours} * * *`
+  return `*/${hours * 60 + minutes} * * * *`
 }
 
 export type ParsedCron =
@@ -50,8 +47,7 @@ export type ParsedCron =
   | { preset: 'custom-weekly'; time: string; days: number[] }
   | { preset: 'custom-monthly'; time: string; dom: number }
   | { preset: 'custom-every-n-days'; time: string; n: number }
-  | { preset: 'custom-every-n-hours'; n: number }
-  | { preset: 'custom-every-n-minutes'; n: number }
+  | { preset: 'custom-every-hm'; hours: number; minutes: number }
 
 function toTimeString(hour: number, min: number): string {
   return `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
@@ -62,13 +58,14 @@ export function parseCron(cron: string): ParsedCron | null {
   if (parts.length !== 5) return null
   const [minF, hourF, domF, , dowF] = parts
 
-  // */N minutes
+  // */N minutes (hours and minutes, or minutes-only)
   if (minF.startsWith('*/') && hourF === '*') {
-    return { preset: 'custom-every-n-minutes', n: Number(minF.slice(2)) }
+    const total = Number(minF.slice(2))
+    return { preset: 'custom-every-hm', hours: Math.floor(total / 60), minutes: total % 60 }
   }
-  // */N hours
+  // */N hours (hours-only)
   if (minF === '0' && hourF.startsWith('*/') && domF === '*') {
-    return { preset: 'custom-every-n-hours', n: Number(hourF.slice(2)) }
+    return { preset: 'custom-every-hm', hours: Number(hourF.slice(2)), minutes: 0 }
   }
 
   const min = Number(minF)

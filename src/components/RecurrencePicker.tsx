@@ -6,8 +6,7 @@ import {
   buildMonthlyCron,
   buildCustomWeeklyCron,
   buildCustomEveryNDaysCron,
-  buildCustomEveryNHoursCron,
-  buildCustomEveryNMinutesCron,
+  buildCustomEveryHMCron,
   parseCron,
 } from '../lib/recurrence'
 import { SpinnerField } from './SpinnerField'
@@ -31,12 +30,6 @@ const CustomFlavour = {
 } as const satisfies Record<string, string>
 type CustomFlavour = typeof CustomFlavour[keyof typeof CustomFlavour]
 
-const HourMinuteUnit = {
-  Hours: 'hours',
-  Minutes: 'minutes',
-} as const satisfies Record<string, string>
-type HourMinuteUnit = typeof HourMinuteUnit[keyof typeof HourMinuteUnit]
-
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
 interface Props {
@@ -57,8 +50,8 @@ function initFromValue(value: RecurrenceRule | null): {
   customFlavour: CustomFlavour
   customDays: number[]
   customDom: number
-  customN: number
-  customUnit: HourMinuteUnit
+  customEveryH: number
+  customEveryM: number
 } {
   const defaults = {
     preset: Preset.Daily,
@@ -67,8 +60,8 @@ function initFromValue(value: RecurrenceRule | null): {
     customFlavour: CustomFlavour.Weekly,
     customDays: [] as number[],
     customDom: 1,
-    customN: 2,
-    customUnit: HourMinuteUnit.Hours,
+    customEveryH: 2,
+    customEveryM: 0,
   }
 
   if (!value) return defaults
@@ -90,11 +83,9 @@ function initFromValue(value: RecurrenceRule | null): {
     case 'custom-monthly':
       return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.Monthly, ...parseTime(parsed.time), customDom: parsed.dom }
     case 'custom-every-n-days':
-      return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.EveryNDays, ...parseTime(parsed.time), customN: parsed.n }
-    case 'custom-every-n-hours':
-      return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.EveryNHoursMinutes, customN: parsed.n, customUnit: HourMinuteUnit.Hours }
-    case 'custom-every-n-minutes':
-      return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.EveryNHoursMinutes, customN: parsed.n, customUnit: HourMinuteUnit.Minutes }
+      return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.EveryNDays, ...parseTime(parsed.time), customEveryH: parsed.n }
+    case 'custom-every-hm':
+      return { ...defaults, preset: Preset.Custom, customFlavour: CustomFlavour.EveryNHoursMinutes, customEveryH: parsed.hours, customEveryM: parsed.minutes }
   }
 }
 
@@ -106,8 +97,8 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
   const [customFlavour, setCustomFlavour] = useState<CustomFlavour>(init.customFlavour)
   const [customDays, setCustomDays] = useState<number[]>(init.customDays)
   const [customDom, setCustomDom] = useState(init.customDom)
-  const [customN, setCustomN] = useState(init.customN)
-  const [customUnit, setCustomUnit] = useState<HourMinuteUnit>(init.customUnit)
+  const [customEveryH, setCustomEveryH] = useState(init.customEveryH)
+  const [customEveryM, setCustomEveryM] = useState(init.customEveryM)
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const dow = targetDatetime.getUTCDay()
@@ -124,8 +115,8 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
     cf: CustomFlavour,
     cd: number[],
     cdom: number,
-    cn: number,
-    cu: HourMinuteUnit,
+    ceh: number,
+    cem: number,
   ): RecurrenceRule | null {
     const t = toTimeString(h, m)
     switch (p) {
@@ -141,11 +132,10 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
           case CustomFlavour.Monthly:
             return { cron: buildMonthlyCron(t, cdom), tz }
           case CustomFlavour.EveryNDays:
-            return { cron: buildCustomEveryNDaysCron(t, cn), tz }
+            return { cron: buildCustomEveryNDaysCron(t, ceh), tz }
           case CustomFlavour.EveryNHoursMinutes:
-            return cu === HourMinuteUnit.Hours
-              ? { cron: buildCustomEveryNHoursCron(cn), tz }
-              : { cron: buildCustomEveryNMinutesCron(cn), tz }
+            if (ceh === 0 && cem === 0) return null
+            return { cron: buildCustomEveryHMCron(ceh, cem), tz }
         }
     }
   }
@@ -157,31 +147,31 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
     cf: CustomFlavour,
     cd: number[],
     cdom: number,
-    cn: number,
-    cu: HourMinuteUnit,
+    ceh: number,
+    cem: number,
   ) {
-    const rule = buildRule(p, h, m, cf, cd, cdom, cn, cu)
+    const rule = buildRule(p, h, m, cf, cd, cdom, ceh, cem)
     if (rule !== null) onChange(rule)
   }
 
   function handlePreset(p: Preset) {
     setPreset(p)
-    emit(p, hour, minute, customFlavour, customDays, customDom, customN, customUnit)
+    emit(p, hour, minute, customFlavour, customDays, customDom, customEveryH, customEveryM)
   }
 
   function handleHour(h: number) {
     setHour(h)
-    emit(preset, h, minute, customFlavour, customDays, customDom, customN, customUnit)
+    emit(preset, h, minute, customFlavour, customDays, customDom, customEveryH, customEveryM)
   }
 
   function handleMinute(m: number) {
     setMinute(m)
-    emit(preset, hour, m, customFlavour, customDays, customDom, customN, customUnit)
+    emit(preset, hour, m, customFlavour, customDays, customDom, customEveryH, customEveryM)
   }
 
   function handleCustomFlavour(cf: CustomFlavour) {
     setCustomFlavour(cf)
-    emit(preset, hour, minute, cf, customDays, customDom, customN, customUnit)
+    emit(preset, hour, minute, cf, customDays, customDom, customEveryH, customEveryM)
   }
 
   function toggleDay(d: number) {
@@ -189,22 +179,22 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
       ? customDays.filter((x) => x !== d)
       : [...customDays, d]
     setCustomDays(next)
-    emit(preset, hour, minute, customFlavour, next, customDom, customN, customUnit)
+    emit(preset, hour, minute, customFlavour, next, customDom, customEveryH, customEveryM)
   }
 
   function handleDom(v: number) {
     setCustomDom(v)
-    emit(preset, hour, minute, customFlavour, customDays, v, customN, customUnit)
+    emit(preset, hour, minute, customFlavour, customDays, v, customEveryH, customEveryM)
   }
 
-  function handleN(v: number) {
-    setCustomN(v)
-    emit(preset, hour, minute, customFlavour, customDays, customDom, v, customUnit)
+  function handleEveryH(v: number) {
+    setCustomEveryH(v)
+    emit(preset, hour, minute, customFlavour, customDays, customDom, v, customEveryM)
   }
 
-  function handleUnit(u: HourMinuteUnit) {
-    setCustomUnit(u)
-    emit(preset, hour, minute, customFlavour, customDays, customDom, customN, u)
+  function handleEveryM(v: number) {
+    setCustomEveryM(v)
+    emit(preset, hour, minute, customFlavour, customDays, customDom, customEveryH, v)
   }
 
   const showTimeInput = !(preset === Preset.Custom && customFlavour === CustomFlavour.EveryNHoursMinutes)
@@ -283,35 +273,16 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
         </div>
       )}
 
-      {preset === Preset.Custom && (
-        customFlavour === CustomFlavour.EveryNDays ||
-        customFlavour === CustomFlavour.EveryNHoursMinutes
-      ) && (
-        <div className="flex gap-2 items-end">
-          <SpinnerField
-            value={customN}
-            onChange={handleN}
-            min={customFlavour === CustomFlavour.EveryNHoursMinutes ? 1 : 2}
-            max={customFlavour === CustomFlavour.EveryNHoursMinutes
-              ? (customUnit === HourMinuteUnit.Hours ? 23 : 59)
-              : 90}
-            clamp
-            label="Every"
-          />
-          {customFlavour === CustomFlavour.EveryNHoursMinutes && (
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-400">Unit</span>
-              <select
-                aria-label="Unit"
-                value={customUnit}
-                onChange={(e) => handleUnit(e.target.value as HourMinuteUnit)}
-                className="bg-slate-700 text-white text-sm rounded px-2 py-1"
-              >
-                <option value={HourMinuteUnit.Hours}>Hours</option>
-                <option value={HourMinuteUnit.Minutes}>Minutes</option>
-              </select>
-            </label>
-          )}
+      {preset === Preset.Custom && customFlavour === CustomFlavour.EveryNDays && (
+        <div className="flex">
+          <SpinnerField value={customEveryH} onChange={handleEveryH} min={2} max={90} clamp label="Every" />
+        </div>
+      )}
+
+      {preset === Preset.Custom && customFlavour === CustomFlavour.EveryNHoursMinutes && (
+        <div className="flex gap-2">
+          <SpinnerField value={customEveryH} onChange={handleEveryH} min={0} max={23} clamp label="Hours" />
+          <SpinnerField value={customEveryM} onChange={handleEveryM} min={0} max={59} clamp label="Minutes" />
         </div>
       )}
     </div>

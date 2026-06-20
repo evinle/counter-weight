@@ -6,8 +6,7 @@ import {
   buildMonthlyCron,
   buildCustomWeeklyCron,
   buildCustomEveryNDaysCron,
-  buildCustomEveryNHoursCron,
-  buildCustomEveryNMinutesCron,
+  buildCustomEveryHMCron,
 } from '../lib/recurrence'
 
 describe('buildDailyCron', () => {
@@ -56,16 +55,19 @@ describe('buildCustomEveryNDaysCron', () => {
   })
 })
 
-describe('buildCustomEveryNHoursCron', () => {
-  it('produces */N hour cron with 0 minutes', () => {
-    expect(buildCustomEveryNHoursCron(2)).toBe('0 */2 * * *')
-    expect(buildCustomEveryNHoursCron(6)).toBe('0 */6 * * *')
+describe('buildCustomEveryHMCron', () => {
+  it('hours only: produces */N hour cron', () => {
+    expect(buildCustomEveryHMCron(2, 0)).toBe('0 */2 * * *')
+    expect(buildCustomEveryHMCron(6, 0)).toBe('0 */6 * * *')
   })
-})
 
-describe('buildCustomEveryNMinutesCron', () => {
-  it('produces */N minute cron', () => {
-    expect(buildCustomEveryNMinutesCron(30)).toBe('*/30 * * * *')
-    expect(buildCustomEveryNMinutesCron(15)).toBe('*/15 * * * *')
+  it('minutes only: produces */N minute cron', () => {
+    expect(buildCustomEveryHMCron(0, 30)).toBe('*/30 * * * *')
+    expect(buildCustomEveryHMCron(0, 15)).toBe('*/15 * * * *')
+  })
+
+  it('hours and minutes: converts to total minutes cron', () => {
+    expect(buildCustomEveryHMCron(1, 30)).toBe('*/90 * * * *')
+    expect(buildCustomEveryHMCron(2, 15)).toBe('*/135 * * * *')
   })
 })
