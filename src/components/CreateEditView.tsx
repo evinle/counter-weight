@@ -44,9 +44,10 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const [leadTimeMs, setLeadTimeMs] = useState<number | null>(
     existing?.leadTimeMs ?? null,
   );
-  const [recurrenceRule, setRecurrenceRule] = useState<{ cron: string; tz: string } | null>(
-    existing?.recurrenceRule ?? null,
-  );
+  const [recurrenceRule, setRecurrenceRule] = useState<{
+    cron: string;
+    tz: string;
+  } | null>(existing?.recurrenceRule ?? null);
   const leadDuration = msToDuration(leadTimeMs ?? 0);
   function setLeadTime(
     days: number,
@@ -210,8 +211,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 px-4 pt-4 box-border overflow-auto h-full"
+      className="overflow-auto h-full box-border"
     >
+      <div className="flex flex-col gap-5 px-4 pt-4">
       <div className="flex gap-2 items-center">
         <input
           id="timer-title"
@@ -226,7 +228,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
 
       {showTimeEditor ? (
         <>
-          <div className="flex rounded-xl overflow-hidden border border-slate-600">
+          <div className="h-12 flex rounded-xl overflow-hidden border border-slate-600">
             <button
               type="button"
               onClick={() => setMode(TimerMode.FromNow)}
@@ -404,8 +406,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           clearLabel="Remove recurrence"
           active={recurrenceRule !== null}
           onActivate={() => {
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-            setRecurrenceRule({ cron: '0 9 * * *', tz })
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            setRecurrenceRule({ cron: "0 9 * * *", tz });
           }}
           onClear={() => setRecurrenceRule(null)}
         >
@@ -431,6 +433,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       >
         Cancel
       </button>
+      </div>
     </form>
   );
 }
