@@ -271,6 +271,7 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
         aria-label="Recurrence"
         value={preset}
         onChange={(v) => handlePreset(v as Preset)}
+        variant="sub"
       >
         <option value={Preset.Daily}>Every day</option>
         <option value={Preset.Weekly}>Every {DAY_NAMES[dow]}</option>
@@ -306,6 +307,7 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
           aria-label="Repeat"
           value={customFlavour}
           onChange={(v) => handleCustomFlavour(v as CustomFlavour)}
+          variant="sub"
         >
           <option value={CustomFlavour.Weekly}>Weekly</option>
           <option value={CustomFlavour.Monthly}>Monthly</option>
