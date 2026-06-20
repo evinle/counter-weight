@@ -8,6 +8,7 @@ import { TagPicker } from "./TagPicker";
 import { SpinnerField } from "./SpinnerField";
 import { OptionalField } from "./OptionalField";
 import { RecurrencePicker } from "./RecurrencePicker";
+import { SelectField } from "./SelectField";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
@@ -282,25 +283,16 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         )
       )}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="timer-priority" className="text-sm text-slate-400">
-          Priority
-        </label>
-        <select
-          id="timer-priority"
-          className="rounded-lg p-3 bg-slate-700 text-white text-base min-h-[52px]"
-          value={priority}
-          onChange={(e) => {
-            if (isPriority(e.target.value)) setPriority(e.target.value);
-          }}
-        >
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelectField
+        label="Priority"
+        id="timer-priority"
+        value={priority}
+        onChange={(v) => { if (isPriority(v)) setPriority(v) }}
+      >
+        {PRIORITIES.map((p) => (
+          <option key={p} value={p}>{p}</option>
+        ))}
+      </SelectField>
 
       <div className="flex flex-col gap-1">
         <span className="text-sm text-slate-400">Tags</span>

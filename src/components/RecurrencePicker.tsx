@@ -10,6 +10,7 @@ import {
   parseCron,
 } from '../lib/recurrence'
 import { SpinnerField } from './SpinnerField'
+import { SelectField } from './SelectField'
 
 type RecurrenceRule = { cron: string; tz: string }
 
@@ -265,20 +266,17 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1">
-        <span className="text-sm text-slate-400">Schedule</span>
-        <select
-          aria-label="Recurrence"
-          value={preset}
-          onChange={(e) => handlePreset(e.target.value as Preset)}
-          className="bg-slate-700 text-white text-sm rounded px-2 py-1"
-        >
-          <option value={Preset.Daily}>Every day</option>
-          <option value={Preset.Weekly}>Every {DAY_NAMES[dow]}</option>
-          <option value={Preset.Monthly}>Every month</option>
-          <option value={Preset.Custom}>Custom</option>
-        </select>
-      </label>
+      <SelectField
+        label="Schedule"
+        aria-label="Recurrence"
+        value={preset}
+        onChange={(v) => handlePreset(v as Preset)}
+      >
+        <option value={Preset.Daily}>Every day</option>
+        <option value={Preset.Weekly}>Every {DAY_NAMES[dow]}</option>
+        <option value={Preset.Monthly}>Every month</option>
+        <option value={Preset.Custom}>Custom</option>
+      </SelectField>
 
       {preset === Preset.Monthly && (
         <div className="flex flex-col gap-2">
@@ -303,20 +301,17 @@ export function RecurrencePicker({ value, targetDatetime, onChange }: Props) {
       )}
 
       {preset === Preset.Custom && (
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-400">Repeat</span>
-          <select
-            aria-label="Repeat"
-            value={customFlavour}
-            onChange={(e) => handleCustomFlavour(e.target.value as CustomFlavour)}
-            className="bg-slate-700 text-white text-sm rounded px-2 py-1"
-          >
-            <option value={CustomFlavour.Weekly}>Weekly</option>
-            <option value={CustomFlavour.Monthly}>Monthly</option>
-            <option value={CustomFlavour.EveryNDays}>Every N days</option>
-            <option value={CustomFlavour.EveryNHoursMinutes}>Every N hours/minutes</option>
-          </select>
-        </label>
+        <SelectField
+          label="Repeat"
+          aria-label="Repeat"
+          value={customFlavour}
+          onChange={(v) => handleCustomFlavour(v as CustomFlavour)}
+        >
+          <option value={CustomFlavour.Weekly}>Weekly</option>
+          <option value={CustomFlavour.Monthly}>Monthly</option>
+          <option value={CustomFlavour.EveryNDays}>Every N days</option>
+          <option value={CustomFlavour.EveryNHoursMinutes}>Every N hours/minutes</option>
+        </SelectField>
       )}
 
       {preset === Preset.Custom && customFlavour === CustomFlavour.Weekly && (
