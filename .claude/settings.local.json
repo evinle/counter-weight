@@ -17,7 +17,8 @@
       "Bash(gh issue list *)",
       "Bash(xargs ls)",
       "Bash(gh issue *)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(grep *)"
     ]
   }
 }
