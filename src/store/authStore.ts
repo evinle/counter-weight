@@ -88,7 +88,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ bootstrapStarted: true })
 
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 3000)
+    const timeout = setTimeout(() => controller.abort(), 6000)
 
     try {
       const res = await fetchFromBackend('/auth/refresh', {
@@ -110,7 +110,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
     } catch {
       clearTimeout(timeout)
-      set({ state: 'unauthenticated' })
+      // Network error or timeout — same fallback as a non-OK response.
+      // loginSilent recovers silently if the Cognito session is still valid.
+      const lastUser = readLastUser()
+      if (lastUser) {
+        get().loginSilent()
+      } else {
+        set({ state: 'unauthenticated' })
+      }
     }
   },
 

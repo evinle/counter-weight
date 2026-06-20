@@ -151,7 +151,7 @@ describe('bootstrap()', () => {
     expect(window.location.href).toContain('prompt=none')
   })
 
-  it('sets unauthenticated on network timeout (AbortError)', async () => {
+  it('sets unauthenticated on network timeout when no lastUser', async () => {
     mockFetch.mockRejectedValueOnce(
       Object.assign(new Error('aborted'), { name: 'AbortError' })
     )
@@ -159,6 +159,18 @@ describe('bootstrap()', () => {
     await useAuthStore.getState().bootstrap()
 
     expect(useAuthStore.getState().state).toBe('unauthenticated')
+  })
+
+  it('redirects with prompt=none on timeout when lastUser exists', async () => {
+    localStorage.setItem(StorageKey.LastUser, JSON.stringify({ userId: 'u1', firstName: 'Alice' }))
+    mockFetch.mockRejectedValueOnce(
+      Object.assign(new Error('aborted'), { name: 'AbortError' })
+    )
+
+    await useAuthStore.getState().bootstrap()
+
+    expect(window.location.href).toContain('/oauth2/authorize')
+    expect(window.location.href).toContain('prompt=none')
   })
 
   it('stays in loading state when auth callback code is present — does not loginSilent', async () => {
