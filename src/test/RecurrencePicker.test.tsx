@@ -113,6 +113,37 @@ describe('RecurrencePicker — presets', () => {
   })
 })
 
+describe('RecurrencePicker — preset label interpolation', () => {
+  it('"Every week" option shows the day name from targetDatetime', () => {
+    // TARGET is Wednesday
+    render(
+      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
+    )
+    expect(screen.getByRole('option', { name: /wednesday/i })).toBeInTheDocument()
+  })
+
+  it('"Every month" option shows the day-of-month ordinal from targetDatetime', () => {
+    // TARGET is the 3rd
+    render(
+      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
+    )
+    expect(screen.getByRole('option', { name: /3rd/i })).toBeInTheDocument()
+  })
+})
+
+describe('RecurrencePicker — rendering order', () => {
+  it('in Custom/Weekly mode, day toggles appear before Time of day spinners', () => {
+    render(
+      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
+    )
+    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+
+    const monBtn = screen.getByRole('button', { name: /^mon$/i })
+    const hourInput = screen.getByLabelText('Hour')
+    expect(monBtn.compareDocumentPosition(hourInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe('RecurrencePicker — Custom', () => {
   function customSelect() {
     return screen.getByRole('combobox', { name: /repeat/i })
@@ -146,6 +177,35 @@ describe('RecurrencePicker — Custom', () => {
 
     const lastCall = onChange.mock.calls.at(-1)?.[0]
     expect(lastCall?.cron).toBe('0 9 * * 1,3,5')
+  })
+
+it('Custom Monthly: "Last day of month" checkbox emits L cron and hides stepper', () => {
+    const onChange = vi.fn()
+    render(
+      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
+    )
+
+    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+    fireEvent.change(customSelect(), { target: { value: 'monthly' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /last day/i }))
+
+    expect(screen.queryByLabelText('Day')).not.toBeInTheDocument()
+    const lastCall = onChange.mock.calls.at(-1)?.[0]
+    expect(lastCall?.cron).toBe('0 9 L * *')
+  })
+
+  it('Custom Monthly: unchecking "Last day" restores the stepper', () => {
+    render(
+      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={() => {}} />,
+    )
+
+    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+    fireEvent.change(customSelect(), { target: { value: 'monthly' } })
+    const checkbox = screen.getByRole('checkbox', { name: /last day/i })
+    fireEvent.click(checkbox)
+    fireEvent.click(checkbox)
+
+    expect(screen.getByLabelText('Day')).toBeInTheDocument()
   })
 
   it('Custom Monthly: dom stepper drives the cron', () => {

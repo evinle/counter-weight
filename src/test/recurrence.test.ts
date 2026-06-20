@@ -4,9 +4,11 @@ import {
   buildWeekdayCron,
   buildWeeklyCron,
   buildMonthlyCron,
+  buildLastDayOfMonthCron,
   buildCustomWeeklyCron,
   buildCustomEveryNDaysCron,
   buildCustomEveryHMCron,
+  parseCron,
 } from '../lib/recurrence'
 
 describe('buildDailyCron', () => {
@@ -34,6 +36,20 @@ describe('buildMonthlyCron', () => {
   it('uses the supplied day-of-month', () => {
     expect(buildMonthlyCron('09:00', 15)).toBe('0 9 15 * *')
     expect(buildMonthlyCron('08:00', 1)).toBe('0 8 1 * *')
+  })
+})
+
+describe('buildLastDayOfMonthCron', () => {
+  it('produces an L dom cron for the given time', () => {
+    expect(buildLastDayOfMonthCron('09:00')).toBe('0 9 L * *')
+    expect(buildLastDayOfMonthCron('14:30')).toBe('30 14 L * *')
+  })
+})
+
+describe('parseCron — last day of month', () => {
+  it('parses an L dom cron as custom-monthly with dom "L"', () => {
+    expect(parseCron('0 9 L * *')).toEqual({ preset: 'custom-monthly', time: '09:00', dom: 'L' })
+    expect(parseCron('30 14 L * *')).toEqual({ preset: 'custom-monthly', time: '14:30', dom: 'L' })
   })
 })
 

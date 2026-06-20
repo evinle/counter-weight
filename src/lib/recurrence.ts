@@ -23,6 +23,11 @@ export function buildMonthlyCron(time: string, dayOfMonth: number): string {
   return `${min} ${hour} ${dayOfMonth} * *`
 }
 
+export function buildLastDayOfMonthCron(time: string): string {
+  const { hour, min } = parseTime(time)
+  return `${min} ${hour} L * *`
+}
+
 export function buildCustomWeeklyCron(time: string, days: number[]): string {
   const { hour, min } = parseTime(time)
   const sorted = [...days].sort((a, b) => a - b).join(',')
@@ -45,7 +50,7 @@ export type ParsedCron =
   | { preset: 'weekly'; time: string }
   | { preset: 'monthly'; time: string }
   | { preset: 'custom-weekly'; time: string; days: number[] }
-  | { preset: 'custom-monthly'; time: string; dom: number }
+  | { preset: 'custom-monthly'; time: string; dom: number | 'L' }
   | { preset: 'custom-every-n-days'; time: string; n: number }
   | { preset: 'custom-every-hm'; hours: number; minutes: number }
 
@@ -76,6 +81,10 @@ export function parseCron(cron: string): ParsedCron | null {
   // every N days
   if (domF.startsWith('*/') && dowF === '*') {
     return { preset: 'custom-every-n-days', time, n: Number(domF.slice(2)) }
+  }
+  // last day of month (L dom)
+  if (domF === 'L' && dowF === '*') {
+    return { preset: 'custom-monthly', time, dom: 'L' }
   }
   // monthly (numeric dom, * dow)
   if (domF !== '*' && !domF.startsWith('*/') && dowF === '*') {
