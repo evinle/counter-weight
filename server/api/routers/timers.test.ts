@@ -340,6 +340,124 @@ describe('timers.complete', () => {
   })
 })
 
+describe('timers.complete — recurring', () => {
+  const RECURRING_TIMER = {
+    ...EXISTING_TIMER,
+    id: '00000000-0000-0000-0000-000000000002',
+    title: 'Daily standup',
+    description: 'Team sync',
+    emoji: '📅',
+    priority: 'high',
+    tagIds: ['00000000-0000-0000-0000-000000000099'],
+    timerType: 'task',
+    leadTimeMs: 300_000,
+    recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' },
+    targetDatetime: new Date('2026-06-20T09:00:00Z'),
+    originalTargetDatetime: new Date('2026-06-20T09:00:00Z'),
+  } satisfies TimerRecord
+
+  it('inserts a new timer row with the next targetDatetime', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const now = new Date('2026-06-20T10:00:00Z')
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, undefined, now))
+
+    // Act
+    await caller.timers.complete({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert — two timers: original completed + spawned
+    expect(fakeDb.timers).toHaveLength(2)
+    const spawned = fakeDb.timers[1]
+    expect(spawned.targetDatetime).toEqual(new Date('2026-06-21T09:00:00Z'))
+    expect(spawned.originalTargetDatetime).toEqual(new Date('2026-06-21T09:00:00Z'))
+    expect(spawned.status).toBe('active')
+  })
+
+  it('spawned timer inherits title, description, emoji, priority, tagIds, timerType, leadTimeMs, and recurrenceRule', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const now = new Date('2026-06-20T10:00:00Z')
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, undefined, now))
+
+    // Act
+    await caller.timers.complete({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert
+    const spawned = fakeDb.timers[1]
+    expect(spawned.title).toBe(RECURRING_TIMER.title)
+    expect(spawned.description).toBe(RECURRING_TIMER.description)
+    expect(spawned.emoji).toBe(RECURRING_TIMER.emoji)
+    expect(spawned.priority).toBe(RECURRING_TIMER.priority)
+    expect(spawned.tagIds).toEqual(RECURRING_TIMER.tagIds)
+    expect(spawned.timerType).toBe(RECURRING_TIMER.timerType)
+    expect(spawned.leadTimeMs).toBe(RECURRING_TIMER.leadTimeMs)
+    expect(spawned.recurrenceRule).toEqual(RECURRING_TIMER.recurrenceRule)
+    expect(spawned.userId).toBe('u1')
+  })
+
+  it('creates an EventBridge schedule for the spawned timer', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const now = new Date('2026-06-20T10:00:00Z')
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, undefined, now))
+
+    // Act
+    await caller.timers.complete({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert
+    const spawned = fakeDb.timers[1]
+    const spawnedKeys = timerScheduleKeys(spawned.id)
+    expect(fakeScheduler.schedules.has(spawnedKeys.deadline)).toBe(true)
+    const schedule = fakeScheduler.schedules.get(spawnedKeys.deadline)!
+    expect(schedule.targetDatetime).toEqual(new Date('2026-06-21T09:00:00Z'))
+  })
+
+  it('writes a rescheduled event against the completed timer id', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const now = new Date('2026-06-20T10:00:00Z')
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, undefined, now))
+
+    // Act
+    await caller.timers.complete({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert — events: completed + rescheduled, both against the original timer id
+    expect(fakeDb.timerEvents).toHaveLength(2)
+    const rescheduled = fakeDb.timerEvents.find(e => e.eventType === 'rescheduled')!
+    expect(rescheduled).toBeDefined()
+    expect(rescheduled.timerId).toBe(RECURRING_TIMER.id)
+  })
+
+  it('completing a non-recurring timer inserts no extra row and no extra schedule', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [EXISTING_TIMER] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    await caller.timers.complete({ serverId: EXISTING_TIMER.id, version: 1 })
+
+    // Assert
+    expect(fakeDb.timers).toHaveLength(1)
+    expect(fakeScheduler.schedules.size).toBe(0)
+    expect(fakeDb.timerEvents).toHaveLength(1)
+    expect(fakeDb.timerEvents[0].eventType).toBe('completed')
+  })
+
+  it('cancelling a recurring timer writes no new row and no new schedule', async () => {
+    // Arrange
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler))
+
+    // Act
+    await caller.timers.cancel({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert
+    expect(fakeDb.timers).toHaveLength(1)
+    expect(fakeScheduler.schedules.size).toBe(0)
+    expect(fakeDb.timerEvents[0].eventType).toBe('cancelled')
+  })
+})
+
 describe('timers.cancel', () => {
   it('throws CONFLICT when version mismatches', async () => {
     // Arrange

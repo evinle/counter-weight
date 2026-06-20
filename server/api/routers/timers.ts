@@ -4,6 +4,7 @@ import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 import { timerScheduleKeys } from "../scheduler.js";
+import { computeNextOccurrence } from "../recurrence.js";
 
 export type WorkSessionJson = { startedAt: string; endedAt: string | null }
 
@@ -101,6 +102,47 @@ export const timerUpsertInput = z.object({
   leadTimeMs: z.number().int().nonnegative().nullable(),
   workSessions: z.array(workSessionJsonSchema).default([]),
 });
+
+async function spawnNextOccurrence(
+  timer: TimerRecord,
+  completedTimerId: string,
+  userId: string,
+  now: Date,
+  timersDb: TimersDb,
+  scheduler: { createSchedule: (name: string, at: Date, payload: Record<string, unknown>) => Promise<void> },
+): Promise<void> {
+  const nextDatetime = computeNextOccurrence(timer.recurrenceRule!, now);
+
+  const spawned = await timersDb.insertTimer({
+    userId,
+    title: timer.title,
+    description: timer.description,
+    emoji: timer.emoji,
+    targetDatetime: nextDatetime,
+    originalTargetDatetime: nextDatetime,
+    status: TimerStatus.Active,
+    priority: timer.priority,
+    recurrenceRule: timer.recurrenceRule,
+    tagIds: timer.tagIds,
+    timerType: timer.timerType,
+    leadTimeMs: timer.leadTimeMs,
+    workSessions: [],
+  });
+
+  await timersDb.insertTimerEvent({
+    timerId: completedTimerId,
+    userId,
+    eventType: EventType.Rescheduled,
+  });
+
+  const spawnedKeys = timerScheduleKeys(spawned.serverId);
+  await scheduler.createSchedule(spawnedKeys.deadline, nextDatetime, {
+    serverId: spawned.serverId,
+    userId,
+    targetDatetime: nextDatetime.toISOString(),
+    kind: 'deadline',
+  });
+}
 
 export const timersRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -219,6 +261,8 @@ export const timersRouter = router({
   complete: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
+      const timer = await ctx.timersDb.getTimer(input.serverId, ctx.userId);
+
       const updated = await ctx.timersDb.setStatus(
         { id: input.serverId, userId: ctx.userId, version: input.version },
         TimerStatus.Completed,
@@ -235,6 +279,10 @@ export const timersRouter = router({
       const completeKeys = timerScheduleKeys(input.serverId);
       await ctx.scheduler.deleteSchedule(completeKeys.deadline);
       await ctx.scheduler.deleteSchedule(completeKeys.lead);
+
+      if (timer?.recurrenceRule) {
+        await spawnNextOccurrence(timer, input.serverId, ctx.userId, ctx.now, ctx.timersDb, ctx.scheduler);
+      }
 
       return { ok: true };
     }),
