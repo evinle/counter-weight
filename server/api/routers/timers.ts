@@ -104,27 +104,28 @@ export const timerUpsertInput = z.object({
   workSessions: z.array(workSessionJsonSchema).default([]),
 });
 
+type SchedulingCtx = { userId: string; now: Date; scheduler: Scheduler }
+type SpawnCtx = SchedulingCtx & { timersDb: TimersDb }
+
 async function createTimerSchedules(
   serverId: string,
-  userId: string,
   targetDatetime: Date,
   leadTimeMs: number | null,
-  now: Date,
-  scheduler: Scheduler,
+  ctx: SchedulingCtx,
 ): Promise<void> {
   const keys = timerScheduleKeys(serverId);
-  await scheduler.createSchedule(keys.deadline, targetDatetime, {
+  await ctx.scheduler.createSchedule(keys.deadline, targetDatetime, {
     serverId,
-    userId,
+    userId: ctx.userId,
     targetDatetime: targetDatetime.toISOString(),
     kind: 'deadline',
   });
   if (leadTimeMs !== null) {
     const leadDatetime = new Date(targetDatetime.getTime() - leadTimeMs);
-    if (leadDatetime > now) {
-      await scheduler.createSchedule(keys.lead, leadDatetime, {
+    if (leadDatetime > ctx.now) {
+      await ctx.scheduler.createSchedule(keys.lead, leadDatetime, {
         serverId,
-        userId,
+        userId: ctx.userId,
         targetDatetime: targetDatetime.toISOString(),
         kind: 'lead',
       });
@@ -136,15 +137,12 @@ async function spawnNextOccurrence(
   timer: TimerRecord,
   rule: RecurrenceRule,
   completedTimerId: string,
-  userId: string,
-  now: Date,
-  timersDb: TimersDb,
-  scheduler: Scheduler,
+  ctx: SpawnCtx,
 ): Promise<void> {
-  const nextDatetime = computeNextOccurrence(rule, now);
+  const nextDatetime = computeNextOccurrence(rule, ctx.now);
 
-  const spawned = await timersDb.insertTimer({
-    userId,
+  const spawned = await ctx.timersDb.insertTimer({
+    userId: ctx.userId,
     title: timer.title,
     description: timer.description,
     emoji: timer.emoji,
@@ -159,13 +157,13 @@ async function spawnNextOccurrence(
     workSessions: [],
   });
 
-  await timersDb.insertTimerEvent({
+  await ctx.timersDb.insertTimerEvent({
     timerId: completedTimerId,
-    userId,
+    userId: ctx.userId,
     eventType: EventType.Rescheduled,
   });
 
-  await createTimerSchedules(spawned.serverId, userId, nextDatetime, timer.leadTimeMs, now, scheduler);
+  await createTimerSchedules(spawned.serverId, nextDatetime, timer.leadTimeMs, ctx);
 }
 
 export const timersRouter = router({
@@ -257,14 +255,7 @@ export const timersRouter = router({
         eventType: EventType.Created,
       });
 
-      await createTimerSchedules(
-        created.serverId,
-        ctx.userId,
-        new Date(input.targetDatetime),
-        input.leadTimeMs,
-        ctx.now,
-        ctx.scheduler,
-      );
+      await createTimerSchedules(created.serverId, new Date(input.targetDatetime), input.leadTimeMs, ctx);
 
       return created;
     }),
@@ -292,7 +283,7 @@ export const timersRouter = router({
       await ctx.scheduler.deleteSchedule(completeKeys.lead);
 
       if (timer?.recurrenceRule) {
-        await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx.userId, ctx.now, ctx.timersDb, ctx.scheduler);
+        await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx);
       }
 
       return { ok: true };
