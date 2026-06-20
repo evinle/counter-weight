@@ -4,6 +4,7 @@ import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 import { timerScheduleKeys } from "../scheduler.js";
+import type { Scheduler } from "../scheduler.js";
 import { computeNextOccurrence } from "../recurrence.js";
 
 export type WorkSessionJson = { startedAt: string; endedAt: string | null }
@@ -103,15 +104,44 @@ export const timerUpsertInput = z.object({
   workSessions: z.array(workSessionJsonSchema).default([]),
 });
 
+async function createTimerSchedules(
+  serverId: string,
+  userId: string,
+  targetDatetime: Date,
+  leadTimeMs: number | null,
+  now: Date,
+  scheduler: Scheduler,
+): Promise<void> {
+  const keys = timerScheduleKeys(serverId);
+  await scheduler.createSchedule(keys.deadline, targetDatetime, {
+    serverId,
+    userId,
+    targetDatetime: targetDatetime.toISOString(),
+    kind: 'deadline',
+  });
+  if (leadTimeMs !== null) {
+    const leadDatetime = new Date(targetDatetime.getTime() - leadTimeMs);
+    if (leadDatetime > now) {
+      await scheduler.createSchedule(keys.lead, leadDatetime, {
+        serverId,
+        userId,
+        targetDatetime: targetDatetime.toISOString(),
+        kind: 'lead',
+      });
+    }
+  }
+}
+
 async function spawnNextOccurrence(
   timer: TimerRecord,
+  rule: RecurrenceRule,
   completedTimerId: string,
   userId: string,
   now: Date,
   timersDb: TimersDb,
-  scheduler: { createSchedule: (name: string, at: Date, payload: Record<string, unknown>) => Promise<void> },
+  scheduler: Scheduler,
 ): Promise<void> {
-  const nextDatetime = computeNextOccurrence(timer.recurrenceRule!, now);
+  const nextDatetime = computeNextOccurrence(rule, now);
 
   const spawned = await timersDb.insertTimer({
     userId,
@@ -122,7 +152,7 @@ async function spawnNextOccurrence(
     originalTargetDatetime: nextDatetime,
     status: TimerStatus.Active,
     priority: timer.priority,
-    recurrenceRule: timer.recurrenceRule,
+    recurrenceRule: rule,
     tagIds: timer.tagIds,
     timerType: timer.timerType,
     leadTimeMs: timer.leadTimeMs,
@@ -135,13 +165,7 @@ async function spawnNextOccurrence(
     eventType: EventType.Rescheduled,
   });
 
-  const spawnedKeys = timerScheduleKeys(spawned.serverId);
-  await scheduler.createSchedule(spawnedKeys.deadline, nextDatetime, {
-    serverId: spawned.serverId,
-    userId,
-    targetDatetime: nextDatetime.toISOString(),
-    kind: 'deadline',
-  });
+  await createTimerSchedules(spawned.serverId, userId, nextDatetime, timer.leadTimeMs, now, scheduler);
 }
 
 export const timersRouter = router({
@@ -233,27 +257,14 @@ export const timersRouter = router({
         eventType: EventType.Created,
       });
 
-      const deadlineDatetime = new Date(input.targetDatetime);
-      const keys = timerScheduleKeys(created.serverId);
-
-      await ctx.scheduler.createSchedule(keys.deadline, deadlineDatetime, {
-        serverId: created.serverId,
-        userId: ctx.userId,
-        targetDatetime: input.targetDatetime,
-        kind: 'deadline',
-      });
-
-      if (input.leadTimeMs !== null) {
-        const leadDatetime = new Date(deadlineDatetime.getTime() - input.leadTimeMs);
-        if (leadDatetime > ctx.now) {
-          await ctx.scheduler.createSchedule(keys.lead, leadDatetime, {
-            serverId: created.serverId,
-            userId: ctx.userId,
-            targetDatetime: input.targetDatetime,
-            kind: 'lead',
-          });
-        }
-      }
+      await createTimerSchedules(
+        created.serverId,
+        ctx.userId,
+        new Date(input.targetDatetime),
+        input.leadTimeMs,
+        ctx.now,
+        ctx.scheduler,
+      );
 
       return created;
     }),
@@ -281,7 +292,7 @@ export const timersRouter = router({
       await ctx.scheduler.deleteSchedule(completeKeys.lead);
 
       if (timer?.recurrenceRule) {
-        await spawnNextOccurrence(timer, input.serverId, ctx.userId, ctx.now, ctx.timersDb, ctx.scheduler);
+        await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx.userId, ctx.now, ctx.timersDb, ctx.scheduler);
       }
 
       return { ok: true };

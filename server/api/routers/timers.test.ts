@@ -112,7 +112,7 @@ describe('timers.upsert', () => {
     const schedule = fakeScheduler.schedules.get(timerScheduleKeys(result.serverId).deadline)
     expect(schedule).toMatchObject({
       targetDatetime: new Date('2026-06-01T12:00:00Z'),
-      payload: { serverId: result.serverId, userId: 'u1', targetDatetime: '2026-06-01T12:00:00Z', kind: 'deadline' },
+      payload: { serverId: result.serverId, userId: 'u1', targetDatetime: '2026-06-01T12:00:00.000Z', kind: 'deadline' },
     })
   })
 
