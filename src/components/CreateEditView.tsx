@@ -6,6 +6,7 @@ import { DateTimeInput } from "./DateTimeInput";
 import { EmojiButton } from "./EmojiButton";
 import { TagPicker } from "./TagPicker";
 import { SpinnerField } from "./SpinnerField";
+import { OptionalField } from "./OptionalField";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
@@ -316,96 +317,80 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         <span className="text-sm text-slate-400">Task</span>
       </label>
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Remind me before</span>
-          {leadTimeMs === null && (
-            <button
-              type="button"
-              onClick={() => setLeadTimeMs(0)}
-              className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
-            >
-              Set time
-            </button>
+      <OptionalField
+        label="Remind me before"
+        activateLabel="Set time"
+        clearLabel="Cancel reminder"
+        active={leadTimeMs !== null}
+        onActivate={() => setLeadTimeMs(0)}
+        onClear={() => setLeadTimeMs(null)}
+      >
+        <div className="flex gap-2" data-testid="lead-time-fields">
+          {showLeadDays && (
+            <SpinnerField
+              label="Days"
+              value={leadDuration.days}
+              onChange={(d) =>
+                setLeadTime(
+                  d,
+                  leadDuration.hours,
+                  leadDuration.minutes,
+                  leadDuration.seconds,
+                )
+              }
+              min={0}
+              max={999}
+              clamp
+            />
           )}
+          {showLeadHours && (
+            <SpinnerField
+              label="Hours"
+              value={leadDuration.hours}
+              onChange={(h) =>
+                setLeadTime(
+                  leadDuration.days,
+                  h,
+                  leadDuration.minutes,
+                  leadDuration.seconds,
+                )
+              }
+              min={0}
+              max={23}
+            />
+          )}
+          {showLeadMinutes && (
+            <SpinnerField
+              label="Minutes"
+              value={leadDuration.minutes}
+              onChange={(m) =>
+                setLeadTime(
+                  leadDuration.days,
+                  leadDuration.hours,
+                  m,
+                  leadDuration.seconds,
+                )
+              }
+              min={0}
+              max={59}
+            />
+          )}
+          <SpinnerField
+            label="Seconds"
+            value={leadDuration.seconds}
+            onChange={(s) =>
+              setLeadTime(
+                leadDuration.days,
+                leadDuration.hours,
+                leadDuration.minutes,
+                s,
+              )
+            }
+            min={0}
+            max={59}
+          />
         </div>
-        {leadTimeMs !== null && (
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2" data-testid="lead-time-fields">
-              {showLeadDays && (
-                <SpinnerField
-                  label="Days"
-                  value={leadDuration.days}
-                  onChange={(d) =>
-                    setLeadTime(
-                      d,
-                      leadDuration.hours,
-                      leadDuration.minutes,
-                      leadDuration.seconds,
-                    )
-                  }
-                  min={0}
-                  max={999}
-                  clamp
-                />
-              )}
-              {showLeadHours && (
-                <SpinnerField
-                  label="Hours"
-                  value={leadDuration.hours}
-                  onChange={(h) =>
-                    setLeadTime(
-                      leadDuration.days,
-                      h,
-                      leadDuration.minutes,
-                      leadDuration.seconds,
-                    )
-                  }
-                  min={0}
-                  max={23}
-                />
-              )}
-              {showLeadMinutes && (
-                <SpinnerField
-                  label="Minutes"
-                  value={leadDuration.minutes}
-                  onChange={(m) =>
-                    setLeadTime(
-                      leadDuration.days,
-                      leadDuration.hours,
-                      m,
-                      leadDuration.seconds,
-                    )
-                  }
-                  min={0}
-                  max={59}
-                />
-              )}
-              <SpinnerField
-                label="Seconds"
-                value={leadDuration.seconds}
-                onChange={(s) =>
-                  setLeadTime(
-                    leadDuration.days,
-                    leadDuration.hours,
-                    leadDuration.minutes,
-                    s,
-                  )
-                }
-                min={0}
-                max={59}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setLeadTimeMs(null)}
-              className="text-sm text-slate-500 active:opacity-60 transition-opacity"
-            >
-              Cancel reminder
-            </button>
-          </div>
-        )}
-      </div>
+      </OptionalField>
 
       <button
         type="submit"
