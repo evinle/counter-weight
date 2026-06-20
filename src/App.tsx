@@ -13,7 +13,7 @@ import { GroupListView } from "./components/GroupListView";
 import { BottomTabBar } from "./components/BottomTabBar";
 import { ToastContainer } from "./components/ToastContainer";
 import { Tab, ActiveAction } from "./lib/navigation";
-import type { Timer } from "./db/schema";
+import type { Group, Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
@@ -34,9 +34,7 @@ export function App() {
     ActiveAction.None,
   );
   const [editTimer, setEditTimer] = useState<Timer | undefined>();
-  const [editGroup, setEditGroup] = useState<
-    import("./db/schema").Group | undefined
-  >();
+  const [editGroup, setEditGroup] = useState<Group | undefined>();
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user } = useAuth();
@@ -265,7 +263,7 @@ export function App() {
               top:
                 syncing && pullDistance === 0
                   ? "calc(env(safe-area-inset-top) + 24px)"
-                  : `${pullDistance - 36}px`,
+                  : `${pullDistance - 8}px`,
               transition: pullDistance === 0 ? "top 0.15s ease-out" : "none",
             }}
           >
