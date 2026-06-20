@@ -399,7 +399,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         </div>
       </OptionalField>
 
-      {userId !== null && (
+      {userId !== null && mode === TimerMode.AtTime && showTimeEditor && (
         <OptionalField
           label="Recurrence"
           activateLabel="Set recurrence"
