@@ -17,13 +17,13 @@ const buildTime = new Date().toISOString();
 
 const requiredEnvPlugin = {
   name: "require-env",
-  buildStart() {
+  configResolved(config: { env: Record<string, string> }) {
     const missing = [
       "VITE_API_URL",
       "VITE_COGNITO_DOMAIN",
       "VITE_COGNITO_CLIENT_ID",
       "VITE_VAPID_PUBLIC_KEY",
-    ].filter((k) => !process.env[k]);
+    ].filter((k) => config.env[k] === undefined);
     if (missing.length) {
       throw new Error(`Missing required env vars: ${missing.join(", ")}`);
     }
