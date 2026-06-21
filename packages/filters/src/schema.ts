@@ -9,6 +9,7 @@ const statusValues = ['active', 'fired', 'completed', 'missed', 'cancelled'] as 
 // z.union (not discriminatedUnion) because multiple variants share the same `field` value
 export const FieldConditionSchema = z.union([
   z.object({ field: z.literal('tags'), op: z.literal('contains'), value: z.string() }),
+  z.object({ field: z.literal('tags'), op: z.literal('in'), value: z.array(z.string()) }),
   z.object({ field: z.literal('priority'), op: z.literal('eq'), value: z.enum(priorityValues) }),
   z.object({ field: z.literal('priority'), op: z.literal('in'), value: z.array(z.enum(priorityValues)) }),
   z.object({ field: z.literal('status'), op: z.literal('eq'), value: z.enum(statusValues) }),

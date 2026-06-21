@@ -45,7 +45,10 @@ const OPS_BY_FIELD: Record<ConditionField, { value: string; label: string }[]> =
       { value: "eq", label: "is" },
       { value: "in", label: "is one of" },
     ],
-    tags: [{ value: "contains", label: "contains" }],
+    tags: [
+      { value: "contains", label: "contains" },
+      { value: "in", label: "is any of" },
+    ],
     targetDatetime: [
       { value: "overdue", label: "is overdue" },
       { value: "today", label: "is today" },
@@ -61,10 +64,16 @@ const OPS_BY_FIELD: Record<ConditionField, { value: string; label: string }[]> =
     emoji: [{ value: "eq", label: "is" }],
   };
 
+const ARRAY_OPS = new Set(["in"]);
+
+function isArrayOp(op: string): boolean {
+  return ARRAY_OPS.has(op);
+}
+
 type DraftCondition = {
   field: ConditionField;
   op: string;
-  value: string;
+  value: string | string[];
 };
 
 function defaultOp(field: ConditionField): string {
@@ -78,9 +87,9 @@ function draftToFieldCondition(draft: DraftCondition): FieldCondition | null {
       return { field, op, value: value as Priority };
     }
     if (op === "in") {
-      const vals = value
-        .split(",")
-        .filter((v) => PRIORITIES.includes(v as Priority)) as Priority[];
+      const vals = (Array.isArray(value) ? value : [value]).filter((v) =>
+        PRIORITIES.includes(v as Priority),
+      ) as Priority[];
       if (vals.length > 0) return { field, op, value: vals };
     }
   }
@@ -89,27 +98,35 @@ function draftToFieldCondition(draft: DraftCondition): FieldCondition | null {
       return { field, op, value: value as TimerStatus };
     }
     if (op === "in") {
-      const vals = value
-        .split(",")
-        .filter((v) =>
-          TIMER_STATUSES.includes(v as TimerStatus),
-        ) as TimerStatus[];
+      const vals = (Array.isArray(value) ? value : [value]).filter((v) =>
+        TIMER_STATUSES.includes(v as TimerStatus),
+      ) as TimerStatus[];
       if (vals.length > 0) return { field, op, value: vals };
     }
   }
-  if (field === "tags" && op === "contains") return { field, op, value };
+  if (field === "tags") {
+    if (op === "contains" && typeof value === "string")
+      return { field, op, value };
+    if (op === "in") {
+      const vals = (Array.isArray(value) ? value : [value]).filter(Boolean);
+      if (vals.length > 0) return { field, op, value: vals };
+    }
+  }
   if (field === "targetDatetime") {
     if (op === "overdue") return { field, op };
     if (op === "today") return { field, op };
     if (op === "within_days") return { field, op, value: Number(value) || 7 };
-    if (op === "before" || op === "after") return { field, op, value };
+    if (op === "before" || op === "after")
+      return { field, op, value: value as string };
   }
-  if (field === "title" && op === "contains") return { field, op, value };
+  if (field === "title" && op === "contains")
+    return { field, op, value: value as string };
   if (field === "recurrenceRule") {
     if (op === "exists") return { field, op };
     if (op === "not_exists") return { field, op };
   }
-  if (field === "emoji" && op === "eq") return { field, op, value };
+  if (field === "emoji" && op === "eq")
+    return { field, op, value: value as string };
   return null;
 }
 
@@ -137,7 +154,9 @@ export function GroupCreateEditView({
         op: c.op,
         value:
           "value" in c
-            ? String(Array.isArray(c.value) ? c.value.join(",") : c.value)
+            ? Array.isArray(c.value)
+              ? c.value.map(String)
+              : String(c.value)
             : "",
       })) ?? [],
   );
@@ -153,7 +172,10 @@ export function GroupCreateEditView({
         const next = { ...d, ...patch };
         if (patch.field && patch.field !== d.field) {
           next.op = defaultOp(patch.field);
-          next.value = "";
+          next.value = isArrayOp(defaultOp(patch.field)) ? [] : "";
+        }
+        if (patch.op && patch.op !== d.op) {
+          next.value = isArrayOp(patch.op) ? [] : "";
         }
         return next;
       }),
@@ -293,6 +315,21 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
     draft.op,
   );
 
+  function addValueItem() {
+    const current = Array.isArray(draft.value) ? draft.value : [];
+    onChange({ value: [...current, ""] });
+  }
+
+  function updateValueItem(index: number, item: string) {
+    const current = Array.isArray(draft.value) ? draft.value : [];
+    onChange({ value: current.map((v, i) => (i === index ? item : v)) });
+  }
+
+  function removeValueItem(index: number) {
+    const current = Array.isArray(draft.value) ? draft.value : [];
+    onChange({ value: current.filter((_, i) => i !== index) });
+  }
+
   function renderValueInput() {
     if (!needsValue) return null;
 
@@ -301,11 +338,76 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
     const inputClass =
       "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none min-w-0";
 
+    if (isArrayOp(draft.op)) {
+      const items = Array.isArray(draft.value) ? draft.value : [];
+
+      function optionsForField() {
+        if (draft.field === "tags") {
+          return tags
+            .filter((t) => t.serverId)
+            .map((t) => (
+              <option key={t.serverId} value={t.serverId!}>
+                {t.name}
+              </option>
+            ));
+        }
+        if (draft.field === "priority") {
+          return PRIORITIES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ));
+        }
+        if (draft.field === "status") {
+          return TIMER_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ));
+        }
+        return null;
+      }
+
+      return (
+        <div className="flex flex-col gap-1 h-full w-full items-center">
+          {items.map((item, idx) => (
+            <div key={idx} className="flex items-center gap-1">
+              <select
+                aria-label="Value"
+                value={item}
+                onChange={(e) => updateValueItem(idx, e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select…</option>
+                {optionsForField()}
+              </select>
+              <button
+                type="button"
+                aria-label="Remove value"
+                onClick={() => removeValueItem(idx)}
+                className="text-slate-500 hover:text-red-400 text-lg font-bold px-1"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            aria-label="Add value"
+            onClick={addValueItem}
+            className="text-xs text-blue-400 hover:text-blue-300 h-full"
+          >
+            + Add value
+          </button>
+        </div>
+      );
+    }
+
     if (draft.field === "tags") {
       return (
         <select
           aria-label="Value"
-          value={draft.value}
+          value={draft.value as string}
           onChange={(e) => onChange({ value: e.target.value })}
           className={selectClass}
         >
@@ -325,7 +427,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
       return (
         <select
           aria-label="Value"
-          value={draft.value}
+          value={draft.value as string}
           onChange={(e) => onChange({ value: e.target.value })}
           className={selectClass}
         >
@@ -343,7 +445,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
       return (
         <select
           aria-label="Value"
-          value={draft.value}
+          value={draft.value as string}
           onChange={(e) => onChange({ value: e.target.value })}
           className={selectClass}
         >
@@ -361,7 +463,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
       <input
         aria-label="Value"
         type="text"
-        value={draft.value}
+        value={draft.value as string}
         onChange={(e) => onChange({ value: e.target.value })}
         className={inputClass}
       />
@@ -369,7 +471,16 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-start gap-2">
+      <button
+        type="button"
+        aria-label="Remove condition"
+        onClick={onRemove}
+        className="text-slate-500 hover:text-red-400 text-2xl font-bold mt-0.5"
+      >
+        ×
+      </button>
+
       <select
         aria-label="Field"
         value={draft.field}
@@ -397,15 +508,6 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
       </select>
 
       {renderValueInput()}
-
-      <button
-        type="button"
-        aria-label="Remove condition"
-        onClick={onRemove}
-        className="text-slate-500 hover:text-red-400 text-2xl font-bold"
-      >
-        ×
-      </button>
     </div>
   );
 }

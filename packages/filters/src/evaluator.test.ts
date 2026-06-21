@@ -137,6 +137,20 @@ describe('applyFilter', () => {
       .toEqual([match])
   })
 
+  it('tags.in — no match when timer has none of the listed tag IDs', () => {
+    const noMatch = makeTimer({ id: 1, tagIds: ['tag-x'] })
+    expect(applyFilter([noMatch], AND([{ field: 'tags', op: 'in', value: ['tag-a', 'tag-b'] }]), NOW))
+      .toEqual([])
+  })
+
+  it('tags.in — keeps timers that have any one of the listed tag IDs', () => {
+    const matchOne = makeTimer({ id: 1, tagIds: ['tag-a'] })
+    const matchTwo = makeTimer({ id: 2, tagIds: ['tag-b', 'tag-c'] })
+    const noMatch = makeTimer({ id: 3, tagIds: ['tag-x'] })
+    expect(applyFilter([matchOne, matchTwo, noMatch], AND([{ field: 'tags', op: 'in', value: ['tag-a', 'tag-b'] }]), NOW))
+      .toEqual([matchOne, matchTwo])
+  })
+
   it('multiple AND conditions — timer must satisfy all', () => {
     const match = makeTimer({ id: 1, priority: 'high', status: 'active', tagIds: ['tag-x'] })
     const wrongPriority = makeTimer({ id: 2, priority: 'low', status: 'active', tagIds: ['tag-x'] })

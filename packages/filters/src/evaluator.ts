@@ -4,6 +4,7 @@ import type { FieldCondition, GroupConditions } from './schema.ts'
 function matchesCondition(timer: Timer, condition: FieldCondition, now: Date): boolean {
   switch (condition.field) {
     case 'tags':
+      if (condition.op === 'in') return condition.value.some(id => timer.tagIds.includes(id))
       return timer.tagIds.includes(condition.value)
     case 'priority':
       if (condition.op === 'eq') return timer.priority === condition.value
