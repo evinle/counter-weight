@@ -5,6 +5,7 @@ import { router, protectedProcedure } from '../router.js'
 // Mirrors @cw/filters GroupConditions — kept in sync with packages/filters/src/schema.ts
 const FieldConditionSchema = z.union([
   z.object({ field: z.literal('tags'), op: z.literal('contains'), value: z.string() }),
+  z.object({ field: z.literal('tags'), op: z.literal('in'), value: z.array(z.string()) }),
   z.object({ field: z.literal('priority'), op: z.literal('eq'), value: z.enum(['low', 'medium', 'high', 'critical']) }),
   z.object({ field: z.literal('priority'), op: z.literal('in'), value: z.array(z.enum(['low', 'medium', 'high', 'critical'])) }),
   z.object({ field: z.literal('status'), op: z.literal('eq'), value: z.enum(['active', 'fired', 'completed', 'missed', 'cancelled']) }),
