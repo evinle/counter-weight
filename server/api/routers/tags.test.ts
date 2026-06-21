@@ -33,6 +33,7 @@ function makeCtx(userId: string | null, tagsDb: FakeTagsDb) {
     tagsDb,
     groupsDb: createFakeGroupsDb(),
     scheduler: createFakeScheduler(),
+    now: new Date(),
     userAgent: null,
   }
 }

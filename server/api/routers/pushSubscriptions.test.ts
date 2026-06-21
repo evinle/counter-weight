@@ -20,7 +20,7 @@ const BASE_INPUT = {
 } as const
 
 function makeCtx(userId: string | null, db: Partial<Db> = {}, userAgent: string | null = null) {
-  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), userAgent }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), now: new Date(), userAgent }
 }
 
 beforeEach(() => {

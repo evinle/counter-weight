@@ -18,7 +18,7 @@ function makeCtx(userId: string | null) {
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate })
   const insert = vi.fn().mockReturnValue({ values })
   const db = { insert }
-  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), userAgent: null }
+  return { userId, db: fromPartial<Db>(db), timersDb: createFakeTimersDb(), tagsDb: createFakeTagsDb(), groupsDb: createFakeGroupsDb(), scheduler: createFakeScheduler(), now: new Date(), userAgent: null }
 }
 
 beforeEach(() => {
