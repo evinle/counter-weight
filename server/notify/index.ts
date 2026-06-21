@@ -11,7 +11,7 @@ import { handleTimerFired } from './handler.js'
 import { createNotifyDb } from './notifyDb.js'
 import type { NotifyDb, SendNotification } from './handler.js'
 
-type EventPayload = { serverId: string; userId: string; targetDatetime: string }
+type EventPayload = { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' }
 
 const sm = new SecretsManagerClient({})
 

@@ -126,7 +126,7 @@ async function createTimerSchedules(
       await ctx.scheduler.createSchedule(keys.lead, leadDatetime, {
         serverId,
         userId: ctx.userId,
-        targetDatetime: targetDatetime.toISOString(),
+        targetDatetime: leadDatetime.toISOString(),
         kind: 'lead',
       });
     }
@@ -221,7 +221,7 @@ export const timersRouter = router({
             await ctx.scheduler.updateSchedule(keys.lead, leadDatetime, {
               serverId: input.serverId,
               userId: ctx.userId,
-              targetDatetime: input.targetDatetime,
+              targetDatetime: leadDatetime.toISOString(),
               kind: 'lead',
             });
           } else {
