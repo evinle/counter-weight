@@ -458,4 +458,55 @@ describe('CreateEditView — Recurring mode', () => {
       expect(timers[0].recurrenceRule?.cron).toMatch(/\* \* \d(,\d)*$/)
     })
   })
+
+  describe('editing a recurring timer — mode switch wipes recurrenceRule', () => {
+    async function createRecurringTimer() {
+      const id = await createTimer(
+        { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
+        'user-1',
+      )
+      return db.timers.get(id!)
+    }
+
+    it('switching to "At time" clears recurrenceRule on save', async () => {
+      const existing = await createRecurringTimer()
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+
+      fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
+      fireEvent.click(screen.getByRole('button', { name: /at time/i }))
+      fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+      await waitFor(async () => {
+        const timer = await db.timers.get(existing!.id)
+        expect(timer?.recurrenceRule).toBeNull()
+      })
+    })
+
+    it('switching to "From now" clears recurrenceRule on save', async () => {
+      const existing = await createRecurringTimer()
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+
+      fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
+      fireEvent.click(screen.getByRole('button', { name: /from now/i }))
+      fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+      await waitFor(async () => {
+        const timer = await db.timers.get(existing!.id)
+        expect(timer?.recurrenceRule).toBeNull()
+      })
+    })
+
+    it('staying in Recurring mode preserves recurrenceRule on save', async () => {
+      const existing = await createRecurringTimer()
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+
+      fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+      await waitFor(async () => {
+        const timer = await db.timers.get(existing!.id)
+        expect(timer?.recurrenceRule).not.toBeNull()
+        expect(timer?.recurrenceRule?.cron).toMatch(/\d+ \d+ \* \* \*/)
+      })
+    })
+  })
 })

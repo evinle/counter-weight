@@ -112,7 +112,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         tagIds,
         timerType,
         leadTimeMs,
-        recurrenceRule,
+        recurrenceRule: mode === TimerMode.Recurrence ? recurrenceRule : null,
       });
       if (result === false) {
         useToastStore.getState().show({
