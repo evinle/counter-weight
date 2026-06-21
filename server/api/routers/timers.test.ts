@@ -443,6 +443,20 @@ describe('timers.complete — recurring', () => {
     expect(fakeDb.timerEvents[0].eventType).toBe('completed')
   })
 
+  it('completed before deadline spawns at the occurrence after the deadline, not at the deadline itself', async () => {
+    // Arrange — now is the day before the deadline
+    fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })
+    const now = new Date('2026-06-19T16:00:00Z')
+    const caller = createCaller(makeCtx('u1', fakeDb, fakeScheduler, undefined, now))
+
+    // Act
+    await caller.timers.complete({ serverId: RECURRING_TIMER.id, version: 1 })
+
+    // Assert — spawned timer must advance past the original deadline (2026-06-20 09:00), not land on it
+    const spawned = fakeDb.timers[1]
+    expect(spawned.targetDatetime).toEqual(new Date('2026-06-21T09:00:00Z'))
+  })
+
   it('cancelling a recurring timer writes no new row and no new schedule', async () => {
     // Arrange
     fakeDb = createFakeTimersDb({ timers: [RECURRING_TIMER] })

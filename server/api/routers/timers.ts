@@ -139,7 +139,8 @@ async function spawnNextOccurrence(
   completedTimerId: string,
   ctx: SpawnCtx,
 ): Promise<void> {
-  const nextDatetime = nextOccurrence(rule.cron, rule.tz, ctx.now);
+  const base = new Date(Math.max(ctx.now.getTime(), timer.targetDatetime.getTime()));
+  const nextDatetime = nextOccurrence(rule.cron, rule.tz, base);
 
   const spawned = await ctx.timersDb.insertTimer({
     userId: ctx.userId,
