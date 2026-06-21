@@ -38,5 +38,8 @@ A single timer instance in a recurring series. Each occurrence is an independent
 ### Task Timer
 A timer with `timerType: 'task'` that tracks active work effort via Work Sessions. Unlike a Reminder timer, a Task timer shows a work count-up alongside the deadline countdown, and its Done action closes any open session before completing. The deadline countdown goes negative (overtime) when the deadline passes with a session still open.
 
+### Timer Source
+A discriminator on a Timer (`source: 'manual' | 'google_calendar'`) indicating where the timer originated. `'manual'` is the default for user-created timers. `'google_calendar'` marks timers imported via the Google Calendar sync feature. Source is structural metadata — not a tag. It is a first-class field condition in `@cw/filters`, allowing Smart Groups to filter on `{ field: 'source', op: 'eq', value: 'google_calendar' }`.
+
 ### Work Session
 A `{ startedAt: Date, endedAt: Date | null }` record stored in `timer.workSessions[]`. A null `endedAt` means the session is currently open (work is in progress). At most one open session exists at a time. `startWork` appends a new open session; `endWork` closes the last open one by setting `endedAt`.
