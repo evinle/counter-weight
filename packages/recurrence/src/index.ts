@@ -103,6 +103,20 @@ export function parseCron(cron: string): ParsedCron | null {
   return null
 }
 
+const PARSED_CRON_PRESETS = [
+  'daily', 'weekday', 'weekly', 'monthly',
+  'custom-weekly', 'custom-monthly', 'custom-every-n-days', 'custom-every-hm',
+] as const
+
+export function isParsedCron(v: unknown): v is ParsedCron {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    'preset' in v &&
+    (PARSED_CRON_PRESETS as readonly string[]).includes((v as { preset: unknown }).preset as string)
+  )
+}
+
 export function nextOccurrence(cron: string, tz: string, now = new Date()): Date {
   const job = new Cron(cron, { timezone: tz })
   const next = job.nextRun(now)

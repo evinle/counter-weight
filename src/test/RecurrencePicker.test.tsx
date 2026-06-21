@@ -165,24 +165,17 @@ describe('RecurrencePicker — next occurrence preview', () => {
     expect(screen.getByTestId('next-occurrence-preview')).toBeInTheDocument()
   })
 
-  it('preview contains "Next:" and a non-empty string', () => {
+  it('preview is formatted as "Next: dd/mm/yyyy HH:mm"', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
     const preview = screen.getByTestId('next-occurrence-preview')
-    expect(preview.textContent).toMatch(/Next:/i)
-    expect(preview.textContent!.length).toBeGreaterThan(6)
+    expect(preview.textContent).toMatch(/^Next: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)
   })
 
   it('preview updates when preset changes to Every month', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
-    const before = screen.getByTestId('next-occurrence-preview').textContent
     fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     const after = screen.getByTestId('next-occurrence-preview').textContent
-    // preview should still show a date string
-    expect(after).toMatch(/Next:/i)
-    // the text may or may not differ depending on the date, but it should be present
-    expect(after!.length).toBeGreaterThan(6)
-    // keep the before reference to avoid unused var lint
-    void before
+    expect(after).toMatch(/^Next: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)
   })
 })
 

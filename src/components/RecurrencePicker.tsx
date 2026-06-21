@@ -134,11 +134,13 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-  // Sync parent on mount so recurrenceRule is never null when this component is visible
+  // Run once on mount: push the computed initial rule to the parent so recurrenceRule
+  // is never null while this component is visible. Empty deps is intentional — we only
+  // want the mount sync, not a re-run on every state change (that's handled by emit).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const rule = buildRule({ preset, hour, minute, weeklyDays, monthlyDom, monthlyLastDay, everyN, everyH, everyM })
     if (rule !== null) onChange(rule)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function buildRule(s: {
@@ -203,9 +205,9 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
   if (currentRule) {
     try {
       const next = nextOccurrence(currentRule.cron, tz, now)
-      nextText = next.toLocaleString(undefined, {
-        weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-      })
+      const date = next.toLocaleDateString('en-GB', { timeZone: tz })
+      const time = next.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })
+      nextText = `${date} ${time}`
     } catch {
       nextText = null
     }
