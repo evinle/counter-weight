@@ -1,5 +1,19 @@
 import type { WorkSession } from '../db/schema'
 
+export function formatLeadNotificationPreview(
+  targetMs: number,
+  leadTimeMs: number,
+  now: Date,
+  tz: string,
+): string {
+  const notifyMs = targetMs - leadTimeMs
+  if (notifyMs <= now.getTime()) return 'Invalid'
+  const d = new Date(notifyMs)
+  const date = d.toLocaleDateString('en-GB', { timeZone: tz })
+  const time = d.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })
+  return `${date} ${time}`
+}
+
 export function effortElapsed(sessions: WorkSession[], now: Date): number {
   return sessions.reduce((total, s) => {
     const end = s.endedAt ?? now

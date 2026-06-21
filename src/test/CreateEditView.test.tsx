@@ -245,6 +245,8 @@ describe('CreateEditView — leadTimeMs', () => {
 
   it('updates visible lead time columns when duration is changed', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
+    // Switch to FromNow to get a DurationInput with controllable remaining time
+    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
     // Default 5 min duration — lead time shows Minutes + Seconds, not Hours
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -262,6 +264,8 @@ describe('CreateEditView — leadTimeMs', () => {
   it('resets a hidden field to 0 when it becomes visible again', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
+    // Switch to FromNow to get a DurationInput with controllable remaining time
+    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
     // Expand duration to 2 hours so Hours field appears
     fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
@@ -338,6 +342,43 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 })
 
+describe('CreateEditView — lead time notification preview', () => {
+  it('preview is absent when lead time is not active', () => {
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+    expect(screen.queryByTestId('lead-time-preview')).not.toBeInTheDocument()
+  })
+
+  it('preview shows "Notifies: DD/MM/YYYY HH:MM" when lead is set and target is in the future', () => {
+    const atTime = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2h from now
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+
+    // Switch to AtTime and set a future time via the hidden input
+    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    // Set 30s lead (always < 2h remaining → future notification)
+    fireEvent.change(screen.getByRole('textbox', { name: /^seconds$/i }), { target: { value: '30' } })
+
+    const preview = screen.getByTestId('lead-time-preview')
+    expect(preview.textContent).toMatch(/^Notifies: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)
+    void atTime
+  })
+
+  it('preview shows "Invalid" when lead time exceeds the remaining duration', () => {
+    render(<CreateEditView onDone={() => {}} userId={null} />)
+
+    // Default mode is AtTime; default atTime is ~1h from now
+    // Switch to FromNow with 5 min duration
+    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    // Set lead time to 10 minutes — exceeds the 5-min duration
+    fireEvent.change(screen.getByRole('textbox', { name: /^minutes$/i }), { target: { value: '10' } })
+
+    expect(screen.getByTestId('lead-time-preview').textContent).toBe('Invalid')
+  })
+})
+
 describe('CreateEditView — Recurring mode', () => {
   it('Recurring tab is absent for guest users', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
@@ -390,14 +431,14 @@ describe('CreateEditView — Recurring mode', () => {
     })
   })
 
-  it('editing a timer with recurrenceRule opens in Recurring mode', async () => {
+  it('editing a timer with recurrenceRule opens in Recurring mode after unlocking', async () => {
     const id = await createTimer(
       { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
       'user-1',
     )
     const existing = await db.timers.get(id!)
     render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
-    // RecurrencePicker should be visible without clicking Recurring tab
+    fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
     expect(screen.getByRole('combobox', { name: /schedule/i })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: /schedule/i })).toHaveValue('daily')
   })

@@ -4,7 +4,29 @@ import {
   getHistoryAnnotation,
   HistoryTiming,
   effortElapsed,
+  formatLeadNotificationPreview,
 } from "../lib/countdown";
+
+describe("formatLeadNotificationPreview", () => {
+  const TARGET = new Date("2026-06-21T14:30:00Z")
+  const LEAD_MS = 30 * 60 * 1000 // 30 min → notification at 14:00 UTC
+  const TZ = "UTC"
+
+  it("returns formatted datetime when notification lands in the future", () => {
+    const now = new Date("2026-06-21T13:00:00Z")
+    expect(formatLeadNotificationPreview(TARGET.getTime(), LEAD_MS, now, TZ)).toBe("21/06/2026 14:00")
+  })
+
+  it("returns Invalid when notification time equals now (boundary)", () => {
+    const now = new Date("2026-06-21T14:00:00Z")
+    expect(formatLeadNotificationPreview(TARGET.getTime(), LEAD_MS, now, TZ)).toBe("Invalid")
+  })
+
+  it("returns Invalid when notification is in the past", () => {
+    const now = new Date("2026-06-21T15:00:00Z")
+    expect(formatLeadNotificationPreview(TARGET.getTime(), LEAD_MS, now, TZ)).toBe("Invalid")
+  })
+})
 
 describe("timeRemaining", () => {
   it("returns positive ms when target is in the future", () => {
