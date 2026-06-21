@@ -15,12 +15,28 @@ const gitSha = (() => {
 
 const buildTime = new Date().toISOString();
 
+const requiredEnvPlugin = {
+  name: "require-env",
+  buildStart() {
+    const missing = [
+      "VITE_API_URL",
+      "VITE_COGNITO_DOMAIN",
+      "VITE_COGNITO_CLIENT_ID",
+      "VITE_VAPID_PUBLIC_KEY",
+    ].filter((k) => !process.env[k]);
+    if (missing.length) {
+      throw new Error(`Missing required env vars: ${missing.join(", ")}`);
+    }
+  },
+};
+
 export default defineConfig({
   define: {
     __APP_SHA__: JSON.stringify(gitSha),
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
   plugins: [
+    requiredEnvPlugin,
     react(),
     tailwindcss(),
     VitePWA({

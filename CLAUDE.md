@@ -14,7 +14,7 @@ npm run lint       # ESLint
 npm run test       # Vitest watch mode
 npx vitest run     # Vitest single run
 npx vitest run src/test/countdown.test.ts  # single test file
-npm run deploy     # build frontend with prod env vars + wrangler deploy to Cloudflare
+npm run deploy     # build frontend (reads .env.production) + wrangler deploy to Cloudflare
 ```
 
 ### Server (`server/`)
@@ -100,7 +100,7 @@ Two stacks in deployment order:
 
 ### Frontend deployment
 
-Frontend is deployed to **Cloudflare Workers** (static assets) via `wrangler`. `wrangler.jsonc` sets `not_found_handling: "single-page-application"` for client-side routing. Build env vars (`VITE_API_URL`, `VITE_COGNITO_DOMAIN`, `VITE_COGNITO_CLIENT_ID`) are baked in at build time.
+Frontend is deployed to **Cloudflare Workers** (static assets) via `wrangler`. `wrangler.jsonc` sets `not_found_handling: "single-page-application"` for client-side routing. Build env vars (`VITE_API_URL`, `VITE_COGNITO_DOMAIN`, `VITE_COGNITO_CLIENT_ID`, `VITE_VAPID_PUBLIC_KEY`) are baked in at build time — sourced from `.env.production` (committed). Do **not** inline them in the `build:frontend` script. `vite.config.ts` has a `buildStart` plugin that fails the build immediately if any required `VITE_*` var is missing.
 
 ### Key files
 

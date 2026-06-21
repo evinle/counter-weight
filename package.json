@@ -8,7 +8,7 @@
     "dev": "vite --host --port 5174",
     "dev:local": "API_TARGET=http://localhost:3000 vite --host --port 5174",
     "build": "tsc -b && vite build",
-    "build:frontend": "tsc --noEmit && VITE_API_URL=https://api.evinle.app VITE_COGNITO_DOMAIN=https://counter-weight-auth.auth.ap-southeast-2.amazoncognito.com VITE_COGNITO_CLIENT_ID=1m70p1ibek161ssj544l4fpph8 VITE_VAPID_PUBLIC_KEY=BMjWtAnMDln7h4fooM-69BiTpzeAXrffmjBQwPWZjgCT6ikOh6kdE2aznc5HReSmGXxBOziflZi02HtSZF3nFx4 vite build",
+    "build:frontend": "tsc --noEmit && vite build",
     "lint": "eslint .",
     "preview": "vite preview --host --port 5174",
     "test": "vitest",
