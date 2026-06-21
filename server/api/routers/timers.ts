@@ -5,7 +5,7 @@ import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 import { timerScheduleKeys } from "../scheduler.js";
 import type { Scheduler } from "../scheduler.js";
-import { computeNextOccurrence } from "../recurrence.js";
+import { nextOccurrence } from "@cw/recurrence";
 
 export type WorkSessionJson = { startedAt: string; endedAt: string | null }
 
@@ -139,7 +139,7 @@ async function spawnNextOccurrence(
   completedTimerId: string,
   ctx: SpawnCtx,
 ): Promise<void> {
-  const nextDatetime = computeNextOccurrence(rule, ctx.now);
+  const nextDatetime = nextOccurrence(rule.cron, rule.tz, ctx.now);
 
   const spawned = await ctx.timersDb.insertTimer({
     userId: ctx.userId,

@@ -9,6 +9,7 @@ import { SpinnerField } from "./SpinnerField";
 import { OptionalField } from "./OptionalField";
 import { RecurrencePicker } from "./RecurrencePicker";
 import { SelectField } from "./SelectField";
+import { nextOccurrence } from "@cw/recurrence";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining } from "../lib/countdown";
@@ -18,7 +19,8 @@ import type { Timer, Priority, TimerType as TimerTypeT } from "../db/schema";
 const TimerMode = {
   FromNow: "from-now",
   AtTime: "at-time",
-} as const;
+  Recurrence: "recurrence",
+} as const satisfies Record<string, string>;
 
 type TimerMode = (typeof TimerMode)[keyof typeof TimerMode];
 
@@ -58,7 +60,11 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   ) {
     setLeadTimeMs(durationToMs(days, hours, mins, secs));
   }
-  const [mode, setMode] = useState<TimerMode>(TimerMode.FromNow);
+  const [mode, setMode] = useState<TimerMode>(() => {
+    if (existing?.recurrenceRule) return TimerMode.Recurrence;
+    if (existing?.targetDatetime) return TimerMode.AtTime;
+    return TimerMode.FromNow;
+  });
   const [timeEditUnlocked, setTimeEditUnlocked] = useState(false);
   const [duration, setDuration] = useState<DurationValue>(() =>
     existing
@@ -95,6 +101,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
                   duration.seconds,
                 ),
             )
+          : mode === TimerMode.Recurrence && recurrenceRule
+          ? nextOccurrence(recurrenceRule.cron, recurrenceRule.tz)
           : atTime
         : undefined;
       const result = await editTimer(existing.id, {
@@ -126,6 +134,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
                   duration.seconds,
                 ),
             )
+          : mode === TimerMode.Recurrence && recurrenceRule
+          ? nextOccurrence(recurrenceRule.cron, recurrenceRule.tz)
           : atTime;
       await createTimer(
         {
@@ -187,10 +197,17 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
             maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
           />
         );
+      case TimerMode.Recurrence:
+        return (
+          <RecurrencePicker
+            value={recurrenceRule}
+            onChange={setRecurrenceRule}
+          />
+        );
     }
   }
 
-  const showTimeEditor = !existing || timeEditUnlocked;
+  const showTimeEditor = mode === TimerMode.Recurrence || !existing || timeEditUnlocked;
 
   const remainingMs = (() => {
     if (!showTimeEditor && existing)
@@ -252,6 +269,19 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
             >
               At time
             </button>
+            {userId !== null && (
+              <button
+                type="button"
+                onClick={() => setMode(TimerMode.Recurrence)}
+                className={`flex-1 py-3 text-base font-medium transition-colors ${
+                  mode === TimerMode.Recurrence
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                Recurring
+              </button>
+            )}
           </div>
 
           {renderModeInput()}
@@ -390,26 +420,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           />
         </div>
       </OptionalField>
-
-      {userId !== null && mode === TimerMode.AtTime && showTimeEditor && (
-        <OptionalField
-          label="Recurrence"
-          activateLabel="Set recurrence"
-          clearLabel="Remove recurrence"
-          active={recurrenceRule !== null}
-          onActivate={() => {
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            setRecurrenceRule({ cron: "0 9 * * *", tz });
-          }}
-          onClear={() => setRecurrenceRule(null)}
-        >
-          <RecurrencePicker
-            value={recurrenceRule}
-            targetDatetime={atTime}
-            onChange={setRecurrenceRule}
-          />
-        </OptionalField>
-      )}
 
       <button
         type="submit"

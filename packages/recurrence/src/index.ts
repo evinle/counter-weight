@@ -1,3 +1,5 @@
+import { Cron } from 'croner'
+
 function parseTime(time: string): { hour: number; min: number } {
   const [h, m] = time.split(':').map(Number)
   return { hour: h, min: m }
@@ -63,12 +65,10 @@ export function parseCron(cron: string): ParsedCron | null {
   if (parts.length !== 5) return null
   const [minF, hourF, domF, , dowF] = parts
 
-  // */N minutes (hours and minutes, or minutes-only)
   if (minF.startsWith('*/') && hourF === '*') {
     const total = Number(minF.slice(2))
     return { preset: 'custom-every-hm', hours: Math.floor(total / 60), minutes: total % 60 }
   }
-  // */N hours (hours-only)
   if (minF === '0' && hourF.startsWith('*/') && domF === '*') {
     return { preset: 'custom-every-hm', hours: Number(hourF.slice(2)), minutes: 0 }
   }
@@ -78,34 +78,34 @@ export function parseCron(cron: string): ParsedCron | null {
   if (isNaN(min) || isNaN(hour)) return null
   const time = toTimeString(hour, min)
 
-  // every N days
   if (domF.startsWith('*/') && dowF === '*') {
     return { preset: 'custom-every-n-days', time, n: Number(domF.slice(2)) }
   }
-  // last day of month (L dom)
   if (domF === 'L' && dowF === '*') {
     return { preset: 'custom-monthly', time, dom: 'L' }
   }
-  // monthly (numeric dom, * dow)
   if (domF !== '*' && !domF.startsWith('*/') && dowF === '*') {
     return { preset: 'monthly', time }
   }
-  // daily (* dom, * dow)
   if (domF === '*' && dowF === '*') {
     return { preset: 'daily', time }
   }
-  // weekday
   if (domF === '*' && dowF === '1-5') {
     return { preset: 'weekday', time }
   }
-  // custom weekly (comma in dow)
   if (domF === '*' && dowF.includes(',')) {
     return { preset: 'custom-weekly', time, days: dowF.split(',').map(Number) }
   }
-  // weekly (single digit dow)
   if (domF === '*' && /^\d$/.test(dowF)) {
     return { preset: 'weekly', time }
   }
 
   return null
+}
+
+export function nextOccurrence(cron: string, tz: string, now = new Date()): Date {
+  const job = new Cron(cron, { timezone: tz })
+  const next = job.nextRun(now)
+  if (!next) throw new Error(`No next occurrence for cron "${cron}"`)
+  return next
 }

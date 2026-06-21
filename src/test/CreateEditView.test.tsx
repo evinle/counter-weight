@@ -338,44 +338,36 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 })
 
-describe('CreateEditView — recurrence picker', () => {
-  it('recurrence picker is absent for guests (userId=null)', () => {
+describe('CreateEditView — Recurring mode', () => {
+  it('Recurring tab is absent for guest users', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
-
-    expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /recurring/i })).not.toBeInTheDocument()
   })
 
-  it('recurrence field is hidden when mode is FromNow (logged-in user)', () => {
+  it('Recurring tab is present for logged-in users', () => {
     render(<CreateEditView onDone={() => {}} userId="user-1" />)
-    // default create mode is FromNow
-    expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /recurring/i })).toBeInTheDocument()
   })
 
-  it('recurrence field appears when mode is AtTime', () => {
+  it('AtTime mode has no recurrence affordance', () => {
     render(<CreateEditView onDone={() => {}} userId="user-1" />)
-
     fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-
-    expect(screen.getByRole('button', { name: /set recurrence/i })).toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /recurrence/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /schedule/i })).not.toBeInTheDocument()
   })
 
-  it('recurrence field is hidden in edit mode when time is locked', async () => {
-    const id = await createTimer({ ...BASE }, 'user-1')
-    const existing = await db.timers.get(id!)
-
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
-
-    // time not yet unlocked
+  it('clicking Recurring tab shows Schedule picker directly (no OptionalField)', () => {
+    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
+    expect(screen.getByRole('combobox', { name: /schedule/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
   })
 
-  it('activating recurrence stores a daily recurrenceRule on create', async () => {
+  it('submitting Recurring mode stores recurrenceRule with cron and tz', async () => {
     render(<CreateEditView onDone={() => {}} userId="user-1" />)
-
-    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Daily' } })
-    fireEvent.click(screen.getByRole('button', { name: /set recurrence/i }))
+    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Daily standup' } })
+    fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
+    // default is Every day — just submit
     fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
 
     await waitFor(async () => {
@@ -386,13 +378,35 @@ describe('CreateEditView — recurrence picker', () => {
     })
   })
 
-  it('custom weekly with days stores correct cron on create', async () => {
+  it('submitting Recurring mode computes targetDatetime in the future', async () => {
     render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Daily standup' } })
+    fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
+    fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Custom' } })
-    fireEvent.click(screen.getByRole('button', { name: /set recurrence/i }))
-    fireEvent.change(screen.getByRole('combobox', { name: /recurrence/i }), { target: { value: 'custom' } })
+    await waitFor(async () => {
+      const timers = await db.timers.toArray()
+      expect(timers[0].targetDatetime.getTime()).toBeGreaterThan(Date.now() - 1000)
+    })
+  })
+
+  it('editing a timer with recurrenceRule opens in Recurring mode', async () => {
+    const id = await createTimer(
+      { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
+      'user-1',
+    )
+    const existing = await db.timers.get(id!)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+    // RecurrencePicker should be visible without clicking Recurring tab
+    expect(screen.getByRole('combobox', { name: /schedule/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /schedule/i })).toHaveValue('daily')
+  })
+
+  it('switching days in Recurring mode and submitting stores custom-weekly cron', async () => {
+    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Weekly' } })
+    fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
+    fireEvent.change(screen.getByRole('combobox', { name: /schedule/i }), { target: { value: 'weekly' } })
     fireEvent.click(screen.getByRole('button', { name: /^mon$/i }))
     fireEvent.click(screen.getByRole('button', { name: /^wed$/i }))
     fireEvent.click(screen.getByRole('button', { name: /^fri$/i }))
@@ -400,54 +414,7 @@ describe('CreateEditView — recurrence picker', () => {
 
     await waitFor(async () => {
       const timers = await db.timers.toArray()
-      expect(timers[0].recurrenceRule?.cron).toMatch(/\* \* 1,3,5$/)
-    })
-  })
-
-  it('removing recurrence sets recurrenceRule to null on create', async () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
-
-    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-    fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Test' } })
-    fireEvent.click(screen.getByRole('button', { name: /set recurrence/i }))
-    fireEvent.click(screen.getByRole('button', { name: /remove recurrence/i }))
-    fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
-
-    await waitFor(async () => {
-      const timers = await db.timers.toArray()
-      expect(timers[0].recurrenceRule).toBeNull()
-    })
-  })
-
-  it('existing recurring timer shows picker pre-populated (no activate needed)', async () => {
-    const id = await createTimer(
-      { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
-      'user-1',
-    )
-    const existing = await db.timers.get(id!)
-
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
-    fireEvent.click(screen.getByText(/edit time/i))
-    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-
-    expect(screen.getByRole('combobox', { name: /recurrence/i })).toHaveValue('daily')
-  })
-
-  it('updating recurrence on edit stores new rule', async () => {
-    const id = await createTimer({ ...BASE }, 'user-1')
-    const existing = await db.timers.get(id!)
-
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
-
-    fireEvent.click(screen.getByText(/edit time/i))
-    fireEvent.click(screen.getByRole('button', { name: /at time/i }))
-    fireEvent.click(screen.getByRole('button', { name: /set recurrence/i }))
-    fireEvent.change(screen.getByRole('combobox', { name: /recurrence/i }), { target: { value: 'daily' } })
-    fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
-
-    await waitFor(async () => {
-      const timer = await db.timers.get(id!)
-      expect(timer?.recurrenceRule?.cron).toMatch(/^\d+ \d+ \* \* \*$/)
+      expect(timers[0].recurrenceRule?.cron).toMatch(/\* \* \d(,\d)*$/)
     })
   })
 })

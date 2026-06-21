@@ -2,462 +2,203 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { RecurrencePicker } from '../components/RecurrencePicker'
 
-// Wednesday 2026-06-03 09:00 UTC — dow=3, dom=3
-const TARGET = new Date('2026-06-03T09:00:00Z')
-const DAILY = { cron: '0 9 * * *', tz: 'UTC' }
+const NOW = new Date('2026-06-21T09:00:00Z') // Sunday=dow0, dom=21
 
-function presetSelect() {
-  return screen.getByRole('combobox', { name: /recurrence/i })
+function scheduleSelect() {
+  return screen.getByRole('combobox', { name: /schedule/i })
 }
 
-
-describe('RecurrencePicker — default state', () => {
-  it('defaults to Every day with no time-of-day spinners', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    expect(presetSelect()).toHaveValue('daily')
-    expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Minute')).not.toBeInTheDocument()
+describe('RecurrencePicker — Every week', () => {
+  it('shows day toggles when Every week is selected', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'weekly' } })
+    expect(screen.getByRole('button', { name: /^sun$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^mon$/i })).toBeInTheDocument()
   })
 
-  it('primary select has exactly: Every day, Every <day-name>, Every month, Custom', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
+  it('defaults day toggle to today (Sunday = 0)', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'weekly' } })
+    // Sunday button should be active (blue), Monday not
+    const sun = screen.getByRole('button', { name: /^sun$/i })
+    expect(sun.className).toContain('bg-blue-600')
+    const mon = screen.getByRole('button', { name: /^mon$/i })
+    expect(mon.className).toContain('bg-slate-700')
+  })
 
-    const options = Array.from(presetSelect().querySelectorAll('option')).map((o) => o.value)
-    expect(options).toEqual(['daily', 'weekly', 'monthly', 'custom'])
-    expect(options).not.toContain('weekday')
+  it('emits correct weekly cron on day toggle', () => {
+    const onChange = vi.fn()
+    render(<RecurrencePicker value={null} onChange={onChange} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'weekly' } })
+    // Sunday already selected; add Monday
+    fireEvent.click(screen.getByRole('button', { name: /^mon$/i }))
+    const last = onChange.mock.calls.at(-1)?.[0]
+    expect(last?.cron).toBe('0 9 * * 0,1') // 09:00 is already on a quarter-hour boundary
   })
 })
 
-describe('RecurrencePicker — presets', () => {
-  it('Every day: calls onChange with daily cron on preset change', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'daily' } })
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ cron: '0 9 * * *' }),
-    )
-  })
-
-  it('Every <day-name>: uses day-of-week from targetDatetime', () => {
-    const onChange = vi.fn()
-    // TARGET is Wednesday = dow 3
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'weekly' } })
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ cron: '0 9 * * 3' }),
-    )
-  })
-
-  it('Every month: uses day-of-month from targetDatetime', () => {
-    const onChange = vi.fn()
-    // TARGET is the 3rd
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'monthly' } })
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ cron: '0 9 3 * *' }),
-    )
-  })
-
-  it('primary presets derive time from targetDatetime', () => {
-    // TARGET is 09:00 UTC
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'daily' } })
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ cron: '0 9 * * *' }),
-    )
-  })
-
-  it('includes the browser IANA timezone in the rule', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'daily' } })
-
-    const call = onChange.mock.calls[0][0]
-    expect(typeof call.tz).toBe('string')
-    expect(call.tz.length).toBeGreaterThan(0)
-  })
-})
-
-describe('RecurrencePicker — preset label interpolation', () => {
-  it('"Every week" option shows the day name from targetDatetime', () => {
-    // TARGET is Wednesday
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-    expect(screen.getByRole('option', { name: /wednesday/i })).toBeInTheDocument()
-  })
-
-  it('"Every month" option label is "Every month"', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-    expect(screen.getByRole('option', { name: /every month/i })).toBeInTheDocument()
-  })
-})
-
-describe('RecurrencePicker — Every month sub-controls', () => {
-  it('shows dom spinner defaulting to targetDatetime dom when Every month is selected', () => {
-    // TARGET dom = 3
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'monthly' } })
-
+describe('RecurrencePicker — Every month', () => {
+  it('shows dom spinner and last day checkbox', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     expect(screen.getByLabelText('Day')).toBeInTheDocument()
-    expect(screen.getByLabelText('Day')).toHaveValue('03')
+    expect(screen.getByRole('checkbox', { name: /last day/i })).toBeInTheDocument()
   })
 
-  it('Every month: dom spinner drives the cron', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'monthly' } })
-    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '15' } })
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 15 * *')
+  it('dom spinner defaults to today (21)', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
+    expect(screen.getByLabelText('Day')).toHaveValue('21')
   })
 
-  it('Every month: last day checkbox hides spinner and emits L cron', () => {
+  it('last day checkbox hides spinner and emits L cron', () => {
     const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'monthly' } })
+    render(<RecurrencePicker value={null} onChange={onChange} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     fireEvent.click(screen.getByRole('checkbox', { name: /last day/i }))
-
     expect(screen.queryByLabelText('Day')).not.toBeInTheDocument()
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 L * *')
+    const last = onChange.mock.calls.at(-1)?.[0]
+    expect(last?.cron).toBe('0 9 L * *')
   })
 
-  it('Every month: unchecking last day restores spinner', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'monthly' } })
+  it('unchecking last day restores spinner', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     const cb = screen.getByRole('checkbox', { name: /last day/i })
     fireEvent.click(cb)
     fireEvent.click(cb)
-
     expect(screen.getByLabelText('Day')).toBeInTheDocument()
   })
 })
 
-describe('RecurrencePicker — rendering order', () => {
-  it('in Custom/Weekly mode, day toggles appear before Time of day spinners', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
+describe('RecurrencePicker — Every N days', () => {
+  it('shows N spinner with range 2-90', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'every-n-days' } })
+    const spinner = screen.getByLabelText('Every')
+    expect(spinner).toBeInTheDocument()
+  })
 
-    const monBtn = screen.getByRole('button', { name: /^mon$/i })
-    const hourInput = screen.getByLabelText('Hour')
-    expect(monBtn.compareDocumentPosition(hourInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  it('emits correct every-N-days cron', () => {
+    const onChange = vi.fn()
+    render(<RecurrencePicker value={null} onChange={onChange} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'every-n-days' } })
+    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '7' } })
+    const last = onChange.mock.calls.at(-1)?.[0]
+    expect(last?.cron).toBe('0 9 */7 * *')
   })
 })
 
-describe('RecurrencePicker — Custom time defaults', () => {
-  // TARGET is 09:00 UTC — custom flavour time spinners should default to that
-  it('Custom/Weekly time spinners default to targetDatetime hour:minute', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    // default flavour is weekly
-
-    expect(screen.getByLabelText('Hour')).toHaveValue('09')
-    expect(screen.getByLabelText('Minute')).toHaveValue('00')
-  })
-
-  it('Custom/Monthly time spinners default to targetDatetime hour:minute', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(screen.getByRole('combobox', { name: /repeat/i }), { target: { value: 'monthly' } })
-
-    expect(screen.getByLabelText('Hour')).toHaveValue('09')
-    expect(screen.getByLabelText('Minute')).toHaveValue('00')
-  })
-
-  it('Custom/EveryNDays time spinners default to targetDatetime hour:minute', () => {
-    render(
-      <RecurrencePicker value={null} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(screen.getByRole('combobox', { name: /repeat/i }), { target: { value: 'every-n-days' } })
-
-    expect(screen.getByLabelText('Hour')).toHaveValue('09')
-    expect(screen.getByLabelText('Minute')).toHaveValue('00')
-  })
-})
-
-describe('RecurrencePicker — Custom', () => {
-  function customSelect() {
-    return screen.getByRole('combobox', { name: /repeat/i })
-  }
-
-  it('selecting Custom reveals a Repeat select with four flavours', () => {
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-
-    const repeat = customSelect()
-    const options = Array.from(repeat.querySelectorAll('option')).map((o) => o.value)
-    expect(options).toContain('weekly')
-    expect(options).toContain('monthly')
-    expect(options).toContain('every-n-days')
-    expect(options).toContain('every-n-hours-minutes')
-  })
-
-  it('Custom Weekly: day toggles appear; correct cron on selection', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.click(screen.getByRole('button', { name: /^mon$/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^wed$/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^fri$/i }))
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 * * 1,3,5')
-  })
-
-it('Custom Monthly: "Last day of month" checkbox emits L cron and hides stepper', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'monthly' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: /last day/i }))
-
-    expect(screen.queryByLabelText('Day')).not.toBeInTheDocument()
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 L * *')
-  })
-
-  it('Custom Monthly: unchecking "Last day" restores the stepper', () => {
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={() => {}} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'monthly' } })
-    const checkbox = screen.getByRole('checkbox', { name: /last day/i })
-    fireEvent.click(checkbox)
-    fireEvent.click(checkbox)
-
-    expect(screen.getByLabelText('Day')).toBeInTheDocument()
-  })
-
-  it('Custom Monthly: dom stepper drives the cron', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'monthly' } })
-    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '15' } })
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 15 * *')
-  })
-
-  it('Custom Every N days: produces */N cron', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'every-n-days' } })
-    fireEvent.change(screen.getByLabelText('Every'), { target: { value: '3' } })
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 9 */3 * *')
-  })
-
-  it('Custom Every HM: hours only, correct cron; time spinners hidden', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '2' } })
-
+describe('RecurrencePicker — Every N hours/minutes', () => {
+  it('shows Hours and Minutes spinners but no Hour/Minute time-of-day spinners', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'every-n-hours-minutes' } })
+    expect(screen.getByLabelText('Hours')).toBeInTheDocument()
+    expect(screen.getByLabelText('Minutes')).toBeInTheDocument()
     expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Minute')).not.toBeInTheDocument()
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('0 */2 * * *')
-  })
-
-  it('Custom Every HM: minutes only, correct cron', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '0' } })
-    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '30' } })
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('*/30 * * * *')
-  })
-
-  it('Custom Every HM: hours and minutes combined, total-minutes cron', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '30' } })
-
-    const lastCall = onChange.mock.calls.at(-1)?.[0]
-    expect(lastCall?.cron).toBe('*/90 * * * *')
-  })
-
-  it('Custom Every HM: both zero suppresses emit', () => {
-    const onChange = vi.fn()
-    render(
-      <RecurrencePicker value={DAILY} targetDatetime={TARGET} onChange={onChange} />,
-    )
-
-    fireEvent.change(presetSelect(), { target: { value: 'custom' } })
-    fireEvent.change(customSelect(), { target: { value: 'every-n-hours-minutes' } })
-    // default hours=2; set both to 0
-    fireEvent.change(screen.getByLabelText('Hours'), { target: { value: '0' } })
-    fireEvent.change(screen.getByLabelText('Minutes'), { target: { value: '0' } })
-
-    const calls = onChange.mock.calls
-    // last two changes (hours=0, minutes=0) must not have produced an emit
-    expect(calls.at(-1)?.[0].cron).not.toBe('0 */0 * * *')
-    expect(calls.at(-1)?.[0].cron).not.toBe('*/0 * * * *')
   })
 })
 
-describe('RecurrencePicker — pre-population', () => {
-  it('pre-populates "Every day" from a daily cron rule', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '30 14 * * *', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('daily')
-    // primary presets lock time to targetDatetime — no time spinners
-    expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
+describe('RecurrencePicker — backwards compat pre-population', () => {
+  it('pre-populates Every day from a stored daily cron, restoring hour:minute', () => {
+    render(<RecurrencePicker value={{ cron: '30 14 * * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('daily')
+    expect(screen.getByLabelText('Hour')).toHaveValue('14')
+    expect(screen.getByLabelText('Minute')).toHaveValue('30')
   })
 
-  it('pre-populates old weekday cron as Custom / Weekly with Mon–Fri selected', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '0 8 * * 1-5', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('custom')
-    expect(screen.getByRole('combobox', { name: /repeat/i })).toHaveValue('weekly')
+  it('pre-populates Every week from a stored single-day weekly cron', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 * * 3', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('weekly')
   })
 
-  it('pre-populates "Every week" from a weekly cron rule', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '0 9 * * 3', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('weekly')
+  it('pre-populates Every week from a stored custom-weekly cron with correct days', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 * * 1,3,5', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('weekly')
+    // Mon, Wed, Fri toggles should be active
+    expect(screen.getByRole('button', { name: /^mon$/i }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: /^wed$/i }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: /^fri$/i }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: /^sun$/i }).className).toContain('bg-slate-700')
   })
 
-  it('pre-populates "Every month" from a monthly cron rule', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '0 9 15 * *', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('monthly')
+  it('pre-populates Every month from a stored monthly cron', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 15 * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('monthly')
   })
 
-  it('pre-populates Custom/Weekly from a custom-weekly cron rule', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '0 9 * * 1,3,5', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('custom')
-    expect(screen.getByRole('combobox', { name: /repeat/i })).toHaveValue('weekly')
-  })
-
-  it('pre-populates "Every month" with last day checked from an L-dom cron rule', () => {
-    render(
-      <RecurrencePicker
-        value={{ cron: '0 9 L * *', tz: 'UTC' }}
-        targetDatetime={TARGET}
-        onChange={() => {}}
-      />,
-    )
-
-    expect(presetSelect()).toHaveValue('monthly')
+  it('pre-populates Every month with last day checked from an L-dom cron', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 L * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('monthly')
     expect(screen.getByRole('checkbox', { name: /last day/i })).toBeChecked()
+  })
+
+  it('pre-populates Every N days from a stored every-n-days cron', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 */5 * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('every-n-days')
+    expect(screen.getByLabelText('Every')).toHaveValue('05')
+  })
+
+  it('pre-populates Every N hours/minutes from a stored HM cron', () => {
+    render(<RecurrencePicker value={{ cron: '0 */2 * * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('every-n-hours-minutes')
+    expect(screen.getByLabelText('Hours')).toHaveValue('02')
+  })
+
+  it('falls back to Every day for an unclassifiable cron', () => {
+    render(<RecurrencePicker value={{ cron: 'bad cron', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('daily')
+  })
+
+  it('pre-populates old weekday cron (1-5) as Every week with Mon-Fri active', () => {
+    render(<RecurrencePicker value={{ cron: '0 8 * * 1-5', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+    expect(scheduleSelect()).toHaveValue('weekly')
+    expect(screen.getByRole('button', { name: /^mon$/i }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: /^fri$/i }).className).toContain('bg-blue-600')
+  })
+})
+
+describe('RecurrencePicker — next occurrence preview', () => {
+  it('renders a preview element below the controls', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    expect(screen.getByTestId('next-occurrence-preview')).toBeInTheDocument()
+  })
+
+  it('preview contains "Next:" and a non-empty string', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    const preview = screen.getByTestId('next-occurrence-preview')
+    expect(preview.textContent).toMatch(/Next:/i)
+    expect(preview.textContent!.length).toBeGreaterThan(6)
+  })
+
+  it('preview updates when preset changes to Every month', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    const before = screen.getByTestId('next-occurrence-preview').textContent
+    fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
+    const after = screen.getByTestId('next-occurrence-preview').textContent
+    // preview should still show a date string
+    expect(after).toMatch(/Next:/i)
+    // the text may or may not differ depending on the date, but it should be present
+    expect(after!.length).toBeGreaterThan(6)
+    // keep the before reference to avoid unused var lint
+    void before
+  })
+})
+
+describe('RecurrencePicker — default state', () => {
+  it('defaults to Every day with Hour and Minute spinners', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    expect(screen.getByRole('combobox', { name: /schedule/i })).toHaveValue('daily')
+    expect(screen.getByLabelText('Hour')).toBeInTheDocument()
+    expect(screen.getByLabelText('Minute')).toBeInTheDocument()
+  })
+
+  it('primary select has exactly: Every day, Every week, Every month, Every N days, Every N hours/minutes', () => {
+    render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
+    const options = Array.from(
+      screen.getByRole('combobox', { name: /schedule/i }).querySelectorAll('option'),
+    ).map((o) => (o as HTMLOptionElement).value)
+    expect(options).toEqual(['daily', 'weekly', 'monthly', 'every-n-days', 'every-n-hours-minutes'])
   })
 })

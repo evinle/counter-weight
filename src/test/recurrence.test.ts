@@ -9,7 +9,7 @@ import {
   buildCustomEveryNDaysCron,
   buildCustomEveryHMCron,
   parseCron,
-} from '../lib/recurrence'
+} from '@cw/recurrence'
 
 describe('buildDailyCron', () => {
   it('produces correct cron for a given time', () => {
