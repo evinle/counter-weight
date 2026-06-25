@@ -19,11 +19,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
-    "paths": {
-      "@cw/recurrence": ["./packages/recurrence/src/index.ts"],
-      "@cw/filters": ["./packages/filters/src/index.ts"]
-    }
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "packages"]
+  "include": ["src"]
 }
