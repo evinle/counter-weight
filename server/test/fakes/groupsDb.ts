@@ -42,6 +42,10 @@ export function createFakeGroupsDb(opts: { groups?: FakeGroup[] } = {}): FakeGro
       if (idx !== -1) groups.splice(idx, 1)
     },
 
+    async getGroup(id, userId) {
+      return groups.find((g) => g.id === id && g.userId === userId) ?? null
+    },
+
     async reconcile(userId, since) {
       return groups.filter((g) => {
         if (g.userId !== userId) return false
