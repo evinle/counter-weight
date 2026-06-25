@@ -97,8 +97,10 @@ describe('sync.full', () => {
 
     // Assert
     expect(result.synced.tags).toHaveLength(1)
-    expect(result.synced.tags[0]).toMatchObject({ op: 'upsert', clientId: 42 })
-    expect(typeof (result.synced.tags[0] as { serverId: string }).serverId).toBe('string')
+    const tagEntry = result.synced.tags[0]
+    if (tagEntry.op !== 'upsert') throw new Error(`expected upsert, got ${tagEntry.op}`)
+    expect(tagEntry.clientId).toBe(42)
+    expect(tagEntry.serverId).toEqual(expect.any(String))
     expect(fakeTagsDb.tags).toHaveLength(1)
     expect(fakeTagsDb.tags[0].name).toBe('focus')
   })
@@ -163,8 +165,9 @@ describe('sync.full', () => {
     // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.timers).toHaveLength(1)
-    const createdTagServerId = (result.synced.tags[0] as { serverId: string }).serverId
-    expect(fakeTimersDb.timers[0].tagIds).toEqual([createdTagServerId])
+    const createdTag = result.synced.tags[0]
+    if (createdTag.op !== 'upsert') throw new Error(`expected upsert, got ${createdTag.op}`)
+    expect(fakeTimersDb.timers[0].tagIds).toEqual([createdTag.serverId])
   })
 
   it('version conflict during tag drain appends server record to overruled and continues', async () => {

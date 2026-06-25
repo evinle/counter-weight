@@ -3,31 +3,42 @@ import { router, protectedProcedure } from '../router.js'
 import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from '../timerScheduling.js'
 import { TimerStatus, Priority, TimerType } from '../../db/schema.js'
 import type { SchedulingCtx } from '../timerScheduling.js'
+import { GroupConditionsSchema } from './groups.js'
 import type { TagsDb, TagRecord } from './tags.js'
 import type { GroupsDb, GroupRecord } from './groups.js'
 import type { TimersDb, TimerRecord } from './timers.js'
 
+// ─── Op const-enum ────────────────────────────────────────────────────────────
+
+export const SyncOp = {
+  Upsert: 'upsert',
+  Delete: 'delete',
+  Complete: 'complete',
+  Cancel: 'cancel',
+} as const satisfies Record<string, string>
+export type SyncOp = typeof SyncOp[keyof typeof SyncOp]
+
 // ─── Output entry types ───────────────────────────────────────────────────────
 
 type SyncedTagEntry =
-  | { op: 'upsert'; clientId: number; serverId: string }
-  | { op: 'delete'; serverId: string }
+  | { op: typeof SyncOp.Upsert; clientId: number; serverId: string }
+  | { op: typeof SyncOp.Delete; serverId: string }
 
 type SyncedGroupEntry =
-  | { op: 'upsert'; clientId: number; serverId: string }
-  | { op: 'delete'; serverId: string }
+  | { op: typeof SyncOp.Upsert; clientId: number; serverId: string }
+  | { op: typeof SyncOp.Delete; serverId: string }
 
 type SyncedTimerEntry =
-  | { op: 'upsert'; clientId: number; serverId: string }
-  | { op: 'complete'; clientId: number; serverId: string }
-  | { op: 'cancel'; clientId: number; serverId: string }
-  | { op: 'delete'; serverId: string }
+  | { op: typeof SyncOp.Upsert; clientId: number; serverId: string }
+  | { op: typeof SyncOp.Complete; clientId: number; serverId: string }
+  | { op: typeof SyncOp.Cancel; clientId: number; serverId: string }
+  | { op: typeof SyncOp.Delete; serverId: string }
 
 // ─── Input schemas ────────────────────────────────────────────────────────────
 
 const tagSyncItemSchema = z.discriminatedUnion('op', [
   z.object({
-    op: z.literal('upsert'),
+    op: z.literal(SyncOp.Upsert),
     clientId: z.number().int(),
     serverId: z.string().uuid().nullable(),
     name: z.string().min(1),
@@ -36,7 +47,7 @@ const tagSyncItemSchema = z.discriminatedUnion('op', [
     version: z.number().int().optional(),
   }),
   z.object({
-    op: z.literal('delete'),
+    op: z.literal(SyncOp.Delete),
     clientId: z.number().int(),
     serverId: z.string().uuid(),
   }),
@@ -44,20 +55,17 @@ const tagSyncItemSchema = z.discriminatedUnion('op', [
 
 const groupSyncItemSchema = z.discriminatedUnion('op', [
   z.object({
-    op: z.literal('upsert'),
+    op: z.literal(SyncOp.Upsert),
     clientId: z.number().int(),
     serverId: z.string().uuid().nullable(),
     name: z.string().min(1),
     emoji: z.string().nullable(),
     color: z.string().nullable(),
-    conditions: z.object({
-      op: z.literal('AND'),
-      conditions: z.array(z.any()),
-    }),
+    conditions: GroupConditionsSchema,
     version: z.number().int().optional(),
   }),
   z.object({
-    op: z.literal('delete'),
+    op: z.literal(SyncOp.Delete),
     clientId: z.number().int(),
     serverId: z.string().uuid(),
   }),
@@ -75,7 +83,7 @@ const workSessionJsonSchema = z.object({
 
 const timerSyncItemSchema = z.discriminatedUnion('op', [
   z.object({
-    op: z.literal('upsert'),
+    op: z.literal(SyncOp.Upsert),
     clientId: z.number().int(),
     serverId: z.string().uuid().nullable(),
     tagIds: z.array(tagIdRefSchema),
@@ -93,13 +101,13 @@ const timerSyncItemSchema = z.discriminatedUnion('op', [
     version: z.number().int().optional(),
   }),
   z.object({
-    op: z.literal('complete'),
+    op: z.literal(SyncOp.Complete),
     clientId: z.number().int(),
     serverId: z.string().uuid(),
     version: z.number().int(),
   }),
   z.object({
-    op: z.literal('cancel'),
+    op: z.literal(SyncOp.Cancel),
     clientId: z.number().int(),
     serverId: z.string().uuid(),
     version: z.number().int(),

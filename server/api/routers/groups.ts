@@ -20,7 +20,7 @@ const FieldConditionSchema = z.union([
   z.object({ field: z.literal('emoji'), op: z.literal('eq'), value: z.string() }),
 ])
 
-const GroupConditionsSchema = z.object({
+export const GroupConditionsSchema = z.object({
   op: z.literal('AND'),
   conditions: z.array(FieldConditionSchema),
 })
