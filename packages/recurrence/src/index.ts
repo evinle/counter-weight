@@ -123,3 +123,9 @@ export function nextOccurrence(cron: string, tz: string, now = new Date()): Date
   if (!next) throw new Error(`No next occurrence for cron "${cron}"`)
   return next
 }
+
+export function computePeriodMs(cron: string, tz: string, now = new Date()): number {
+  const first = nextOccurrence(cron, tz, now)
+  const second = nextOccurrence(cron, tz, first)
+  return second.getTime() - first.getTime()
+}

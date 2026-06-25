@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { nextOccurrence } from './index.ts'
+import {
+  nextOccurrence,
+  computePeriodMs,
+  buildDailyCron,
+  buildWeeklyCron,
+  buildCustomEveryNDaysCron,
+  buildCustomEveryHMCron,
+} from './index.ts'
 
 describe('nextOccurrence', () => {
   it('returns the next run date for a valid daily cron', () => {
@@ -28,5 +35,32 @@ describe('nextOccurrence', () => {
   it('throws when no next occurrence exists', () => {
     // This cron is structurally valid but will never fire (Feb 30)
     expect(() => nextOccurrence('0 9 30 2 *', 'UTC', new Date())).toThrow()
+  })
+})
+
+describe('computePeriodMs', () => {
+  // Pin now to a stable weekday to avoid DST or month-boundary surprises
+  const now = new Date('2026-06-15T08:00:00Z')
+
+  it('daily cron → period is 1 day (86400000 ms)', () => {
+    const cron = buildDailyCron('09:00')
+    expect(computePeriodMs(cron, 'UTC', now)).toBe(86_400_000)
+  })
+
+  it('weekly cron → period is 7 days (604800000 ms)', () => {
+    // Monday = 1
+    const cron = buildWeeklyCron('09:00', 1)
+    expect(computePeriodMs(cron, 'UTC', now)).toBe(7 * 86_400_000)
+  })
+
+  it('every-2-days cron → period is 2 days (172800000 ms)', () => {
+    const cron = buildCustomEveryNDaysCron('09:00', 2)
+    expect(computePeriodMs(cron, 'UTC', now)).toBe(2 * 86_400_000)
+  })
+
+  it('every-30-minutes cron → period is 30 minutes (1800000 ms)', () => {
+    // buildCustomEveryHMCron with hours=0, minutes=30 produces "*/30 * * * *"
+    const cron = buildCustomEveryHMCron(0, 30)
+    expect(computePeriodMs(cron, 'UTC', now)).toBe(30 * 60 * 1000)
   })
 })
