@@ -3,9 +3,9 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
-import { timerScheduleKeys } from "../scheduler.js";
-import type { Scheduler } from "../scheduler.js";
 import { nextOccurrence } from "@cw/recurrence";
+import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from "../timerScheduling.js";
+import type { SchedulingCtx } from "../timerScheduling.js";
 
 export type WorkSessionJson = { startedAt: string; endedAt: string | null }
 
@@ -104,34 +104,7 @@ export const timerUpsertInput = z.object({
   workSessions: z.array(workSessionJsonSchema).default([]),
 });
 
-type SchedulingCtx = { userId: string; now: Date; scheduler: Scheduler }
 type SpawnCtx = SchedulingCtx & { timersDb: TimersDb }
-
-async function createTimerSchedules(
-  serverId: string,
-  targetDatetime: Date,
-  leadTimeMs: number | null,
-  ctx: SchedulingCtx,
-): Promise<void> {
-  const keys = timerScheduleKeys(serverId);
-  await ctx.scheduler.createSchedule(keys.deadline, targetDatetime, {
-    serverId,
-    userId: ctx.userId,
-    targetDatetime: targetDatetime.toISOString(),
-    kind: 'deadline',
-  });
-  if (leadTimeMs !== null) {
-    const leadDatetime = new Date(targetDatetime.getTime() - leadTimeMs);
-    if (leadDatetime > ctx.now) {
-      await ctx.scheduler.createSchedule(keys.lead, leadDatetime, {
-        serverId,
-        userId: ctx.userId,
-        targetDatetime: leadDatetime.toISOString(),
-        kind: 'lead',
-      });
-    }
-  }
-}
 
 async function spawnNextOccurrence(
   timer: TimerRecord,
@@ -205,31 +178,7 @@ export const timersRouter = router({
             message: "Version mismatch or not found",
           });
 
-        const deadlineDatetime = new Date(input.targetDatetime);
-        const keys = timerScheduleKeys(input.serverId);
-
-        await ctx.scheduler.updateSchedule(keys.deadline, deadlineDatetime, {
-          serverId: input.serverId,
-          userId: ctx.userId,
-          targetDatetime: input.targetDatetime,
-          kind: 'deadline',
-        });
-
-        if (input.leadTimeMs !== null) {
-          const leadDatetime = new Date(deadlineDatetime.getTime() - input.leadTimeMs);
-          if (leadDatetime > ctx.now) {
-            await ctx.scheduler.updateSchedule(keys.lead, leadDatetime, {
-              serverId: input.serverId,
-              userId: ctx.userId,
-              targetDatetime: leadDatetime.toISOString(),
-              kind: 'lead',
-            });
-          } else {
-            await ctx.scheduler.deleteSchedule(keys.lead);
-          }
-        } else {
-          await ctx.scheduler.deleteSchedule(keys.lead);
-        }
+        await updateTimerSchedules(input.serverId, new Date(input.targetDatetime), input.leadTimeMs, ctx);
 
         return updated;
       }
@@ -279,9 +228,7 @@ export const timersRouter = router({
         eventType: EventType.Completed,
       });
 
-      const completeKeys = timerScheduleKeys(input.serverId);
-      await ctx.scheduler.deleteSchedule(completeKeys.deadline);
-      await ctx.scheduler.deleteSchedule(completeKeys.lead);
+      await deleteTimerSchedules(input.serverId, ctx.scheduler);
 
       if (timer?.recurrenceRule) {
         await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx);
@@ -306,9 +253,7 @@ export const timersRouter = router({
         eventType: EventType.Cancelled,
       });
 
-      const cancelKeys = timerScheduleKeys(input.serverId);
-      await ctx.scheduler.deleteSchedule(cancelKeys.deadline);
-      await ctx.scheduler.deleteSchedule(cancelKeys.lead);
+      await deleteTimerSchedules(input.serverId, ctx.scheduler);
 
       return { ok: true };
     }),

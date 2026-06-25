@@ -9,6 +9,7 @@ import { timersRouter } from "./routers/timers.js";
 import { tagsRouter } from "./routers/tags.js";
 import { groupsRouter } from "./routers/groups.js";
 import { pushSubscriptionsRouter } from "./routers/pushSubscriptions.js";
+import { syncRouter } from "./routers/sync.js";
 import { router } from "./router.js";
 import { parseEnv } from "../env.js";
 import { ALLOWED_ORIGINS } from "../constants.js";
@@ -21,6 +22,7 @@ export const appRouter = router({
   tags: tagsRouter,
   groups: groupsRouter,
   pushSubscriptions: pushSubscriptionsRouter,
+  sync: syncRouter,
 });
 
 export type AppRouter = typeof appRouter;
