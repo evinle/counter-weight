@@ -20,7 +20,7 @@ const FieldConditionSchema = z.union([
   z.object({ field: z.literal('emoji'), op: z.literal('eq'), value: z.string() }),
 ])
 
-const GroupConditionsSchema = z.object({
+export const GroupConditionsSchema = z.object({
   op: z.literal('AND'),
   conditions: z.array(FieldConditionSchema),
 })
@@ -61,6 +61,7 @@ export type GroupsDb = {
     vals: UpdateGroupVals,
   ): Promise<{ serverId: string; version: number } | null>
   deleteGroup(where: { id: string; userId: string }): Promise<void>
+  getGroup(id: string, userId: string): Promise<GroupRecord | null>
   reconcile(userId: string, since: Date | null): Promise<GroupRecord[]>
 }
 

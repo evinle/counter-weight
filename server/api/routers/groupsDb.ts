@@ -32,6 +32,11 @@ export function createGroupsDb(db: Db): GroupsDb {
       await db.delete(groups).where(and(eq(groups.id, where.id), eq(groups.userId, where.userId)))
     },
 
+    async getGroup(id, userId) {
+      const [row] = await db.select().from(groups).where(and(eq(groups.id, id), eq(groups.userId, userId)))
+      return row ?? null
+    },
+
     async reconcile(userId, since) {
       const conditions = [eq(groups.userId, userId)]
       if (since) conditions.push(gt(groups.updatedAt, since))
