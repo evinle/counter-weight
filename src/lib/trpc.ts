@@ -1,4 +1,5 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client'
+import { createTRPCReact } from '@trpc/react-query'
 import type { AppRouter } from '../../server/api/index'
 import { API_URL, fetchFromBackend } from './api'
 
@@ -42,17 +43,19 @@ async function fetchWithAuth(url: RequestInfo | URL, options: RequestInit = {}):
   return res
 }
 
-export const trpc = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: `${API_URL}/trpc`,
-      fetch: fetchWithAuth,
-      // API Gateway HTTP API decodes query strings before passing to Lambda,
-      // which mangles JSON in ?input=. Force POST so input goes in the body.
-      methodOverride: 'POST',
-      headers() {
-        return idToken ? { Authorization: `Bearer ${idToken}` } : {}
-      },
-    }),
-  ],
-})
+const links = [
+  httpBatchLink({
+    url: `${API_URL}/trpc`,
+    fetch: fetchWithAuth,
+    // API Gateway HTTP API decodes query strings before passing to Lambda,
+    // which mangles JSON in ?input=. Force POST so input goes in the body.
+    methodOverride: 'POST',
+    headers() {
+      return idToken ? { Authorization: `Bearer ${idToken}` } : {}
+    },
+  }),
+]
+
+export const trpc = createTRPCClient<AppRouter>({ links })
+export const trpcReact = createTRPCReact<AppRouter>()
+export const trpcReactClient = trpcReact.createClient({ links })
