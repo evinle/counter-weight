@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./db";
 import { useTimerStore } from "./store/timerStore";
@@ -26,7 +25,6 @@ import { fetchFromBackend } from "./lib/api";
 import { bootstrappedKey } from "./lib/storageKeys";
 import { useAuthStore, subscribeToAuthPersistence } from "./store/authStore";
 
-const queryClient = new QueryClient();
 
 export function App() {
   const [tab, setTab] = useState<Tab>(Tab.Timers);
@@ -251,8 +249,7 @@ export function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div
+    <div
         ref={containerRef}
         className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top"
       >
@@ -325,6 +322,5 @@ export function App() {
             />
           )}
       </div>
-    </QueryClientProvider>
   );
 }
