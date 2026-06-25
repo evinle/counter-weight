@@ -2,13 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Staleness check** — this file was last updated at commit `14e30ac` (2026-05-27). Before relying on the architecture section, run `git log --oneline 14e30ac..HEAD` — if significant commits have landed in `src/`, `server/`, or `infra/`, re-read those files rather than trusting the description below.
+> **Staleness check** — this file was last updated at commit `fbb877f` (2026-06-25). Before relying on the architecture section, run `git log --oneline fbb877f..HEAD` — if significant commits have landed in `src/`, `server/`, or `infra/`, re-read those files rather than trusting the description below.
 
 ## Commands
 
 ### Frontend (root)
 ```bash
 npm run dev        # Vite dev server on 0.0.0.0:5174 (HTTPS via mkcert certs)
+npm run dev:local  # same but proxies API to http://localhost:3000
 npm run build      # tsc + Vite production build
 npm run lint       # ESLint
 npm run test       # Vitest watch mode
@@ -36,7 +37,14 @@ npx cdk deploy AppStack --context cognitoClientSecretArn=<ARN>  # Lambdas, API G
 
 ## Architecture
 
-This is a **local-first timer PWA** with an optional cloud sync backend. Three packages share one repo: frontend (`src/`), server (`server/`), infra (`infra/`).
+This is a **local-first timer PWA** with an optional cloud sync backend. The repo is an npm workspace with five packages: frontend (`src/`), server (`server/`), infra (`infra/`), and two shared libraries under `packages/`:
+
+| Package | Import alias | Role |
+|---------|-------------|------|
+| `packages/filters` | `@cw/filters` | `FieldCondition` / `GroupConditions` types, Zod schemas, and `applyFilter` evaluator for smart-group conditions |
+| `packages/recurrence` | `@cw/recurrence` | Cron-builder helpers (`buildDailyCron`, etc.) and `computeNextOccurrence` (powered by `croner`) |
+
+Both packages are consumed by the frontend and by `server/api/`.
 
 ### Frontend data flow
 
@@ -58,10 +66,12 @@ Dexie (IndexedDB)
 
 `useSyncEngine` (`src/hooks/useSyncEngine.ts`) runs on login and on `online`/`visibilitychange`. Two phases:
 
-1. **Drain pending** — pushes local `syncStatus: 'pending'` timers to `trpc.timers.upsert`. On `CONFLICT`, server wins: fetches the server record and overwrites Dexie.
-2. **Reconcile** — calls `trpc.timers.reconcile` with `since` (last sync timestamp) and local `{serverId, updatedAt}` pairs to pull stale/missing records down.
+1. **Drain pending** — pushes local records with `syncStatus: 'pending'` (or `'deleted'`) to the server. On `CONFLICT`, server wins: fetches the server record and overwrites Dexie.
+2. **Reconcile** — calls the server `reconcile` procedure with `since` (last sync timestamp) and local `{serverId, updatedAt}` pairs to pull stale/missing records down.
 
-Timers carry `syncStatus: 'pending' | 'synced'`, `serverId`, and `version` in the Dexie schema (`src/db/schema.ts`). Guest users skip sync entirely.
+Sync runs through a generic `SyncAdapter<TLocal, TServer>` interface. A `PIPELINE` array runs three adapters in order — `tagAdapter`, `groupAdapter`, `timerAdapter` — so each phase (drain, reconcile) processes all entity types uniformly. Soft-deletes use `SyncStatuses.Deleted`; the adapter filters these out during reconcile to prevent resurrection.
+
+Local records carry `syncStatus`, `serverId`, and `version`. Guest users skip sync entirely.
 
 ### Auth flow
 
@@ -76,16 +86,19 @@ Cookie domain: `SameSite=Lax`, `Domain=evinle.app` in prod (omitted for localhos
 
 ### Server
 
-Fastify on AWS Lambda via `@fastify/aws-lambda`. Two separate Lambda functions:
+Fastify on AWS Lambda via `@fastify/aws-lambda`. Three separate Lambda functions:
 
 | Lambda | Entry | Handles |
 |--------|-------|---------|
 | `AuthLambda` | `server/auth/index.ts` | `/auth/*` — Cognito OAuth, cookie management |
-| `ApiLambda` | `server/api/index.ts` | `/trpc/*` — tRPC procedures, DB access |
+| `ApiLambda` | `server/api/index.ts` | `/trpc/*` — tRPC procedures, DB access; also manages EventBridge Scheduler schedules |
+| `NotifyLambda` | `server/notify/index.ts` | Invoked by EventBridge Scheduler to send push notifications via Web Push |
 
 API Gateway HTTP API routes `/auth/{proxy+}` without a JWT authorizer and `/trpc/{proxy+}` with a Cognito JWT authorizer. An explicit `OPTIONS /trpc/{proxy+}` route without an authorizer bypasses the JWT check for CORS preflights (API Gateway runs the authorizer before its own CORS handling).
 
 **tRPC context** (`server/api/context.ts`): verifies the Bearer token with `aws-jwt-verify`, exposes `{ userId, db }`. `protectedProcedure` throws `UNAUTHORIZED` if `userId` is null.
+
+**Notification scheduling**: on timer upsert, API Lambda calls `createTimerSchedules` which creates up to two EventBridge Scheduler one-time schedules per timer — one at `leadDatetime` (deadline minus `leadTimeMs`) and one at `targetDatetime`. Schedules invoke `NotifyLambda` via an IAM role (`EventBridgeSchedulerRole`). Completing or cancelling a timer deletes its schedules.
 
 **Database**: Drizzle ORM + PostgreSQL (RDS `t4g.micro`, publicly accessible with SSL enforced). Schema in `server/db/schema.ts`; migrations in `server/db/migrations/`. `server/drizzle.config.ts` points drizzle-kit at the DB.
 
@@ -106,19 +119,26 @@ Frontend is deployed to **Cloudflare Workers** (static assets) via `wrangler`. `
 
 | Path | Role |
 |------|------|
-| `src/db/schema.ts` | `Timer` type, `TimerStatus`/`Priority`/`SyncStatus` — includes versioned migration interfaces `TimerV1`–`TimerV3` |
+| `src/db/schema.ts` | `Timer` (= `TimerV6`), `Tag`, `Group` types; `TimerStatus`/`Priority`/`SyncStatus`/`TimerType` const-enums; versioned migration interfaces `TimerV1`–`TimerV6` |
 | `src/hooks/useTimers.ts` | CRUD helpers and `useActiveTimers` live query |
+| `src/hooks/useTags.ts` | Tag CRUD and live query |
+| `src/hooks/useGroups.ts` | Group (smart group) CRUD and live query |
+| `src/hooks/useNotifications.ts` | Push notification permission flow and subscription registration |
 | `src/store/timerStore.ts` | Zustand — in-memory timer mirror, `setTimeout` scheduling, `firedTimer` surface |
-| `src/hooks/useAuth.ts` | Auth state machine, Cognito redirect, token refresh |
-| `src/hooks/useSyncEngine.ts` | Dexie ↔ server sync (drain pending + reconcile) |
+| `src/store/authStore.ts` | Zustand — synchronous auth state (`user`, `lastUser`); persistence subscriber |
+| `src/hooks/useAuth.ts` | Auth actions (login, loginSilent, logout, bootstrap) wired to `authStore` |
+| `src/hooks/useSyncEngine.ts` | Dexie ↔ server sync via `SyncAdapter` PIPELINE (tags → groups → timers) |
 | `src/lib/trpc.ts` | tRPC client with auth header injection and 401 auto-refresh |
 | `src/lib/api.ts` | `fetchFromBackend` — raw fetch helper for auth endpoints |
 | `server/auth/routes.ts` | `/auth/callback`, `/auth/refresh`, `/auth/logout` |
-| `server/api/routers/timers.ts` | tRPC `timers.*` procedures |
+| `server/api/routers/timers.ts` | tRPC `timers.*` procedures + EventBridge schedule management |
+| `server/api/routers/tags.ts` | tRPC `tags.*` procedures |
+| `server/api/routers/groups.ts` | tRPC `groups.*` procedures |
+| `server/notify/handler.ts` | Notify Lambda handler — reads push subscriptions, sends Web Push |
 | `server/api/context.ts` | JWT verification + DB singleton per Lambda instance |
 | `server/env.ts` | Zod env schemas; `getAuthEnv()` / `getApiEnv()` singletons |
 | `infra/lib/storage-stack.ts` | RDS + Cognito resources |
-| `infra/lib/app-stack.ts` | API Gateway + Lambda resources |
+| `infra/lib/app-stack.ts` | API Gateway + Lambda resources + EventBridge Scheduler IAM |
 
 ### Patterns
 
