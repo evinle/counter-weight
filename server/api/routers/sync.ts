@@ -2,9 +2,12 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '../router.js'
 import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from '../timerScheduling.js'
 import { TimerStatus, Priority, TimerType } from '../../db/schema.js'
-import type { TagRecord } from './tags.js'
-import type { GroupRecord } from './groups.js'
-import type { TimerRecord } from './timers.js'
+import type { SchedulingCtx } from '../timerScheduling.js'
+import type { TagsDb, TagRecord } from './tags.js'
+import type { GroupsDb, GroupRecord } from './groups.js'
+import type { TimersDb, TimerRecord } from './timers.js'
+
+// ─── Output entry types ───────────────────────────────────────────────────────
 
 type SyncedTagEntry =
   | { op: 'upsert'; clientId: number; serverId: string }
@@ -19,6 +22,8 @@ type SyncedTimerEntry =
   | { op: 'complete'; clientId: number; serverId: string }
   | { op: 'cancel'; clientId: number; serverId: string }
   | { op: 'delete'; serverId: string }
+
+// ─── Input schemas ────────────────────────────────────────────────────────────
 
 const tagSyncItemSchema = z.discriminatedUnion('op', [
   z.object({
@@ -101,17 +106,199 @@ const timerSyncItemSchema = z.discriminatedUnion('op', [
   }),
 ])
 
-const fullSyncInput = z.object({
+export const fullSyncInput = z.object({
   since: z.string().datetime().nullable(),
   tags: z.array(tagSyncItemSchema),
   groups: z.array(groupSyncItemSchema),
   timers: z.array(timerSyncItemSchema),
 })
 
+type TagSyncItem = z.infer<typeof tagSyncItemSchema>
+type GroupSyncItem = z.infer<typeof groupSyncItemSchema>
+type TimerSyncItem = z.infer<typeof timerSyncItemSchema>
+type TagIdRef = z.infer<typeof tagIdRefSchema>
+
+// ─── Per-item handlers ────────────────────────────────────────────────────────
+
+type ItemResult<TSynced, TRecord> = {
+  synced: TSynced | null
+  conflict: TRecord | null
+}
+
+async function applyTagItem(
+  item: TagSyncItem,
+  userId: string,
+  tagsDb: TagsDb,
+  clientToServer: Map<number, string>,
+): Promise<ItemResult<SyncedTagEntry, TagRecord>> {
+  if (item.op === 'delete') {
+    await tagsDb.deleteTag({ id: item.serverId, userId })
+    return { synced: { op: 'delete', serverId: item.serverId }, conflict: null }
+  }
+
+  if (!item.serverId) {
+    const created = await tagsDb.insertTag({ userId, name: item.name, color: item.color, emoji: item.emoji })
+    clientToServer.set(item.clientId, created.serverId)
+    return { synced: { op: 'upsert', clientId: item.clientId, serverId: created.serverId }, conflict: null }
+  }
+
+  const updated = await tagsDb.updateTag(
+    { id: item.serverId, userId, version: item.version },
+    { name: item.name, color: item.color, emoji: item.emoji },
+  )
+  if (!updated) {
+    return { synced: null, conflict: await tagsDb.getTag(item.serverId, userId) }
+  }
+
+  clientToServer.set(item.clientId, updated.serverId)
+  return { synced: { op: 'upsert', clientId: item.clientId, serverId: updated.serverId }, conflict: null }
+}
+
+async function applyGroupItem(
+  item: GroupSyncItem,
+  userId: string,
+  groupsDb: GroupsDb,
+): Promise<ItemResult<SyncedGroupEntry, GroupRecord>> {
+  if (item.op === 'delete') {
+    await groupsDb.deleteGroup({ id: item.serverId, userId })
+    return { synced: { op: 'delete', serverId: item.serverId }, conflict: null }
+  }
+
+  if (!item.serverId) {
+    const created = await groupsDb.insertGroup({ userId, name: item.name, emoji: item.emoji, color: item.color, conditions: item.conditions })
+    return { synced: { op: 'upsert', clientId: item.clientId, serverId: created.serverId }, conflict: null }
+  }
+
+  const updated = await groupsDb.updateGroup(
+    { id: item.serverId, userId, version: item.version },
+    { name: item.name, emoji: item.emoji, color: item.color, conditions: item.conditions },
+  )
+  if (!updated) {
+    return { synced: null, conflict: await groupsDb.getGroup(item.serverId, userId) }
+  }
+
+  return { synced: { op: 'upsert', clientId: item.clientId, serverId: updated.serverId }, conflict: null }
+}
+
+function resolveTagIds(refs: TagIdRef[], tagClientToServer: Map<number, string>): string[] {
+  return refs
+    .map((ref) => ref.serverId ?? tagClientToServer.get(ref.clientId) ?? null)
+    .filter((id): id is string => id !== null)
+}
+
+async function applyTimerItem(
+  item: TimerSyncItem,
+  userId: string,
+  timersDb: TimersDb,
+  tagClientToServer: Map<number, string>,
+  ctx: SchedulingCtx,
+): Promise<ItemResult<SyncedTimerEntry, TimerRecord>> {
+  if (item.op === 'complete' || item.op === 'cancel') {
+    const status = item.op === 'complete' ? TimerStatus.Completed : TimerStatus.Cancelled
+    const updated = await timersDb.setStatus({ id: item.serverId, userId, version: item.version }, status)
+    if (!updated) {
+      return { synced: null, conflict: await timersDb.getTimer(item.serverId, userId) }
+    }
+    await deleteTimerSchedules(item.serverId, ctx.scheduler)
+    return { synced: { op: item.op, clientId: item.clientId, serverId: item.serverId }, conflict: null }
+  }
+
+  if (!item.serverId) {
+    const created = await timersDb.insertTimer({
+      userId,
+      title: item.title,
+      description: item.description,
+      emoji: item.emoji,
+      targetDatetime: new Date(item.targetDatetime),
+      originalTargetDatetime: new Date(item.originalTargetDatetime),
+      status: item.status,
+      priority: item.priority,
+      recurrenceRule: item.recurrenceRule,
+      tagIds: resolveTagIds(item.tagIds, tagClientToServer),
+      timerType: item.timerType,
+      leadTimeMs: item.leadTimeMs,
+      workSessions: item.workSessions,
+    })
+    await createTimerSchedules(created.serverId, new Date(item.targetDatetime), item.leadTimeMs, ctx)
+    return { synced: { op: 'upsert', clientId: item.clientId, serverId: created.serverId }, conflict: null }
+  }
+
+  const updated = await timersDb.updateTimer(
+    { id: item.serverId, userId, version: item.version },
+    {
+      title: item.title,
+      description: item.description,
+      emoji: item.emoji,
+      targetDatetime: new Date(item.targetDatetime),
+      status: item.status,
+      priority: item.priority,
+      recurrenceRule: item.recurrenceRule,
+      tagIds: resolveTagIds(item.tagIds, tagClientToServer),
+      timerType: item.timerType,
+      leadTimeMs: item.leadTimeMs,
+      workSessions: item.workSessions,
+    },
+  )
+  if (!updated) {
+    return { synced: null, conflict: await timersDb.getTimer(item.serverId, userId) }
+  }
+
+  await updateTimerSchedules(item.serverId, new Date(item.targetDatetime), item.leadTimeMs, ctx)
+  return { synced: { op: 'upsert', clientId: item.clientId, serverId: updated.serverId }, conflict: null }
+}
+
+// ─── Drain loops ──────────────────────────────────────────────────────────────
+
+type TagDrainResult = { synced: SyncedTagEntry[]; conflicts: TagRecord[]; clientToServer: Map<number, string> }
+type GroupDrainResult = { synced: SyncedGroupEntry[]; conflicts: GroupRecord[] }
+type TimerDrainResult = { synced: SyncedTimerEntry[]; conflicts: TimerRecord[] }
+
+async function drainTags(items: TagSyncItem[], userId: string, tagsDb: TagsDb): Promise<TagDrainResult> {
+  const synced: SyncedTagEntry[] = []
+  const conflicts: TagRecord[] = []
+  const clientToServer = new Map<number, string>()
+  for (const item of items) {
+    const result = await applyTagItem(item, userId, tagsDb, clientToServer)
+    if (result.synced) synced.push(result.synced)
+    if (result.conflict) conflicts.push(result.conflict)
+  }
+  return { synced, conflicts, clientToServer }
+}
+
+async function drainGroups(items: GroupSyncItem[], userId: string, groupsDb: GroupsDb): Promise<GroupDrainResult> {
+  const synced: SyncedGroupEntry[] = []
+  const conflicts: GroupRecord[] = []
+  for (const item of items) {
+    const result = await applyGroupItem(item, userId, groupsDb)
+    if (result.synced) synced.push(result.synced)
+    if (result.conflict) conflicts.push(result.conflict)
+  }
+  return { synced, conflicts }
+}
+
+async function drainTimers(
+  items: TimerSyncItem[],
+  userId: string,
+  timersDb: TimersDb,
+  tagClientToServer: Map<number, string>,
+  ctx: SchedulingCtx,
+): Promise<TimerDrainResult> {
+  const synced: SyncedTimerEntry[] = []
+  const conflicts: TimerRecord[] = []
+  for (const item of items) {
+    const result = await applyTimerItem(item, userId, timersDb, tagClientToServer, ctx)
+    if (result.synced) synced.push(result.synced)
+    if (result.conflict) conflicts.push(result.conflict)
+  }
+  return { synced, conflicts }
+}
+
 function deduplicateById<T extends { id: string }>(primary: T[], secondary: T[]): T[] {
   const seen = new Set(primary.map((r) => r.id))
   return [...primary, ...secondary.filter((r) => !seen.has(r.id))]
 }
+
+// ─── Router ───────────────────────────────────────────────────────────────────
 
 export const syncRouter = router({
   full: protectedProcedure
@@ -120,151 +307,29 @@ export const syncRouter = router({
       const userId = ctx.userId
       const since = input.since ? new Date(input.since) : null
 
-      const syncedTags: SyncedTagEntry[] = []
-      const syncedGroups: SyncedGroupEntry[] = []
-      const syncedTimers: SyncedTimerEntry[] = []
-      const conflictTags: TagRecord[] = []
-      const conflictGroups: GroupRecord[] = []
-      const conflictTimers: TimerRecord[] = []
+      const { synced: syncedTags, conflicts: conflictTags, clientToServer: tagClientToServer } =
+        await drainTags(input.tags, userId, ctx.tagsDb)
 
-      // Drain tags
-      const tagClientToServer = new Map<number, string>()
-      for (const item of input.tags) {
-        if (item.op === 'upsert') {
-          if (item.serverId) {
-            const updated = await ctx.tagsDb.updateTag(
-              { id: item.serverId, userId, version: item.version },
-              { name: item.name, color: item.color, emoji: item.emoji },
-            )
-            if (!updated) {
-              const serverRecord = await ctx.tagsDb.getTag(item.serverId, userId)
-              if (serverRecord) conflictTags.push(serverRecord)
-            } else {
-              tagClientToServer.set(item.clientId, updated.serverId)
-              syncedTags.push({ op: 'upsert', clientId: item.clientId, serverId: updated.serverId })
-            }
-          } else {
-            const created = await ctx.tagsDb.insertTag({ userId, name: item.name, color: item.color, emoji: item.emoji })
-            tagClientToServer.set(item.clientId, created.serverId)
-            syncedTags.push({ op: 'upsert', clientId: item.clientId, serverId: created.serverId })
-          }
-        } else {
-          await ctx.tagsDb.deleteTag({ id: item.serverId, userId })
-          syncedTags.push({ op: 'delete', serverId: item.serverId })
-        }
-      }
+      const { synced: syncedGroups, conflicts: conflictGroups } =
+        await drainGroups(input.groups, userId, ctx.groupsDb)
 
-      // Drain groups
-      for (const item of input.groups) {
-        if (item.op === 'upsert') {
-          if (item.serverId) {
-            const updated = await ctx.groupsDb.updateGroup(
-              { id: item.serverId, userId, version: item.version },
-              { name: item.name, emoji: item.emoji, color: item.color, conditions: item.conditions },
-            )
-            if (!updated) {
-              const serverRecord = await ctx.groupsDb.getGroup(item.serverId, userId)
-              if (serverRecord) conflictGroups.push(serverRecord)
-            } else {
-              syncedGroups.push({ op: 'upsert', clientId: item.clientId, serverId: updated.serverId })
-            }
-          } else {
-            const created = await ctx.groupsDb.insertGroup({ userId, name: item.name, emoji: item.emoji, color: item.color, conditions: item.conditions })
-            syncedGroups.push({ op: 'upsert', clientId: item.clientId, serverId: created.serverId })
-          }
-        } else {
-          await ctx.groupsDb.deleteGroup({ id: item.serverId, userId })
-          syncedGroups.push({ op: 'delete', serverId: item.serverId })
-        }
-      }
+      const { synced: syncedTimers, conflicts: conflictTimers } =
+        await drainTimers(input.timers, userId, ctx.timersDb, tagClientToServer, ctx)
 
-      // Drain timers
-      for (const item of input.timers) {
-        if (item.op === 'upsert') {
-          const resolvedTagIds = item.tagIds.map((ref) => {
-            if (ref.serverId) return ref.serverId
-            return tagClientToServer.get(ref.clientId) ?? null
-          }).filter((id): id is string => id !== null)
-
-          if (item.serverId) {
-            const updated = await ctx.timersDb.updateTimer(
-              { id: item.serverId, userId, version: item.version },
-              {
-                title: item.title,
-                description: item.description,
-                emoji: item.emoji,
-                targetDatetime: new Date(item.targetDatetime),
-                status: item.status,
-                priority: item.priority,
-                recurrenceRule: item.recurrenceRule,
-                tagIds: resolvedTagIds,
-                timerType: item.timerType,
-                leadTimeMs: item.leadTimeMs,
-                workSessions: item.workSessions,
-              },
-            )
-            if (!updated) {
-              const serverRecord = await ctx.timersDb.getTimer(item.serverId, userId)
-              if (serverRecord) conflictTimers.push(serverRecord)
-            } else {
-              await updateTimerSchedules(item.serverId, new Date(item.targetDatetime), item.leadTimeMs, ctx)
-              syncedTimers.push({ op: 'upsert', clientId: item.clientId, serverId: updated.serverId })
-            }
-          } else {
-            const created = await ctx.timersDb.insertTimer({
-              userId,
-              title: item.title,
-              description: item.description,
-              emoji: item.emoji,
-              targetDatetime: new Date(item.targetDatetime),
-              originalTargetDatetime: new Date(item.originalTargetDatetime),
-              status: item.status,
-              priority: item.priority,
-              recurrenceRule: item.recurrenceRule,
-              tagIds: resolvedTagIds,
-              timerType: item.timerType,
-              leadTimeMs: item.leadTimeMs,
-              workSessions: item.workSessions,
-            })
-            await createTimerSchedules(created.serverId, new Date(item.targetDatetime), item.leadTimeMs, ctx)
-            syncedTimers.push({ op: 'upsert', clientId: item.clientId, serverId: created.serverId })
-          }
-        } else {
-          const updated = await ctx.timersDb.setStatus(
-            { id: item.serverId, userId, version: item.version },
-            item.op === 'complete' ? 'completed' : 'cancelled',
-          )
-          if (updated) {
-            await deleteTimerSchedules(item.serverId, ctx.scheduler)
-            syncedTimers.push({ op: item.op, clientId: item.clientId, serverId: item.serverId })
-          } else {
-            const serverRecord = await ctx.timersDb.getTimer(item.serverId, userId)
-            if (serverRecord) conflictTimers.push(serverRecord)
-          }
-        }
-      }
-
-      // Reconcile all three types
       const [reconciledTags, reconciledGroups, reconciledTimers] = await Promise.all([
         ctx.tagsDb.reconcile(userId, since),
         ctx.groupsDb.reconcile(userId, since),
         ctx.timersDb.reconcile(userId, since),
       ])
 
-      const serverNow = new Date().toISOString()
-
       return {
-        synced: {
-          tags: syncedTags,
-          groups: syncedGroups,
-          timers: syncedTimers,
-        },
+        synced: { tags: syncedTags, groups: syncedGroups, timers: syncedTimers },
         overruled: {
           tags: deduplicateById(reconciledTags, conflictTags),
           groups: deduplicateById(reconciledGroups, conflictGroups),
           timers: deduplicateById(reconciledTimers, conflictTimers),
         },
-        serverNow,
+        serverNow: new Date().toISOString(),
       }
     }),
 })
