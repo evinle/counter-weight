@@ -9,7 +9,7 @@ import { SpinnerField } from "./SpinnerField";
 import { OptionalField } from "./OptionalField";
 import { RecurrencePicker } from "./RecurrencePicker";
 import { SelectField } from "./SelectField";
-import { nextOccurrence } from "@cw/recurrence";
+import { nextOccurrence, computePeriodMs } from "@cw/recurrence";
 import { durationToMs, msToDuration } from "../lib/duration";
 import type { DurationValue } from "../lib/duration";
 import { timeRemaining, formatLeadNotificationPreview } from "../lib/countdown";
@@ -23,6 +23,29 @@ const TimerMode = {
 } as const satisfies Record<string, string>;
 
 type TimerMode = (typeof TimerMode)[keyof typeof TimerMode];
+
+export type LeadTimeVisibility = {
+  showDays: boolean
+  showHours: boolean
+  showMinutes: boolean
+}
+
+export function computeLeadTimeVisibility(
+  mode: TimerMode,
+  remainingMs: number,
+  recurrenceRule: { cron: string; tz: string } | null,
+): LeadTimeVisibility {
+  const boundMs =
+    mode === TimerMode.Recurrence && recurrenceRule
+      ? computePeriodMs(recurrenceRule.cron, recurrenceRule.tz)
+      : remainingMs
+
+  const d = msToDuration(Math.max(0, boundMs))
+  const showDays = d.days >= 1
+  const showHours = showDays || d.hours >= 1
+  const showMinutes = showHours || d.minutes >= 1
+  return { showDays, showHours, showMinutes }
+}
 
 interface Props {
   existing?: Timer;
@@ -160,9 +183,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     ? existing.targetDatetime > existing.originalTargetDatetime
     : false;
 
-  function maskLeadTime(newRemainingMs: number) {
+  function maskLeadTime(capMs: number) {
     if (leadTimeMs === null) return;
-    const r = msToDuration(Math.max(0, newRemainingMs));
+    const r = msToDuration(Math.max(0, capMs));
     const newShowDays = r.days >= 1;
     const newShowHours = newShowDays || r.hours >= 1;
     const newShowMins = newShowHours || r.minutes >= 1;
@@ -220,8 +243,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       duration.seconds,
     );
   })();
-  const remainingDuration = msToDuration(Math.max(0, remainingMs));
-
   const targetMs: number | null = (() => {
     if (!showTimeEditor && existing) return existing.targetDatetime.getTime();
     if (mode === TimerMode.AtTime) return atTime.getTime();
@@ -240,9 +261,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     leadTimeMs !== null && targetMs !== null
       ? formatLeadNotificationPreview(targetMs, leadTimeMs, new Date(), tz)
       : null;
-  const showLeadDays = remainingDuration.days >= 1;
-  const showLeadHours = showLeadDays || remainingDuration.hours >= 1;
-  const showLeadMinutes = showLeadHours || remainingDuration.minutes >= 1;
+  const { showDays: showLeadDays, showHours: showLeadHours, showMinutes: showLeadMinutes } =
+    computeLeadTimeVisibility(mode, remainingMs, recurrenceRule);
 
   return (
     <form onSubmit={handleSubmit} className="overflow-auto h-full box-border">

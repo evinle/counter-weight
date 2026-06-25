@@ -4,10 +4,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { db } from '../db'
 import { createTimer } from '../hooks/useTimers'
 import * as useTimersMod from '../hooks/useTimers'
-import { CreateEditView } from '../components/CreateEditView'
+import { CreateEditView, computeLeadTimeVisibility } from '../components/CreateEditView'
 import { useToastStore } from '../hooks/useToast'
 import { TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
+import * as recurrenceMod from '@cw/recurrence'
 
 const BASE = {
   title: 'Test Timer',
@@ -379,6 +380,39 @@ describe('CreateEditView — lead time notification preview', () => {
   })
 })
 
+describe('computeLeadTimeVisibility', () => {
+  const DAY_MS = 86_400_000
+
+  it('FromNow mode: uses remainingMs — short remaining hides Days and Hours', () => {
+    const result = computeLeadTimeVisibility('from-now', 5 * 60 * 1000, null)
+    expect(result).toStrictEqual({ showDays: false, showHours: false, showMinutes: true })
+  })
+
+  it('FromNow mode: uses remainingMs — 2-hour remaining shows Hours', () => {
+    const result = computeLeadTimeVisibility('from-now', 2 * 60 * 60 * 1000, null)
+    expect(result).toStrictEqual({ showDays: false, showHours: true, showMinutes: true })
+  })
+
+  it('FromNow mode: uses remainingMs — 2-day remaining shows Days', () => {
+    const result = computeLeadTimeVisibility('from-now', 2 * DAY_MS, null)
+    expect(result).toStrictEqual({ showDays: true, showHours: true, showMinutes: true })
+  })
+
+  it('Recurrence mode with no rule: falls back to remainingMs', () => {
+    const result = computeLeadTimeVisibility('recurrence', 5 * 60 * 1000, null)
+    expect(result).toStrictEqual({ showDays: false, showHours: false, showMinutes: true })
+  })
+
+  it('Recurrence mode with daily rule: uses period (1 day) regardless of short remainingMs', () => {
+    vi.spyOn(recurrenceMod, 'computePeriodMs').mockReturnValue(DAY_MS)
+    const rule = { cron: '0 9 * * *', tz: 'UTC' } satisfies { cron: string; tz: string }
+    // remainingMs is only 3 hours — without period logic, Days would be hidden
+    const result = computeLeadTimeVisibility('recurrence', 3 * 60 * 60 * 1000, rule)
+    expect(result).toStrictEqual({ showDays: true, showHours: true, showMinutes: true })
+    vi.restoreAllMocks()
+  })
+})
+
 describe('CreateEditView — Recurring mode', () => {
   it('Recurring tab is absent for guest users', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
@@ -456,6 +490,55 @@ describe('CreateEditView — Recurring mode', () => {
     await waitFor(async () => {
       const timers = await db.timers.toArray()
       expect(timers[0].recurrenceRule?.cron).toMatch(/\* \* \d(,\d)*$/)
+    })
+  })
+
+  it('recurring daily timer shows Days lead-time spinner even when next occurrence is only 3h away', async () => {
+    // The period of a daily cron is 1 day, so the lead time bound is 1 day —
+    // the Days spinner must appear regardless of how soon the next occurrence is.
+    vi.spyOn(recurrenceMod, 'computePeriodMs').mockReturnValue(86_400_000) // 1 day
+    // next occurrence in 3 hours — well under 1 day remaining
+    vi.spyOn(recurrenceMod, 'nextOccurrence').mockReturnValue(
+      new Date(Date.now() + 3 * 60 * 60 * 1000),
+    )
+
+    const id = await createTimer(
+      { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
+      'user-1',
+    )
+    const existing = await db.timers.get(id!)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = screen.getByTestId('lead-time-fields')
+    expect(within(fields).getByRole('textbox', { name: /^days$/i })).toBeInTheDocument()
+  })
+
+  it('recurring daily timer accepts a 1-day lead time without masking it away', async () => {
+    vi.spyOn(recurrenceMod, 'computePeriodMs').mockReturnValue(86_400_000) // 1 day
+    vi.spyOn(recurrenceMod, 'nextOccurrence').mockReturnValue(
+      new Date(Date.now() + 3 * 60 * 60 * 1000),
+    )
+
+    const id = await createTimer(
+      { ...BASE, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } },
+      'user-1',
+    )
+    const existing = await db.timers.get(id!)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /set time/i }))
+
+    const fields = screen.getByTestId('lead-time-fields')
+    fireEvent.change(within(fields).getByRole('textbox', { name: /^days$/i }), {
+      target: { value: '1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
+
+    await waitFor(async () => {
+      const timer = await db.timers.get(id!)
+      expect(timer?.leadTimeMs).toBe(86_400_000)
     })
   })
 
