@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { TRPCError } from '@trpc/server'
 import { syncRouter } from './sync.js'
 import { router, createCallerFactory } from '../router.js'
 import { mockEnv } from '../../test/envHelpers.js'
@@ -13,6 +12,7 @@ import type { FakeTagsDb } from '../../test/fakes/tagsDb.js'
 import type { FakeGroupsDb } from '../../test/fakes/groupsDb.js'
 import type { FakeScheduler } from '../../test/fakes/scheduler.js'
 import type { TagRecord } from './tags.js'
+import type { GroupRecord } from './groups.js'
 import type { TimerRecord } from './timers.js'
 
 const testRouter = router({ sync: syncRouter })
@@ -51,11 +51,15 @@ beforeEach(() => {
 
 describe('sync.full', () => {
   it('throws UNAUTHORIZED when userId is null', async () => {
+    // Arrange
     const caller = createCaller(makeCtx(null, fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act / Assert
     await expect(caller.sync.full(EMPTY_INPUT)).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
   })
 
   it('returns all server records in overruled when since is null (full reconcile)', async () => {
+    // Arrange
     const existingTag = {
       id: 'tag-server-1',
       userId: 'u1',
@@ -67,10 +71,12 @@ describe('sync.full', () => {
       updatedAt: new Date('2026-01-01T00:00:00Z'),
     } satisfies TagRecord
     fakeTagsDb = createFakeTagsDb({ tags: [existingTag] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full(EMPTY_INPUT)
 
+    // Assert
     expect(result.synced).toEqual({ tags: [], groups: [], timers: [] })
     expect(result.overruled.tags).toHaveLength(1)
     expect(result.overruled.tags[0]).toMatchObject({ id: 'tag-server-1', name: 'work' })
@@ -78,7 +84,10 @@ describe('sync.full', () => {
   })
 
   it('new tag upsert (serverId null) echoes clientId and server-assigned serverId in synced', async () => {
+    // Arrange
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [{ op: 'upsert', clientId: 42, serverId: null, name: 'focus', color: null, emoji: null }],
@@ -86,6 +95,7 @@ describe('sync.full', () => {
       timers: [],
     })
 
+    // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.tags[0]).toMatchObject({ op: 'upsert', clientId: 42 })
     expect(typeof (result.synced.tags[0] as { serverId: string }).serverId).toBe('string')
@@ -94,6 +104,7 @@ describe('sync.full', () => {
   })
 
   it('existing tag upsert (serverId present) echoes clientId and serverId in synced', async () => {
+    // Arrange
     const existing = {
       id: '00000000-0000-0000-0000-000000000099',
       userId: 'u1',
@@ -105,8 +116,9 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TagRecord
     fakeTagsDb = createFakeTagsDb({ tags: [existing] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [{ op: 'upsert', clientId: 7, serverId: existing.id, name: 'new-name', color: null, emoji: null, version: 1 }],
@@ -114,13 +126,17 @@ describe('sync.full', () => {
       timers: [],
     })
 
+    // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.tags[0]).toMatchObject({ op: 'upsert', clientId: 7, serverId: existing.id })
     expect(fakeTagsDb.tags[0].name).toBe('new-name')
   })
 
   it('timer tagIds referencing a tag created in the same batch are resolved to server UUID', async () => {
+    // Arrange
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [{ op: 'upsert', clientId: 10, serverId: null, name: 'batch-tag', color: null, emoji: null }],
@@ -144,14 +160,15 @@ describe('sync.full', () => {
       }],
     })
 
+    // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.timers).toHaveLength(1)
-
     const createdTagServerId = (result.synced.tags[0] as { serverId: string }).serverId
     expect(fakeTimersDb.timers[0].tagIds).toEqual([createdTagServerId])
   })
 
   it('version conflict during tag drain appends server record to overruled and continues', async () => {
+    // Arrange
     const serverTag = {
       id: '00000000-0000-0000-0000-000000000010',
       userId: 'u1',
@@ -163,26 +180,60 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TagRecord
     fakeTagsDb = createFakeTagsDb({ tags: [serverTag] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [
-        // stale version — should conflict
         { op: 'upsert', clientId: 1, serverId: serverTag.id, name: 'client-version', color: null, emoji: null, version: 1 },
-        // separate new tag — drain continues past the conflict
         { op: 'upsert', clientId: 2, serverId: null, name: 'new-tag', color: null, emoji: null },
       ],
       groups: [],
       timers: [],
     })
 
+    // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.tags[0]).toMatchObject({ op: 'upsert', clientId: 2 })
     expect(result.overruled.tags.some((t) => t.id === serverTag.id && t.name === 'server-version')).toBe(true)
   })
 
+  it('version conflict during group drain appends server record to overruled and continues', async () => {
+    // Arrange
+    const serverGroup = {
+      id: '00000000-0000-0000-0000-000000000050',
+      userId: 'u1',
+      name: 'server-group',
+      emoji: null,
+      color: null,
+      conditions: { op: 'AND' as const, conditions: [] },
+      version: 4,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } satisfies GroupRecord
+    fakeGroupsDb = createFakeGroupsDb({ groups: [serverGroup] })
+    const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
+    const result = await caller.sync.full({
+      since: null,
+      tags: [],
+      groups: [
+        { op: 'upsert', clientId: 3, serverId: serverGroup.id, name: 'client-group', emoji: null, color: null, conditions: { op: 'AND', conditions: [] }, version: 1 },
+        { op: 'upsert', clientId: 4, serverId: null, name: 'new-group', emoji: null, color: null, conditions: { op: 'AND', conditions: [] } },
+      ],
+      timers: [],
+    })
+
+    // Assert
+    expect(result.synced.groups).toHaveLength(1)
+    expect(result.synced.groups[0]).toMatchObject({ op: 'upsert', clientId: 4 })
+    expect(result.overruled.groups.some((g) => g.id === serverGroup.id && g.name === 'server-group')).toBe(true)
+  })
+
   it('version conflict during timer drain appends server record to overruled and continues', async () => {
+    // Arrange
     const serverTimer = {
       id: '00000000-0000-0000-0000-000000000001',
       userId: 'u1',
@@ -204,8 +255,9 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TimerRecord
     fakeTimersDb = createFakeTimersDb({ timers: [serverTimer] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [],
@@ -214,7 +266,7 @@ describe('sync.full', () => {
         op: 'upsert',
         clientId: 99,
         serverId: serverTimer.id,
-        version: 1, // stale
+        version: 1,
         tagIds: [],
         title: 'client-title',
         description: null,
@@ -230,11 +282,13 @@ describe('sync.full', () => {
       }],
     })
 
+    // Assert
     expect(result.synced.timers).toHaveLength(0)
     expect(result.overruled.timers.some((t) => t.id === serverTimer.id && t.title === 'server-title')).toBe(true)
   })
 
   it('tag delete op removes tag and echoes { op: delete, serverId } in synced', async () => {
+    // Arrange
     const existing = {
       id: '00000000-0000-0000-0000-000000000020',
       userId: 'u1',
@@ -246,8 +300,9 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TagRecord
     fakeTagsDb = createFakeTagsDb({ tags: [existing] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [{ op: 'delete', clientId: 5, serverId: existing.id }],
@@ -255,13 +310,17 @@ describe('sync.full', () => {
       timers: [],
     })
 
+    // Assert
     expect(result.synced.tags).toHaveLength(1)
     expect(result.synced.tags[0]).toEqual({ op: 'delete', serverId: existing.id })
     expect(fakeTagsDb.tags).toHaveLength(0)
   })
 
   it('delete of non-existent tag silently succeeds', async () => {
+    // Arrange
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act / Assert
     await expect(caller.sync.full({
       since: null,
       tags: [{ op: 'delete', clientId: 5, serverId: '00000000-0000-0000-0000-000000000099' }],
@@ -271,6 +330,7 @@ describe('sync.full', () => {
   })
 
   it('complete timer op marks status, echoes in synced, and deletes EventBridge schedules', async () => {
+    // Arrange
     const timerId = '00000000-0000-0000-0000-000000000030'
     const serverTimer = {
       id: timerId,
@@ -293,10 +353,10 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TimerRecord
     fakeTimersDb = createFakeTimersDb({ timers: [serverTimer] })
-    // Pre-seed schedules so we can verify deletion
     fakeScheduler.schedules.set(`timer-${timerId}`, { name: `timer-${timerId}`, targetDatetime: new Date(), payload: { serverId: timerId, userId: 'u1', targetDatetime: '', kind: 'deadline' } })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [],
@@ -304,6 +364,7 @@ describe('sync.full', () => {
       timers: [{ op: 'complete', clientId: 55, serverId: timerId, version: 1 }],
     })
 
+    // Assert
     expect(result.synced.timers).toHaveLength(1)
     expect(result.synced.timers[0]).toMatchObject({ op: 'complete', clientId: 55, serverId: timerId })
     expect(fakeTimersDb.timers[0].status).toBe('completed')
@@ -311,6 +372,7 @@ describe('sync.full', () => {
   })
 
   it('cancel timer op marks status, echoes in synced, and deletes EventBridge schedules', async () => {
+    // Arrange
     const timerId = '00000000-0000-0000-0000-000000000031'
     const serverTimer = {
       id: timerId,
@@ -333,8 +395,9 @@ describe('sync.full', () => {
       updatedAt: new Date(),
     } satisfies TimerRecord
     fakeTimersDb = createFakeTimersDb({ timers: [serverTimer] })
-
     const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler))
+
+    // Act
     const result = await caller.sync.full({
       since: null,
       tags: [],
@@ -342,6 +405,7 @@ describe('sync.full', () => {
       timers: [{ op: 'cancel', clientId: 66, serverId: timerId, version: 2 }],
     })
 
+    // Assert
     expect(result.synced.timers[0]).toMatchObject({ op: 'cancel', clientId: 66, serverId: timerId })
     expect(fakeTimersDb.timers[0].status).toBe('cancelled')
   })

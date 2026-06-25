@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../router.js'
 import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from '../timerScheduling.js'
+import { TimerStatus, Priority, TimerType } from '../../db/schema.js'
 import type { TagRecord } from './tags.js'
 import type { GroupRecord } from './groups.js'
 import type { TimerRecord } from './timers.js'
@@ -78,10 +79,10 @@ const timerSyncItemSchema = z.discriminatedUnion('op', [
     emoji: z.string().nullable(),
     targetDatetime: z.string().datetime(),
     originalTargetDatetime: z.string().datetime(),
-    status: z.enum(['active', 'fired', 'completed', 'missed', 'cancelled']),
-    priority: z.enum(['low', 'medium', 'high', 'critical']),
+    status: z.enum([TimerStatus.Active, TimerStatus.Fired, TimerStatus.Completed, TimerStatus.Missed, TimerStatus.Cancelled]),
+    priority: z.enum([Priority.Low, Priority.Medium, Priority.High, Priority.Critical]),
     recurrenceRule: z.object({ cron: z.string(), tz: z.string() }).nullable(),
-    timerType: z.enum(['reminder', 'task']),
+    timerType: z.enum([TimerType.Reminder, TimerType.Task]),
     leadTimeMs: z.number().int().nonnegative().nullable(),
     workSessions: z.array(workSessionJsonSchema).default([]),
     version: z.number().int().optional(),
@@ -162,8 +163,8 @@ export const syncRouter = router({
               { name: item.name, emoji: item.emoji, color: item.color, conditions: item.conditions },
             )
             if (!updated) {
-              // groups.getGroup doesn't exist in GroupsDb — need to handle gracefully
-              // No getGroup on GroupsDb interface; skip adding to conflictGroups for now
+              const serverRecord = await ctx.groupsDb.getGroup(item.serverId, userId)
+              if (serverRecord) conflictGroups.push(serverRecord)
             } else {
               syncedGroups.push({ op: 'upsert', clientId: item.clientId, serverId: updated.serverId })
             }
@@ -206,7 +207,7 @@ export const syncRouter = router({
               const serverRecord = await ctx.timersDb.getTimer(item.serverId, userId)
               if (serverRecord) conflictTimers.push(serverRecord)
             } else {
-              await updateTimerSchedules(item.serverId!, new Date(item.targetDatetime), item.leadTimeMs, ctx)
+              await updateTimerSchedules(item.serverId, new Date(item.targetDatetime), item.leadTimeMs, ctx)
               syncedTimers.push({ op: 'upsert', clientId: item.clientId, serverId: updated.serverId })
             }
           } else {

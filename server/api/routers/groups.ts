@@ -61,6 +61,7 @@ export type GroupsDb = {
     vals: UpdateGroupVals,
   ): Promise<{ serverId: string; version: number } | null>
   deleteGroup(where: { id: string; userId: string }): Promise<void>
+  getGroup(id: string, userId: string): Promise<GroupRecord | null>
   reconcile(userId: string, since: Date | null): Promise<GroupRecord[]>
 }
 
