@@ -199,7 +199,14 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
                   <button
                     type="button"
                     className="px-4 py-2 text-left hover:bg-red-700 text-red-400 cursor-pointer whitespace-nowrap"
-                    onClick={() => { setPopoverTagId(null); void deleteTag(tag) }}
+                    onClick={() => {
+                      setPopoverTagId(null)
+                      void deleteTag(tag)
+                      const next = new Set(selectedDexieIds)
+                      next.delete(dexieId)
+                      setSelectedDexieIds(next)
+                      onChange(computeServerIds(next))
+                    }}
                   >
                     Delete
                   </button>

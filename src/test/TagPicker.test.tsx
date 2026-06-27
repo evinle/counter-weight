@@ -116,4 +116,31 @@ describe('TagPicker long-press popover', () => {
       expect(tags[0]?.syncStatus).toBe(SyncStatuses.Deleted)
     })
   })
+
+  it('deleted tag disappears from view immediately', async () => {
+    await seedTag('Work')
+    render(<TagPicker userId="user-1" onChange={() => {}} longPressMs={0} />)
+    await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
+
+    await longPress(screen.getByRole('button', { name: /Work/ }))
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }))
+
+    await waitFor(() => expect(screen.queryByText('Work')).toBeNull())
+  })
+
+  it('onChange is called without deleted tag serverId after deletion', async () => {
+    const id = await seedTag('Work')
+    const onChange = vi.fn()
+    render(<TagPicker userId="user-1" initialServerIds={['srv-Work']} onChange={onChange} longPressMs={0} />)
+    await waitFor(() => expect(screen.getByText('Work')).toBeInTheDocument())
+
+    await longPress(screen.getByRole('button', { name: /Work/ }))
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }))
+
+    await waitFor(() => {
+      const lastCall = onChange.mock.calls.at(-1)?.[0] as string[]
+      expect(lastCall).not.toContain('srv-Work')
+    })
+    void id
+  })
 })

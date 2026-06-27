@@ -6,7 +6,14 @@ import type { Tag } from '../db/schema'
 export function useUserTags(userId: string | null): Tag[] {
   return (
     useLiveQuery(
-      () => (userId ? db.tags.where('userId').equals(userId).toArray() : []),
+      () =>
+        userId
+          ? db.tags
+              .where('userId')
+              .equals(userId)
+              .filter((t) => t.syncStatus !== SyncStatuses.Deleted)
+              .toArray()
+          : [],
       [userId],
       [],
     ) ?? []
