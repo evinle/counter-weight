@@ -2,17 +2,21 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect } from "react";
 import { db } from "../db";
 import { SyncStatuses, TimerStatuses } from "../db/schema";
-import type { Timer, Tag, Group } from "../db/schema";
+import type { Timer } from "../db/schema";
 import { trpcReact } from "../lib/trpc";
 import { mapServerTag, mapServerGroup, mapServerTimer } from "../lib/syncMappers";
-import type { ServerTagRecord, ServerGroupRecord, ServerTimerRecord } from "../lib/syncMappers";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "../../server/api/index";
 import type { AuthUser } from "./useAuth";
+
+type SyncInput = inferRouterInputs<AppRouter>["sync"]["full"];
+type SyncOutput = inferRouterOutputs<AppRouter>["sync"]["full"];
 
 const LAST_SYNCED_KEY = "cw:lastSyncedAt";
 
 // ─── Input builder ────────────────────────────────────────────────────────────
 
-async function buildSyncInput(user: AuthUser) {
+async function buildSyncInput(user: AuthUser): Promise<SyncInput> {
   const since = localStorage.getItem(LAST_SYNCED_KEY);
 
   // Tags: pending upserts + pending deletes
@@ -118,17 +122,7 @@ async function buildSyncInput(user: AuthUser) {
 
 // ─── Write-back ───────────────────────────────────────────────────────────────
 
-type SyncedEntry =
-  | { op: "upsert" | "complete" | "cancel"; clientId: number; serverId: string }
-  | { op: "delete"; serverId: string };
-
-type SyncResult = {
-  synced: { tags: SyncedEntry[]; groups: SyncedEntry[]; timers: SyncedEntry[] };
-  overruled: { tags: ServerTagRecord[]; groups: ServerGroupRecord[]; timers: ServerTimerRecord[] };
-  serverNow: string;
-};
-
-async function applySync(result: SyncResult, userId: string) {
+async function applySync(result: SyncOutput, userId: string) {
   // Pass 1: apply synced entries (mark drained items as synced, hard-delete confirmed deletes)
   for (const entry of result.synced.tags) {
     if (entry.op === "delete") {
@@ -162,7 +156,7 @@ async function applySync(result: SyncResult, userId: string) {
     if (local?.id !== undefined) {
       await db.tags.update(local.id, data);
     } else {
-      await db.tags.add(data as Tag);
+      await db.tags.add(data);
     }
   }
   for (const record of result.overruled.groups) {
@@ -171,7 +165,7 @@ async function applySync(result: SyncResult, userId: string) {
     if (local?.id !== undefined) {
       await db.groups.update(local.id, data);
     } else {
-      await db.groups.add(data as Group);
+      await db.groups.add(data);
     }
   }
   for (const record of result.overruled.timers) {
@@ -180,7 +174,7 @@ async function applySync(result: SyncResult, userId: string) {
     if (local?.id !== undefined) {
       await db.timers.update(local.id, data);
     } else {
-      await db.timers.add({ ...(data as Timer), syncStatus: SyncStatuses.Synced });
+      await db.timers.add(data);
     }
   }
 
@@ -196,8 +190,8 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
     async (u: AuthUser) => {
       if (mutation.isPending) return;
       const input = await buildSyncInput(u);
-      const result = await mutation.mutateAsync(input as Parameters<typeof mutation.mutateAsync>[0]);
-      await applySync(result as unknown as SyncResult, u.userId);
+      const result = await mutation.mutateAsync(input);
+      await applySync(result, u.userId);
     },
     [mutation],
   );
