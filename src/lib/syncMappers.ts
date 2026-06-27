@@ -1,5 +1,5 @@
 import { SyncStatuses } from "../db/schema";
-import type { Timer, Tag, Group, GroupConditions } from "../db/schema";
+import type { Timer, Tag, Group } from "../db/schema";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../server/api/index";
 

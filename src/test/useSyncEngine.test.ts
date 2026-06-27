@@ -73,7 +73,7 @@ const BASE_GROUP = {
   name: "My Group",
   emoji: null,
   color: null,
-  conditions: { type: "and" as const, filters: [] },
+  conditions: { op: "AND" as const, conditions: [] },
   version: null,
   createdAt: new Date(),
   updatedAt: new Date(),

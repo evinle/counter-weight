@@ -81,7 +81,7 @@ async function buildSyncInput(user: AuthUser): Promise<SyncInput> {
   const allLocalTags = await db.tags.where("userId").equals(user.userId).toArray();
   const tagByServerId = new Map(allLocalTags.filter((t) => t.serverId).map((t) => [t.serverId!, t]));
 
-  const timers = pendingTimers.flatMap((t) => {
+  const timers = pendingTimers.flatMap((t): SyncInput["timers"] => {
     if (t.status === TimerStatuses.Completed) {
       if (!t.serverId || t.version == null) return [];
       return [{ op: "complete" as const, clientId: t.id!, serverId: t.serverId, version: t.version }];
