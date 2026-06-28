@@ -29,7 +29,7 @@ npm run migrate    # drizzle-kit migrate (runs pending SQL migrations against DB
 ### Infrastructure (`infra/`)
 ```bash
 cd infra
-npx cdk deploy StorageStack   # RDS, Cognito, VPC
+npx cdk deploy StorageStack   # Cognito, Neon SM secret reference
 npx cdk deploy AppStack --context cognitoClientSecretArn=<ARN>  # Lambdas, API Gateway
 ```
 
@@ -100,13 +100,13 @@ API Gateway HTTP API routes `/auth/{proxy+}` without a JWT authorizer and `/trpc
 
 **Notification scheduling**: on timer upsert, API Lambda calls `createTimerSchedules` which creates up to two EventBridge Scheduler one-time schedules per timer — one at `leadDatetime` (deadline minus `leadTimeMs`) and one at `targetDatetime`. Schedules invoke `NotifyLambda` via an IAM role (`EventBridgeSchedulerRole`). Completing or cancelling a timer deletes its schedules.
 
-**Database**: Drizzle ORM + PostgreSQL (RDS `t4g.micro`, publicly accessible with SSL enforced). Schema in `server/db/schema.ts`; migrations in `server/db/migrations/`. `server/drizzle.config.ts` points drizzle-kit at the DB.
+**Database**: Drizzle ORM + PostgreSQL ([Neon](https://neon.tech) serverless). Connection string stored in AWS Secrets Manager (`counter-weight/neon-db-secret`), read at Lambda cold start. Schema in `server/db/schema.ts`; migrations in `server/db/migrations/`. `server/drizzle.config.ts` points drizzle-kit at the DB.
 
 ### Infrastructure (CDK)
 
 Two stacks in deployment order:
 
-1. **`StorageStack`** (`infra/lib/storage-stack.ts`) — VPC, RDS instance, Cognito User Pool + App Client (Google IdP), secrets
+1. **`StorageStack`** (`infra/lib/storage-stack.ts`) — Cognito User Pool + App Client (Google IdP), Neon SM secret reference
 2. **`AppStack`** (`infra/lib/app-stack.ts`) — Auth Lambda, API Lambda, API Gateway HTTP API, ACM cert + custom domain `api.evinle.app`, API mapping
 
 `api.evinle.app` Cloudflare DNS must be **proxy-off** (grey cloud) — API Gateway terminates TLS directly.

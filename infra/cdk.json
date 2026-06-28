@@ -7,6 +7,7 @@
     "googleClientSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/google-client-secret-r0w1Eg",
     "cognitoClientSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/cognito-client-secret-4jZGT9",
     "vapidSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/vapid-secret-EfbWGR",
-    "vapidPublicKey": "BMjWtAnMDln7h4fooM-69BiTpzeAXrffmjBQwPWZjgCT6ikOh6kdE2aznc5HReSmGXxBOziflZi02HtSZF3nFx4"
+    "vapidPublicKey": "BMjWtAnMDln7h4fooM-69BiTpzeAXrffmjBQwPWZjgCT6ikOh6kdE2aznc5HReSmGXxBOziflZi02HtSZF3nFx4",
+    "neonSecretArn": "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/neon-db-secret-V5w8hv"
   }
 }
