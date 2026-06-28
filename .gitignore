@@ -48,3 +48,7 @@ env.json
 
 #teaching
 teaching/
+
+# DB migration artifacts — contain real user data
+*.dump
+restore.sql

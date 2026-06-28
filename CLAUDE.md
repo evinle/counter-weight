@@ -27,7 +27,9 @@ npm run migrate         # drizzle-kit migrate — requires DATABASE_URL in env
 npm run migrate:neon    # migrate via Neon HTTP driver (reads NEON_SECRET_ARN from server/.env)
 ```
 
-`migrate:neon` uses `@neondatabase/serverless` (HTTP transport) — bypasses TCP so it works from environments where port 5432 is blocked. Reads `NEON_SECRET_ARN` from `server/.env`, fetches the connection string from Secrets Manager, then runs migrations programmatically via `drizzle-orm/neon-http/migrator`. Use this for local migration runs against the Neon database.
+`migrate:neon` (`server/migrate.neon.ts`) uses `@neondatabase/serverless` (HTTP transport) — bypasses TCP port 5432, which times out from some environments (WSL2). Reads `NEON_SECRET_ARN` from `server/.env`, fetches the plain connection string from Secrets Manager, and runs migrations programmatically via `drizzle-orm/neon-http/migrator`. Use this for all local migration runs.
+
+For the original data migration from RDS to Neon, see `docs/adr/0004-migrate-rds-to-neon-postgres.md`.
 
 ### Infrastructure (`infra/`)
 ```bash

@@ -2,7 +2,6 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { migrate } from "drizzle-orm/neon-http/migrator";
 import { config } from "dotenv";
-import { join } from "node:path";
 import {
   GetSecretValueCommand,
   SecretsManagerClient,
