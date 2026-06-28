@@ -12,15 +12,13 @@ const authEnvSchema = z.object({
 const apiEnvSchema = z.object({
   COGNITO_USER_POOL_ID: z.string().min(1),
   COGNITO_CLIENT_ID: z.string().min(1),
-  DB_SECRET_ARN: z.string().startsWith('arn:'),
-  DB_ENDPOINT: z.string().min(1),
+  NEON_SECRET_ARN: z.string().startsWith('arn:'),
   NOTIFY_LAMBDA_ARN: z.string().startsWith('arn:'),
   SCHEDULER_ROLE_ARN: z.string().startsWith('arn:'),
 })
 
 const notifyEnvSchema = z.object({
-  DB_SECRET_ARN: z.string().startsWith('arn:'),
-  DB_ENDPOINT: z.string().min(1),
+  NEON_SECRET_ARN: z.string().startsWith('arn:'),
   VAPID_PUBLIC_KEY: z.string().min(1),
   VAPID_SECRET_ARN: z.string().startsWith('arn:'),
 })

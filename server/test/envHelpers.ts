@@ -2,8 +2,7 @@ const TEST_ENV_DEFAULTS = {
   COGNITO_USER_POOL_ID: "us-east-1_testpool",
   COGNITO_CLIENT_ID: "test-client-id",
   COGNITO_DOMAIN: "https://test.auth.us-east-1.amazoncognito.com",
-  DB_SECRET_ARN: "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-db",
-  DB_ENDPOINT: "test-db.abcdefghij.us-east-1.rds.amazonaws.com",
+  NEON_SECRET_ARN: "arn:aws:secretsmanager:ap-southeast-2:917914000525:secret:counter-weight/neon-db-secret-V5w8hv",
   COGNITO_CLIENT_SECRET_ARN:
     "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-cognito",
   AUTH_CALLBACK_URL_PROD: "https://counter-weight.evinle.app/auth/callback",

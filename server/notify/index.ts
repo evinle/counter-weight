@@ -21,11 +21,9 @@ async function realGetNotifyDb(): Promise<NotifyDb> {
   if (!_notifyDbPromise) {
     _notifyDbPromise = (async () => {
       const env = getNotifyEnv()
-      const secret = await sm.send(new GetSecretValueCommand({ SecretId: env.DB_SECRET_ARN }))
-      if (!secret.SecretString) throw new Error('DB secret is not a string secret')
-      const { username, password, port, dbname = 'postgres' } = JSON.parse(secret.SecretString)
-      const url = `postgresql://${username}:${encodeURIComponent(password)}@${env.DB_ENDPOINT}:${port}/${dbname}?sslmode=require`
-      return createNotifyDb(createDb(url))
+      const secret = await sm.send(new GetSecretValueCommand({ SecretId: env.NEON_SECRET_ARN }))
+      if (!secret.SecretString) throw new Error('Neon secret is not a string secret')
+      return createNotifyDb(createDb(secret.SecretString))
     })()
   }
   return _notifyDbPromise

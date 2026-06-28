@@ -1,14 +1,11 @@
 import * as cdk from "aws-cdk-lib";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as rds from "aws-cdk-lib/aws-rds";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import { ALLOWED_ORIGINS, PROD_CALLBACK_URL, LOCAL_CALLBACK_URL } from "./constants";
 
 export class StorageStack extends cdk.Stack {
-  public readonly dbInstanceEndpoint: string;
-  public readonly dbSecret: secretsmanager.ISecret;
+  public readonly neonSecret: secretsmanager.ISecret;
   public readonly userPool: cognito.UserPool;
   public readonly userPoolClient: cognito.UserPoolClient;
   public readonly cognitoDomainPrefix: string;
@@ -16,54 +13,23 @@ export class StorageStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Minimal public VPC — no NAT, no private subnets, no VPC endpoints
-    const vpc = new ec2.Vpc(this, "Vpc", {
-      maxAzs: 2,
-      natGateways: 0,
-      subnetConfiguration: [
-        { name: "public", subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
-      ],
-    });
+    // neonSecretArn must be provided at deploy time:
+    //   cdk deploy StorageStack --context neonSecretArn=<ARN>
+    const neonSecretArn = this.node.tryGetContext("neonSecretArn") as
+      | string
+      | undefined;
 
-    // Security group: allow port 5432 from anywhere; SSL enforced at parameter group level
-    const dbSg = new ec2.SecurityGroup(this, "DbSg", {
-      vpc,
-      description: "RDS public access",
-    });
-    dbSg.addIngressRule(
-      ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(5432),
-      "Postgres public access",
+    if (!neonSecretArn) {
+      throw new Error(
+        "neonSecretArn context value is required. Pass --context neonSecretArn=<ARN>",
+      );
+    }
+
+    this.neonSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "NeonSecret",
+      neonSecretArn,
     );
-
-    // Parameter group: enforce SSL at the database level, rejecting unencrypted connections
-    const dbParamGroup = new rds.ParameterGroup(this, "DbParamGroup", {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16,
-      }),
-      parameters: { "rds.force_ssl": "1" },
-    });
-
-    const dbInstance = new rds.DatabaseInstance(this, "Db", {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16,
-      }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.T4G,
-        ec2.InstanceSize.MICRO,
-      ),
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-      securityGroups: [dbSg],
-      parameterGroup: dbParamGroup,
-      publiclyAccessible: true,
-      multiAz: false,
-      storageEncrypted: true,
-      deletionProtection: this.node.tryGetContext("env") === "prod",
-    });
-
-    this.dbSecret = dbInstance.secret!;
-    this.dbInstanceEndpoint = dbInstance.dbInstanceEndpointAddress;
 
     // Cognito User Pool
     this.cognitoDomainPrefix = "counter-weight-auth";
@@ -130,9 +96,6 @@ export class StorageStack extends cdk.Stack {
     new cdk.CfnOutput(this, "UserPoolId", { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {
       value: this.userPoolClient.userPoolClientId,
-    });
-    new cdk.CfnOutput(this, "DbInstanceEndpoint", {
-      value: this.dbInstanceEndpoint,
     });
   }
 }

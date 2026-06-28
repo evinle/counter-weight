@@ -22,18 +22,11 @@ async function getDb(): Promise<Db> {
       const env = getApiEnv();
       const sm = new SecretsManagerClient({});
       const secret = await sm.send(
-        new GetSecretValueCommand({ SecretId: env.DB_SECRET_ARN }),
+        new GetSecretValueCommand({ SecretId: env.NEON_SECRET_ARN }),
       );
       if (!secret.SecretString)
-        throw new Error("DB secret is not a string secret");
-      const {
-        username,
-        password,
-        port,
-        dbname = "postgres",
-      } = JSON.parse(secret.SecretString);
-      const url = `postgresql://${username}:${encodeURIComponent(password)}@${env.DB_ENDPOINT}:${port}/${dbname}?sslmode=require`;
-      return createDb(url);
+        throw new Error("Neon secret is not a string secret");
+      return createDb(secret.SecretString);
     })();
   }
   return _dbPromise;

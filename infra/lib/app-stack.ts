@@ -55,7 +55,7 @@ export class AppStack extends cdk.Stack {
       },
     });
 
-    // API Lambda — outside VPC, connects to RDS and Cognito over internet
+    // API Lambda — connects to Neon Postgres and Cognito over internet
     const apiLambda = new NodejsFunction(this, "ApiLambda", {
       entry: path.join(__dirname, "../../server/api/index.ts"),
       handler: "handler",
@@ -92,14 +92,13 @@ export class AppStack extends cdk.Stack {
       durableConfig: { executionTimeout: cdk.Duration.seconds(120) },
       projectRoot: path.join(__dirname, "../.."),
       environment: {
-        DB_ENDPOINT: storageStack.dbInstanceEndpoint,
-        DB_SECRET_ARN: storageStack.dbSecret.secretArn,
+        NEON_SECRET_ARN: storageStack.neonSecret.secretArn,
         ...(vapidPublicKey && { VAPID_PUBLIC_KEY: vapidPublicKey }),
         ...(vapidSecretArn && { VAPID_SECRET_ARN: vapidSecretArn }),
       },
     });
 
-    storageStack.dbSecret.grantRead(notifyLambda);
+    storageStack.neonSecret.grantRead(notifyLambda);
     vapidPrivateKeySecret?.grantRead(notifyLambda);
 
     // Durable execution requires a qualified ARN — alias gives a stable qualified ARN across deploys
@@ -148,12 +147,10 @@ export class AppStack extends cdk.Stack {
       cognitoClientSecret.grantRead(authLambda);
     }
 
-    // Grant API Lambda access to read the DB secret (for DATABASE_URL)
-    storageStack.dbSecret.grantRead(apiLambda);
+    // Grant API Lambda access to read the Neon connection-string secret
+    storageStack.neonSecret.grantRead(apiLambda);
 
-    // Inject DB endpoint (Lambda reads credentials from Secrets Manager at init)
-    apiLambda.addEnvironment("DB_ENDPOINT", storageStack.dbInstanceEndpoint);
-    apiLambda.addEnvironment("DB_SECRET_ARN", storageStack.dbSecret.secretArn);
+    apiLambda.addEnvironment("NEON_SECRET_ARN", storageStack.neonSecret.secretArn);
 
     // JWT authorizer — validates Cognito id tokens on /trpc/* routes at gateway level
     const jwtAuthorizer = new HttpJwtAuthorizer(
