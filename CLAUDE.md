@@ -21,10 +21,13 @@ npm run deploy     # build frontend (reads .env.production) + wrangler deploy to
 ### Server (`server/`)
 ```bash
 cd server
-npm test           # vitest run (single pass)
-npm run typecheck  # tsc --noEmit
-npm run migrate    # drizzle-kit migrate (runs pending SQL migrations against DB)
+npm test                # vitest run (single pass)
+npm run typecheck       # tsc --noEmit
+npm run migrate         # drizzle-kit migrate — requires DATABASE_URL in env
+npm run migrate:neon    # migrate via Neon HTTP driver (reads NEON_SECRET_ARN from server/.env)
 ```
+
+`migrate:neon` uses `@neondatabase/serverless` (HTTP transport) — bypasses TCP so it works from environments where port 5432 is blocked. Reads `NEON_SECRET_ARN` from `server/.env`, fetches the connection string from Secrets Manager, then runs migrations programmatically via `drizzle-orm/neon-http/migrator`. Use this for local migration runs against the Neon database.
 
 ### Infrastructure (`infra/`)
 ```bash
