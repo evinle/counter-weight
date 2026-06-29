@@ -374,6 +374,52 @@ describe('sync.full', () => {
     expect(fakeScheduler.schedules.has(`timer-${timerId}`)).toBe(false)
   })
 
+  it('complete op on recurring timer spawns next occurrence with schedules', async () => {
+    // Arrange
+    const timerId = '00000000-0000-0000-0000-000000000032'
+    const serverTimer = {
+      id: timerId,
+      userId: 'u1',
+      title: 'Daily standup',
+      description: null,
+      emoji: null,
+      targetDatetime: new Date('2026-06-01T09:00:00Z'),
+      originalTargetDatetime: new Date('2026-06-01T09:00:00Z'),
+      status: 'active',
+      priority: 'medium',
+      recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' },
+      eventbridgeScheduleId: null,
+      version: 1,
+      tagIds: [],
+      timerType: 'reminder',
+      leadTimeMs: null,
+      workSessions: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } satisfies TimerRecord
+    fakeTimersDb = createFakeTimersDb({ timers: [serverTimer] })
+    const now = new Date('2026-06-01T09:05:00Z')
+    const caller = createCaller(makeCtx('u1', fakeTagsDb, fakeGroupsDb, fakeTimersDb, fakeScheduler, now))
+
+    // Act
+    const result = await caller.sync.full({
+      since: null,
+      tags: [],
+      groups: [],
+      timers: [{ op: 'complete', clientId: 77, serverId: timerId, version: 1 }],
+    })
+
+    // Assert — original is completed, next occurrence is spawned as active
+    expect(result.synced.timers[0]).toMatchObject({ op: 'complete', clientId: 77, serverId: timerId })
+    expect(fakeTimersDb.timers).toHaveLength(2)
+    const spawned = fakeTimersDb.timers.find((t) => t.id !== timerId)
+    expect(spawned).toBeDefined()
+    expect(spawned!.status).toBe('active')
+    expect(spawned!.recurrenceRule).toEqual({ cron: '0 9 * * *', tz: 'UTC' })
+    expect(spawned!.targetDatetime.getTime()).toBeGreaterThan(now.getTime())
+    expect(fakeScheduler.schedules.size).toBeGreaterThan(0)
+  })
+
   it('cancel timer op marks status, echoes in synced, and deletes EventBridge schedules', async () => {
     // Arrange
     const timerId = '00000000-0000-0000-0000-000000000031'

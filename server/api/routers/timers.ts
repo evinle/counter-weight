@@ -104,9 +104,9 @@ export const timerUpsertInput = z.object({
   workSessions: z.array(workSessionJsonSchema).default([]),
 });
 
-type SpawnCtx = SchedulingCtx & { timersDb: TimersDb }
+export type SpawnCtx = SchedulingCtx & { timersDb: TimersDb }
 
-async function spawnNextOccurrence(
+export async function spawnNextOccurrence(
   timer: TimerRecord,
   rule: RecurrenceRule,
   completedTimerId: string,

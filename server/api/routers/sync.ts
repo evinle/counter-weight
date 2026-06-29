@@ -6,6 +6,7 @@ import type { SchedulingCtx } from '../timerScheduling.js'
 import { GroupConditionsSchema } from './groups.js'
 import type { TagsDb, TagRecord } from './tags.js'
 import type { GroupsDb, GroupRecord } from './groups.js'
+import { spawnNextOccurrence } from './timers.js'
 import type { TimersDb, TimerRecord } from './timers.js'
 
 // ─── Op const-enum ────────────────────────────────────────────────────────────
@@ -202,12 +203,16 @@ async function applyTimerItem(
   ctx: SchedulingCtx,
 ): Promise<ItemResult<SyncedTimerEntry, TimerRecord>> {
   if (item.op === 'complete' || item.op === 'cancel') {
+    const timer = item.op === 'complete' ? await timersDb.getTimer(item.serverId, userId) : null
     const status = item.op === 'complete' ? TimerStatus.Completed : TimerStatus.Cancelled
     const updated = await timersDb.setStatus({ id: item.serverId, userId, version: item.version }, status)
     if (!updated) {
       return { synced: null, conflict: await timersDb.getTimer(item.serverId, userId) }
     }
     await deleteTimerSchedules(item.serverId, ctx.scheduler)
+    if (timer?.recurrenceRule) {
+      await spawnNextOccurrence(timer, timer.recurrenceRule, item.serverId, { ...ctx, timersDb })
+    }
     return { synced: { op: item.op, clientId: item.clientId, serverId: item.serverId }, conflict: null }
   }
 
