@@ -86,7 +86,9 @@ self.addEventListener("push", (event) => {
       }
 
       return self.registration.showNotification(title, {
-        body: "Time's up",
+        body: title.toLocaleLowerCase().includes("reminder")
+          ? "Time's almost up"
+          : "Time's up",
         icon: "/icon-192.png",
         tag: payload.serverId,
       });

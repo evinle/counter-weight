@@ -56,7 +56,7 @@ describe("notifyTimer", () => {
 
     expect(showNotification).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ body: "Starting soon" }),
+      expect.objectContaining({ body: "Time's almost up" }),
     );
   });
 });
