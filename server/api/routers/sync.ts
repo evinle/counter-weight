@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../router.js'
-import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from '../timerScheduling.js'
-import { TimerStatus, Priority, TimerType } from '../../db/schema.js'
+import { createTimerSchedules, updateTimerSchedules } from '../timerScheduling.js'
+import { TimerStatus, EventType, Priority, TimerType } from '../../db/schema.js'
 import type { SchedulingCtx } from '../timerScheduling.js'
 import { GroupConditionsSchema } from './groups.js'
 import type { TagsDb, TagRecord } from './tags.js'
 import type { GroupsDb, GroupRecord } from './groups.js'
-import { spawnNextOccurrence } from './timers.js'
+import { terminateTimer } from './timers.js'
 import type { TimersDb, TimerRecord } from './timers.js'
 
 // ─── Op const-enum ────────────────────────────────────────────────────────────
@@ -18,6 +18,17 @@ export const SyncOp = {
   Cancel: 'cancel',
 } as const satisfies Record<string, string>
 export type SyncOp = typeof SyncOp[keyof typeof SyncOp]
+
+export const TerminalSyncOp = {
+  Complete: SyncOp.Complete,
+  Cancel: SyncOp.Cancel,
+} as const satisfies Record<string, typeof SyncOp.Complete | typeof SyncOp.Cancel>
+export type TerminalSyncOp = typeof TerminalSyncOp[keyof typeof TerminalSyncOp]
+
+const TerminalSyncOpConfig = {
+  [TerminalSyncOp.Complete]: { status: TimerStatus.Completed, eventType: EventType.Completed },
+  [TerminalSyncOp.Cancel]:   { status: TimerStatus.Cancelled, eventType: EventType.Cancelled },
+} as const satisfies Record<TerminalSyncOp, { status: typeof TimerStatus.Completed | typeof TimerStatus.Cancelled; eventType: typeof EventType.Completed | typeof EventType.Cancelled }>
 
 // ─── Output entry types ───────────────────────────────────────────────────────
 
@@ -202,16 +213,14 @@ async function applyTimerItem(
   tagClientToServer: Map<number, string>,
   ctx: SchedulingCtx,
 ): Promise<ItemResult<SyncedTimerEntry, TimerRecord>> {
-  if (item.op === 'complete' || item.op === 'cancel') {
-    const timer = item.op === 'complete' ? await timersDb.getTimer(item.serverId, userId) : null
-    const status = item.op === 'complete' ? TimerStatus.Completed : TimerStatus.Cancelled
-    const updated = await timersDb.setStatus({ id: item.serverId, userId, version: item.version }, status)
-    if (!updated) {
+  if (item.op === TerminalSyncOp.Complete || item.op === TerminalSyncOp.Cancel) {
+    const { status, eventType } = TerminalSyncOpConfig[item.op]
+    const result = await terminateTimer(
+      { serverId: item.serverId, version: item.version, status, eventType },
+      { ...ctx, timersDb },
+    )
+    if (result === 'conflict') {
       return { synced: null, conflict: await timersDb.getTimer(item.serverId, userId) }
-    }
-    await deleteTimerSchedules(item.serverId, ctx.scheduler)
-    if (timer?.recurrenceRule) {
-      await spawnNextOccurrence(timer, timer.recurrenceRule, item.serverId, { ...ctx, timersDb })
     }
     return { synced: { op: item.op, clientId: item.clientId, serverId: item.serverId }, conflict: null }
   }

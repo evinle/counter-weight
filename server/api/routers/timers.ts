@@ -140,6 +140,40 @@ export async function spawnNextOccurrence(
   await createTimerSchedules(spawned.serverId, nextDatetime, timer.leadTimeMs, ctx);
 }
 
+export async function terminateTimer(
+  input: {
+    serverId: string
+    version: number
+    status: typeof TimerStatus.Completed | typeof TimerStatus.Cancelled
+    eventType: EventType
+  },
+  ctx: SpawnCtx,
+): Promise<'ok' | 'conflict'> {
+  const timer = input.status === TimerStatus.Completed
+    ? await ctx.timersDb.getTimer(input.serverId, ctx.userId)
+    : null
+
+  const updated = await ctx.timersDb.setStatus(
+    { id: input.serverId, userId: ctx.userId, version: input.version },
+    input.status,
+  )
+  if (!updated) return 'conflict'
+
+  await ctx.timersDb.insertTimerEvent({
+    timerId: input.serverId,
+    userId: ctx.userId,
+    eventType: input.eventType,
+  })
+
+  await deleteTimerSchedules(input.serverId, ctx.scheduler)
+
+  if (timer?.recurrenceRule) {
+    await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx)
+  }
+
+  return 'ok'
+}
+
 export const timersRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.timersDb.listActive(ctx.userId);
@@ -213,49 +247,23 @@ export const timersRouter = router({
   complete: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const timer = await ctx.timersDb.getTimer(input.serverId, ctx.userId);
-
-      const updated = await ctx.timersDb.setStatus(
-        { id: input.serverId, userId: ctx.userId, version: input.version },
-        TimerStatus.Completed,
-      );
-
-      if (!updated) throw new TRPCError({ code: "CONFLICT" });
-
-      await ctx.timersDb.insertTimerEvent({
-        timerId: input.serverId,
-        userId: ctx.userId,
-        eventType: EventType.Completed,
-      });
-
-      await deleteTimerSchedules(input.serverId, ctx.scheduler);
-
-      if (timer?.recurrenceRule) {
-        await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx);
-      }
-
-      return { ok: true };
+      const result = await terminateTimer(
+        { serverId: input.serverId, version: input.version, status: TimerStatus.Completed, eventType: EventType.Completed },
+        ctx,
+      )
+      if (result === 'conflict') throw new TRPCError({ code: "CONFLICT" })
+      return { ok: true }
     }),
 
   cancel: protectedProcedure
     .input(z.object({ serverId: z.string().uuid(), version: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const updated = await ctx.timersDb.setStatus(
-        { id: input.serverId, userId: ctx.userId, version: input.version },
-        TimerStatus.Cancelled,
-      );
-
-      if (!updated) throw new TRPCError({ code: "CONFLICT" });
-
-      await ctx.timersDb.insertTimerEvent({
-        timerId: input.serverId,
-        userId: ctx.userId,
-        eventType: EventType.Cancelled,
-      });
-
-      await deleteTimerSchedules(input.serverId, ctx.scheduler);
-
-      return { ok: true };
+      const result = await terminateTimer(
+        { serverId: input.serverId, version: input.version, status: TimerStatus.Cancelled, eventType: EventType.Cancelled },
+        ctx,
+      )
+      if (result === 'conflict') throw new TRPCError({ code: "CONFLICT" })
+      return { ok: true }
     }),
 
   reconcile: protectedProcedure
