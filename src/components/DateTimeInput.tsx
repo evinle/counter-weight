@@ -336,14 +336,16 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
 
   // Sync dial state when value prop changes externally
   const prevValue = useRef(value);
-  if (prevValue.current !== value) {
-    prevValue.current = value;
-    const updated = to12h(value);
-    setDialHour(updated.hour);
-    setDialMinute(updated.minute);
-    setDialIsPm(updated.isPm);
-    setPhase("hour");
-  }
+  useEffect(() => {
+    if (prevValue.current !== value) {
+      prevValue.current = value;
+      const updated = to12h(value);
+      setDialHour(updated.hour);
+      setDialMinute(updated.minute);
+      setDialIsPm(updated.isPm);
+      setPhase("hour");
+    }
+  }, [value]);
 
   function handleHourConfirm(h: number): void {
     setDialHour(h);
