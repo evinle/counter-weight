@@ -173,11 +173,7 @@ function ClockDial({
         height={SIZE}
         data-testid="dial-face"
         className="cursor-pointer touch-none"
-        onMouseDown={(e) => {
-          if (!(e.target as Element).closest?.("button, input, a")) {
-            e.preventDefault();
-          }
-        }}
+        onMouseDown={(e) => e.preventDefault()}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -226,7 +222,10 @@ function ClockDial({
         <circle cx={handX} cy={handY} r={10} fill="#2563eb" />
         <circle cx={CX} cy={CY} r={4} fill="#3b82f6" />
 
-        {/* Center display — pointer events bubble up to SVG for swipe/drag handling */}
+        {/* Center display — pointer events bubble up to SVG for swipe/drag handling.
+            type="button" on every button is critical: without it, buttons inside a
+            <form> default to type="submit", triggering HTML5 validation which
+            focuses the required title input. */}
         <foreignObject
           x={CX - 52}
           y={CY - 40}
@@ -237,30 +236,31 @@ function ClockDial({
           <div className="flex flex-col items-center gap-1 select-none">
             <div className="flex items-center gap-1">
               <button
+                type="button"
                 data-testid="dial-hour"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPhaseSelect("hour");
-                }}
+                onClick={() => onPhaseSelect("hour")}
                 className={`text-xl font-bold ${phase === "hour" ? "text-blue-400" : "text-slate-300"}`}
               >
                 {hourDisplay}
               </button>
               <span className="text-slate-300 text-xl">:</span>
               <button
+                type="button"
                 data-testid="dial-minute"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPhaseSelect("minute");
-                }}
+                onClick={() => onPhaseSelect("minute")}
                 className={`text-xl font-bold ${phase === "minute" ? "text-blue-400" : "text-slate-300"}`}
               >
                 {minuteDisplay}
               </button>
             </div>
-            <span data-testid="ampm-icon" className="text-base">
+            <button
+              type="button"
+              data-testid="ampm-icon"
+              onClick={() => onToggleAmPm()}
+              className="text-base"
+            >
               {isPm ? "🌙" : "☀️"}
-            </span>
+            </button>
             <div className="flex gap-1">
               <div
                 className={`w-1.5 h-1.5 rounded-full ${!isPm ? "bg-blue-400" : "bg-slate-500"}`}
@@ -372,10 +372,10 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
             {dayLabel(value, today)}
           </span>
           <button
+            type="button"
             aria-label="Open calendar"
             className="ml-auto text-slate-400 hover:text-slate-200"
             onClick={(e) => {
-              e.preventDefault();
               (
                 e.currentTarget.nextElementSibling as HTMLInputElement | null
               )?.showPicker?.();
