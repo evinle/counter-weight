@@ -9,8 +9,10 @@ import {
   parseCron,
   nextOccurrence,
 } from "@cw/recurrence";
-import { SpinnerField } from "./SpinnerField";
 import { SelectField } from "./SelectField";
+import { ClockDial } from "./ClockDial";
+import type { DialPhase } from "./ClockDial";
+import { to24h } from "./clockMath";
 
 type RecurrenceRule = { cron: string; tz: string };
 
@@ -25,6 +27,8 @@ type Preset = (typeof Preset)[keyof typeof Preset];
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+const DOM_TILES = Array.from({ length: 31 }, (_, i) => i + 1);
+
 function nextQuarterHour(now: Date): { hour: number; minute: number } {
   const totalMins = now.getUTCHours() * 60 + now.getUTCMinutes();
   const rounded = Math.ceil(totalMins / 15) * 15;
@@ -38,6 +42,10 @@ function toTimeString(h: number, m: number): string {
 function parseHHMM(hhmm: string): { hour: number; minute: number } {
   const [h, m] = hhmm.split(":").map(Number);
   return { hour: h ?? 9, minute: m ?? 0 };
+}
+
+function hourTo12h(h: number): { hour: number; isPm: boolean } {
+  return { hour: h % 12 || 12, isPm: h >= 12 };
 }
 
 interface State {
@@ -178,6 +186,20 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
   const [everyH, setEveryH] = useState(init.everyH);
   const [everyM, setEveryM] = useState(init.everyM);
 
+  // Time-of-day dial state
+  const { hour: initTodHour12, isPm: initTodIsPm } = hourTo12h(init.hour);
+  const [todPhase, setTodPhase] = useState<DialPhase>("hour");
+  const [todDialHour, setTodDialHour] = useState(initTodHour12);
+  const [todDialMinute, setTodDialMinute] = useState(init.minute);
+  const [todDialIsPm, setTodDialIsPm] = useState(initTodIsPm);
+
+  // Interval dial state (EveryNHoursMinutes)
+  const { hour: initIntHour12, isPm: initIntIsPm } = hourTo12h(init.everyH);
+  const [intPhase, setIntPhase] = useState<DialPhase>("hour");
+  const [intDialHour, setIntDialHour] = useState(initIntHour12);
+  const [intDialMinute, setIntDialMinute] = useState(init.everyM);
+  const [intDialIsPm, setIntDialIsPm] = useState(initIntIsPm);
+
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Run once on mount: push the computed initial rule to the parent so recurrenceRule
@@ -270,7 +292,8 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
 
   function handleMonthlyDom(v: number) {
     setMonthlyDom(v);
-    emit({ monthlyDom: v });
+    setMonthlyLastDay(false);
+    emit({ monthlyDom: v, monthlyLastDay: false });
   }
   function handleMonthlyLastDay(ld: boolean) {
     setMonthlyLastDay(ld);
@@ -289,7 +312,49 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
     emit({ everyM: m });
   }
 
-  const showTimeSpinners = preset !== Preset.EveryNHoursMinutes;
+  // Time-of-day dial handlers
+  function handleTodHourConfirm(h: number) {
+    setTodDialHour(h);
+    setTodPhase("minute");
+    const h24 = to24h(h, todDialMinute, todDialIsPm).hour;
+    handleHour(h24);
+  }
+  function handleTodMinuteConfirm(m: number) {
+    setTodDialMinute(m);
+    // stays on minute phase
+    handleMinute(m);
+  }
+  function handleTodToggleAmPm() {
+    setTodDialIsPm((prev) => {
+      const next = !prev;
+      const h24 = to24h(todDialHour, todDialMinute, next).hour;
+      handleHour(h24);
+      return next;
+    });
+  }
+
+  // Interval dial handlers
+  function handleIntHourConfirm(h: number) {
+    setIntDialHour(h);
+    setIntPhase("minute");
+    const h24 = to24h(h, intDialMinute, intDialIsPm).hour;
+    handleEveryH(h24);
+  }
+  function handleIntMinuteConfirm(m: number) {
+    setIntDialMinute(m);
+    // stays on minute phase
+    handleEveryM(m);
+  }
+  function handleIntToggleAmPm() {
+    setIntDialIsPm((prev) => {
+      const next = !prev;
+      const h24 = to24h(intDialHour, intDialMinute, next).hour;
+      handleEveryH(h24);
+      return next;
+    });
+  }
+
+  const showTimeOfDayDial = preset !== Preset.EveryNHoursMinutes;
 
   const currentRule = buildRule({
     preset,
@@ -356,80 +421,78 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
       )}
 
       {preset === Preset.Monthly && (
-        <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={monthlyLastDay}
-              onChange={(e) => handleMonthlyLastDay(e.target.checked)}
-              aria-label="Last day of month"
-            />
-            Last day of month
-          </label>
-          {!monthlyLastDay && (
-            <SpinnerField
-              value={monthlyDom}
-              onChange={handleMonthlyDom}
-              min={1}
-              max={31}
-              clamp
-              label="Day"
-            />
-          )}
+        <div className="grid grid-cols-7 gap-1">
+          {DOM_TILES.map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-label={`Day ${n}`}
+              onClick={() => handleMonthlyDom(n)}
+              className={`rounded py-1 text-xs font-medium ${
+                !monthlyLastDay && monthlyDom === n
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-700 text-slate-200"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Last day"
+            onClick={() => handleMonthlyLastDay(true)}
+            className={`rounded py-1 text-xs font-medium italic ${
+              monthlyLastDay
+                ? "bg-blue-600 text-white"
+                : "bg-slate-700 text-slate-200"
+            }`}
+          >
+            L
+          </button>
         </div>
       )}
 
       {preset === Preset.EveryNDays && (
-        <SpinnerField
-          value={everyN}
-          onChange={handleEveryN}
-          min={2}
-          max={90}
-          clamp
-          label="Every"
-        />
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-slate-300">Every {everyN} days</span>
+          <input
+            type="range"
+            min={2}
+            max={90}
+            value={everyN}
+            onChange={(e) => handleEveryN(Number(e.target.value))}
+            className="w-full accent-blue-500 py-2"
+            aria-label="Every N days"
+          />
+        </div>
       )}
 
       {preset === Preset.EveryNHoursMinutes && (
-        <div className="flex gap-2">
-          <SpinnerField
-            value={everyH}
-            onChange={handleEveryH}
-            min={0}
-            max={23}
-            clamp
-            label="Hours"
-          />
-          <SpinnerField
-            value={everyM}
-            onChange={handleEveryM}
-            min={0}
-            max={59}
-            clamp
-            label="Minutes"
-          />
-        </div>
+        <ClockDial
+          mode="interval"
+          phase={intPhase}
+          selectedHour={intDialHour}
+          selectedMinute={intDialMinute}
+          isPm={intDialIsPm}
+          onHourConfirm={handleIntHourConfirm}
+          onMinuteConfirm={handleIntMinuteConfirm}
+          onPhaseSelect={setIntPhase}
+          onToggleAmPm={handleIntToggleAmPm}
+        />
       )}
 
-      {showTimeSpinners && (
-        <div className="flex gap-2">
-          <SpinnerField
-            value={hour}
-            onChange={handleHour}
-            min={0}
-            max={23}
-            clamp
-            label="Hour"
-          />
-          <SpinnerField
-            value={minute}
-            onChange={handleMinute}
-            min={0}
-            max={59}
-            clamp
-            label="Minute"
-          />
-        </div>
+      {showTimeOfDayDial && (
+        <ClockDial
+          mode="time-of-day"
+          phase={todPhase}
+          selectedHour={todDialHour}
+          selectedMinute={todDialMinute}
+          isPm={todDialIsPm}
+          onHourConfirm={handleTodHourConfirm}
+          onMinuteConfirm={handleTodMinuteConfirm}
+          onPhaseSelect={setTodPhase}
+          onToggleAmPm={handleTodToggleAmPm}
+        />
       )}
 
       {nextText && (

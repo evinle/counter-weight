@@ -5,7 +5,6 @@ const DEFAULT_MAX: DurationValue = {
   days: 999,
   hours: 23,
   minutes: 59,
-  seconds: 59,
 };
 
 interface Props {
@@ -39,14 +38,6 @@ export function DurationInput({ value, onChange, maxValue }: Props) {
         min={0}
         max={max.minutes}
         label="Mins"
-      />
-      <SpinnerField
-        value={value.seconds}
-        onChange={(seconds) => onChange({ ...value, seconds })}
-        min={0}
-        max={max.seconds}
-        label="Secs"
-        step={5}
       />
     </div>
   );
