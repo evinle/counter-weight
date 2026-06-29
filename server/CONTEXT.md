@@ -42,3 +42,11 @@ A push notification that fires at `targetDatetime`. Sends `"{title}"` copy and w
 
 ### Schedule Key
 An opaque branded string (`ScheduleKey`) that identifies an EventBridge schedule. Constructed only via `timerScheduleKeys(serverId)`, which returns a `{ deadline: ScheduleKey, lead: ScheduleKey }` pair. Not interchangeable with `serverId`.
+
+### Feedback Submission
+A user-submitted record containing free text and up to 3 optional screenshots. Authenticated users only (Cognito JWT required). Rate-limited to 5 per user per 24-hour window. The submission is classified, spam-scored, and reformatted by a Bedrock agent (Haiku) in a single pass before being published as a GitHub Issue. Stored in the `feedback` table in Neon as the source of truth regardless of GitHub issue creation status.
+
+**Agent output:** `{ type: 'bug' | 'feature' | 'general', severity: 'low' | 'medium' | 'high', spam_score: number (0–1), formatted_title: string, formatted_body: string }`. Submissions with `spam_score` above threshold are silently discarded — no DB row written.
+
+### Feedback Image
+A screenshot attached to a Feedback Submission. Maximum 3 per submission. Uploaded by the client directly to S3 via a presigned PUT URL (temporary staging only). After the spam check passes, the server downloads each image from S3, commits it to the `feedback-assets` orphan branch in the GitHub repo via the Contents API, and deletes the S3 object. The resulting `raw.githubusercontent.com` URL is permanent, GitHub-hosted, and embedded inline in the GitHub Issue body. A partial submission (some images failed to upload) is accepted — missing images are recorded in the DB but do not block issue creation.
