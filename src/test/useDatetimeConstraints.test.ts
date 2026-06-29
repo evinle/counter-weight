@@ -1,8 +1,8 @@
 import { useDatetimeConstraints } from "../hooks/useDatetimeConstraints";
 import type { DateFields } from "../hooks/useDatetimeConstraints";
 
-// maxDate = 2026-05-15 08:30:15
-const maxDate = new Date(2026, 4, 15, 8, 30, 15);
+// maxDate = 2026-05-15 08:30:00 (no seconds in the new interface)
+const maxDate = new Date(2026, 4, 15, 8, 30, 0);
 
 const atMax: DateFields = {
   year: 2026,
@@ -10,7 +10,6 @@ const atMax: DateFields = {
   day: 15,
   hour: 8,
   minute: 30,
-  second: 15,
 };
 
 describe("useDatetimeConstraints — no maxDate", () => {
@@ -19,32 +18,34 @@ describe("useDatetimeConstraints — no maxDate", () => {
     expect(c.monthMax).toBe(12);
     expect(c.hourMax).toBe(23);
     expect(c.minuteMax).toBe(59);
-    expect(c.secondMax).toBe(59);
+  });
+
+  it("has no secondMax on the return type", () => {
+    const c = useDatetimeConstraints(atMax, undefined);
+    expect(c).not.toHaveProperty("secondMax");
   });
 
   it("constrain returns the same date unchanged", () => {
     const { constrain } = useDatetimeConstraints(atMax, undefined);
-    const d = new Date(2026, 4, 15, 8, 30, 15);
+    const d = new Date(2026, 4, 15, 8, 30, 0);
     expect(constrain(d).getTime()).toBe(d.getTime());
   });
 });
 
 describe("useDatetimeConstraints — per-field maxes", () => {
-  it("constrains minute and second when at full boundary", () => {
+  it("constrains minute when at full boundary", () => {
     const c = useDatetimeConstraints(atMax, maxDate);
     expect(c.minuteMax).toBe(30);
-    expect(c.secondMax).toBe(15);
   });
 
-  it("frees minute and second when hour is below max", () => {
+  it("frees minute when hour is below max", () => {
     const fields: DateFields = { ...atMax, hour: 7 };
     const c = useDatetimeConstraints(fields, maxDate);
     expect(c.minuteMax).toBe(59);
-    expect(c.secondMax).toBe(59);
   });
 
   it("constrains hour when at max year/month/day", () => {
-    const fields: DateFields = { ...atMax, hour: 8, minute: 0, second: 0 };
+    const fields: DateFields = { ...atMax, hour: 8, minute: 0 };
     const c = useDatetimeConstraints(fields, maxDate);
     expect(c.hourMax).toBe(8);
   });
@@ -71,10 +72,8 @@ describe("useDatetimeConstraints — per-field maxes", () => {
 
 describe("constrain — cascade snapping", () => {
   it("snaps minute when hour is raised to max boundary", () => {
-    // fields currently at hour=7 (below max), minute=45
     const fields: DateFields = { ...atMax, hour: 7, minute: 45 };
     const { constrain } = useDatetimeConstraints(fields, maxDate);
-    // new date has hour=8 (at max), minute=45 (exceeds max of 30)
     const result = constrain(new Date(2026, 4, 15, 8, 45, 0));
     expect(result.getHours()).toBe(8);
     expect(result.getMinutes()).toBe(30);
@@ -97,7 +96,7 @@ describe("constrain — cascade snapping", () => {
 
   it("does not modify a date already within bounds", () => {
     const { constrain } = useDatetimeConstraints(atMax, maxDate);
-    const d = new Date(2026, 4, 15, 8, 30, 15);
+    const d = new Date(2026, 4, 15, 8, 30, 0);
     expect(constrain(d).getTime()).toBe(d.getTime());
   });
 });

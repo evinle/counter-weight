@@ -4,7 +4,6 @@ export interface DateFields {
   day: number;
   hour: number;
   minute: number;
-  second: number;
 }
 
 export interface DatetimeConstraints {
@@ -13,7 +12,6 @@ export interface DatetimeConstraints {
   dayMax: number;
   hourMax: number;
   minuteMax: number;
-  secondMax: number;
   constrain: (date: Date) => Date;
 }
 
@@ -34,7 +32,6 @@ export function useDatetimeConstraints(
       dayMax: daysInMonth(fields.year, fields.month),
       hourMax: 23,
       minuteMax: 59,
-      secondMax: 59,
       constrain: (d) => d,
     };
   }
@@ -44,13 +41,11 @@ export function useDatetimeConstraints(
   const maxDay = maxDate.getDate();
   const maxHour = maxDate.getHours();
   const maxMinute = maxDate.getMinutes();
-  const maxSecond = maxDate.getSeconds();
 
   const atMaxYear = fields.year === maxYear;
   const atMaxMonth = atMaxYear && fields.month === maxMonth;
   const atMaxDay = atMaxMonth && fields.day === maxDay;
   const atMaxHour = atMaxDay && fields.hour === maxHour;
-  const atMaxMinute = atMaxHour && fields.minute === maxMinute;
 
   function constrain(date: Date): Date {
     const y = Math.min(date.getFullYear(), maxYear);
@@ -72,15 +67,7 @@ export function useDatetimeConstraints(
       y === maxYear && m === maxMonth && d === maxDay && h === maxHour
         ? Math.min(date.getMinutes(), maxMinute)
         : date.getMinutes();
-    const s =
-      y === maxYear &&
-      m === maxMonth &&
-      d === maxDay &&
-      h === maxHour &&
-      min === maxMinute
-        ? Math.min(date.getSeconds(), maxSecond)
-        : date.getSeconds();
-    return new Date(y, m - 1, d, h, min, s);
+    return new Date(y, m - 1, d, h, min, 0);
   }
 
   return {
@@ -89,7 +76,6 @@ export function useDatetimeConstraints(
     dayMax: atMaxMonth ? maxDay : daysInMonth(fields.year, fields.month),
     hourMax: atMaxDay ? maxHour : 23,
     minuteMax: atMaxHour ? maxMinute : 59,
-    secondMax: atMaxMinute ? maxSecond : 59,
     constrain,
   };
 }
