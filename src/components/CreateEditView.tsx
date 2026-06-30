@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { createTimer, editTimer } from "../hooks/useTimers";
 import { useToastStore } from "../hooks/useToast";
-import { DurationInput } from "./DurationInput";
+import { DurationPicker } from "./DurationPicker";
 import { DateTimeInput } from "./DateTimeInput";
 import { EmojiButton } from "./EmojiButton";
 import { TagPicker } from "./TagPicker";
-import { SpinnerField } from "./SpinnerField";
 import { OptionalField } from "./OptionalField";
 import { RecurrencePicker } from "./RecurrencePicker";
 import { SelectField } from "./SelectField";
@@ -75,14 +74,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     tz: string;
   } | null>(existing?.recurrenceRule ?? null);
   const leadDuration = msToDuration(leadTimeMs ?? 0);
-  function setLeadTime(
-    days: number,
-    hours: number,
-    mins: number,
-    secs: number,
-  ) {
-    setLeadTimeMs(durationToMs(days, hours, mins, secs));
-  }
   const [mode, setMode] = useState<TimerMode>(() => {
     if (existing?.recurrenceRule) return TimerMode.Recurrence;
     return TimerMode.AtTime;
@@ -91,7 +82,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   const [duration, setDuration] = useState<DurationValue>(() =>
     existing
       ? snapshotDurationFor(existing)
-      : { days: 0, hours: 0, minutes: 5, seconds: 0 },
+      : { days: 0, hours: 0, minutes: 5 },
   );
   const [atTime, setAtTime] = useState<Date>(() => {
     if (existing) return new Date(existing.targetDatetime);
@@ -116,12 +107,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         ? mode === TimerMode.FromNow
           ? new Date(
               Date.now() +
-                durationToMs(
-                  duration.days,
-                  duration.hours,
-                  duration.minutes,
-                  duration.seconds,
-                ),
+                durationToMs(duration.days, duration.hours, duration.minutes),
             )
           : mode === TimerMode.Recurrence && recurrenceRule
             ? nextOccurrence(recurrenceRule.cron, recurrenceRule.tz)
@@ -149,12 +135,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         mode === TimerMode.FromNow
           ? new Date(
               Date.now() +
-                durationToMs(
-                  duration.days,
-                  duration.hours,
-                  duration.minutes,
-                  duration.seconds,
-                ),
+                durationToMs(duration.days, duration.hours, duration.minutes),
             )
           : mode === TimerMode.Recurrence && recurrenceRule
             ? nextOccurrence(recurrenceRule.cron, recurrenceRule.tz)
@@ -183,32 +164,13 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     ? existing.targetDatetime > existing.originalTargetDatetime
     : false;
 
-  function maskLeadTime(capMs: number) {
-    if (leadTimeMs === null) return;
-    const r = msToDuration(Math.max(0, capMs));
-    const newShowDays = r.days >= 1;
-    const newShowHours = newShowDays || r.hours >= 1;
-    const newShowMins = newShowHours || r.minutes >= 1;
-    const d = msToDuration(leadTimeMs);
-    const masked = durationToMs(
-      newShowDays ? d.days : 0,
-      newShowHours ? d.hours : 0,
-      newShowMins ? d.minutes : 0,
-      d.seconds,
-    );
-    if (masked !== leadTimeMs) setLeadTimeMs(masked);
-  }
-
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
         return (
-          <DurationInput
+          <DurationPicker
             value={duration}
-            onChange={(d) => {
-              setDuration(d);
-              maskLeadTime(durationToMs(d.days, d.hours, d.minutes, d.seconds));
-            }}
+            onChange={setDuration}
           />
         );
       case TimerMode.AtTime:
@@ -231,18 +193,6 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
 
   const showTimeEditor = !existing || timeEditUnlocked;
 
-  const remainingMs = (() => {
-    if (!showTimeEditor && existing)
-      return timeRemaining(existing.targetDatetime);
-    if (mode === TimerMode.AtTime)
-      return atTime.getTime() - new Date().getTime();
-    return durationToMs(
-      duration.days,
-      duration.hours,
-      duration.minutes,
-      duration.seconds,
-    );
-  })();
   const targetMs: number | null = (() => {
     if (!showTimeEditor && existing) return existing.targetDatetime.getTime();
     if (mode === TimerMode.AtTime) return atTime.getTime();
@@ -254,15 +204,18 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         return null;
       }
     }
-    return Date.now() + durationToMs(duration.days, duration.hours, duration.minutes, duration.seconds);
+    return Date.now() + durationToMs(duration.days, duration.hours, duration.minutes);
   })();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const leadPreview =
     leadTimeMs !== null && targetMs !== null
       ? formatLeadNotificationPreview(targetMs, leadTimeMs, new Date(), tz)
       : null;
-  const { showDays: showLeadDays, showHours: showLeadHours, showMinutes: showLeadMinutes } =
-    computeLeadTimeVisibility(mode, remainingMs, recurrenceRule);
+
+  const daysUntilTarget =
+    targetMs !== null
+      ? Math.min(28, Math.max(0, Math.floor((targetMs - Date.now()) / 86400000)))
+      : 28;
 
   return (
     <form onSubmit={handleSubmit} className="overflow-auto h-full box-border">
@@ -395,69 +348,11 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           onActivate={() => setLeadTimeMs(0)}
           onClear={() => setLeadTimeMs(null)}
         >
-          <div className="flex gap-2" data-testid="lead-time-fields">
-            {showLeadDays && (
-              <SpinnerField
-                label="Days"
-                value={leadDuration.days}
-                onChange={(d) =>
-                  setLeadTime(
-                    d,
-                    leadDuration.hours,
-                    leadDuration.minutes,
-                    leadDuration.seconds,
-                  )
-                }
-                min={0}
-                max={999}
-                clamp
-              />
-            )}
-            {showLeadHours && (
-              <SpinnerField
-                label="Hours"
-                value={leadDuration.hours}
-                onChange={(h) =>
-                  setLeadTime(
-                    leadDuration.days,
-                    h,
-                    leadDuration.minutes,
-                    leadDuration.seconds,
-                  )
-                }
-                min={0}
-                max={23}
-              />
-            )}
-            {showLeadMinutes && (
-              <SpinnerField
-                label="Minutes"
-                value={leadDuration.minutes}
-                onChange={(m) =>
-                  setLeadTime(
-                    leadDuration.days,
-                    leadDuration.hours,
-                    m,
-                    leadDuration.seconds,
-                  )
-                }
-                min={0}
-                max={59}
-              />
-            )}
-            <SpinnerField
-              label="Seconds"
-              value={leadDuration.seconds}
-              onChange={(s) =>
-                setLeadTime(
-                  leadDuration.days,
-                  leadDuration.hours,
-                  leadDuration.minutes,
-                  s,
-                )
-              }
-              min={0}
-              max={59}
+          <div data-testid="lead-time-fields">
+            <DurationPicker
+              value={leadDuration}
+              onChange={(d) => setLeadTimeMs(durationToMs(d.days, d.hours, d.minutes))}
+              maxDays={daysUntilTarget}
             />
           </div>
           {leadPreview !== null && (

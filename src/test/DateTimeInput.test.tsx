@@ -69,6 +69,19 @@ describe('DateTimeInput — day slider', () => {
     renderPicker(NOW)
     expect(screen.getByRole('button', { name: /calendar/i })).toBeInTheDocument()
   })
+
+  it('renders edge labels showing today (+0d) and 28 days out (+28d)', () => {
+    renderPicker(NOW)
+    expect(screen.getByText(/\+0d/)).toBeInTheDocument()
+    expect(screen.getByText(/\+28d/)).toBeInTheDocument()
+  })
+
+  it('date input overlay is present in the DOM (not sr-only hidden)', () => {
+    const { container } = renderPicker(NOW)
+    const dateInput = container.querySelector('input[type="date"]')
+    expect(dateInput).toBeInTheDocument()
+    expect(dateInput).not.toHaveClass('sr-only')
+  })
 })
 
 describe('DateTimeInput — clock dial', () => {
