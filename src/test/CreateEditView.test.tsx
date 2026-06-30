@@ -187,120 +187,101 @@ describe('CreateEditView — leadTimeMs', () => {
     })
   })
 
-  it('clicking Set time reveals Minutes and Seconds spinners', () => {
+  it('clicking Set time reveals the DurationPicker', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    expect(screen.getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
+    const fields = leadTimeFields()
+    expect(within(fields).getByTestId('dial-face')).toBeInTheDocument()
+    expect(within(fields).getByRole('slider', { name: /days/i })).toBeInTheDocument()
   })
 
-  it('adding a lead time stores it as milliseconds', async () => {
+  it('adding a lead time via days slider stores it as milliseconds', async () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Test' } })
+    // Switch to FromNow and set a 2-day duration first so the lead time slider allows days >= 1
+    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
+    fireEvent.change(screen.getByRole('slider', { name: /days/i }), { target: { value: '2' } })
+    // Activate lead time — daysUntilTarget=2 so the lead time slider max is 2
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
-    fireEvent.change(screen.getByRole('textbox', { name: /^minutes$/i }), { target: { value: '10' } })
-    fireEvent.change(screen.getByRole('textbox', { name: /^seconds$/i }), { target: { value: '30' } })
+    fireEvent.change(within(leadTimeFields()).getByRole('slider', { name: /days/i }), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
 
     await waitFor(async () => {
       const timers = await db.timers.toArray()
-      expect(timers[0].leadTimeMs).toBe((10 * 60 + 30) * 1000)
+      expect(timers[0].leadTimeMs).toBe(86_400_000)
     })
   })
 
-  it('existing lead time decomposes into minute and second spinners', async () => {
-    const futureTarget = new Date(Date.now() + 30 * 60 * 1000) // 30 min from now — enough for Minutes to show
-    const id = await createTimer({ ...BASE, targetDatetime: futureTarget, leadTimeMs: (15 * 60 + 45) * 1000 }, null)
+  it('existing lead time is reflected in the DurationPicker dial display', async () => {
+    const futureTarget = new Date(Date.now() + 30 * 60 * 1000) // 30 min from now
+    const id = await createTimer({ ...BASE, targetDatetime: futureTarget, leadTimeMs: 15 * 60 * 1000 }, null)
     const existing = await db.timers.get(id!)
 
     render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
 
-    expect(screen.getByRole('textbox', { name: /^minutes$/i })).toHaveValue('15')
-    expect(screen.getByRole('textbox', { name: /^seconds$/i })).toHaveValue('45')
+    // msToDuration(900000) = { days: 0, hours: 0, minutes: 15 }
+    // interval mode: isPm=false, hourDisplay=0, minuteDisplay='15'
+    expect(within(leadTimeFields()).getByTestId('dial-minute')).toHaveTextContent('15')
   })
 
-  it('stores lead time correctly across all four fields', async () => {
+  it('stores lead time from days slider', async () => {
     const futureTarget = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days from now
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
 
     render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
-
-    const fields = leadTimeFields()
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^days$/i }), { target: { value: '1' } })
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^minutes$/i }), { target: { value: '30' } })
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^seconds$/i }), { target: { value: '15' } })
+    fireEvent.change(within(leadTimeFields()).getByRole('slider', { name: /days/i }), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
 
-    const expectedMs = (1 * 86400 + 2 * 3600 + 30 * 60 + 15) * 1000
     await waitFor(async () => {
       const timer = await db.timers.get(id!)
-      expect(timer?.leadTimeMs).toBe(expectedMs)
+      expect(timer?.leadTimeMs).toBe(2 * 86_400_000)
     })
   })
 
-  it('updates visible lead time columns when duration is changed', () => {
+  it('lead time slider maxDays tracks the main duration when in FromNow mode', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
-    // Switch to FromNow to get a DurationInput with controllable remaining time
     fireEvent.click(screen.getByRole('button', { name: /from now/i }))
-    // Default 5 min duration — lead time shows Minutes + Seconds, not Hours
+    // Default 5 min duration → daysUntilTarget = 0
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
     const fields = leadTimeFields()
-    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
+    expect(within(fields).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '0')
 
-    // Change DurationInput Hours to 2 (the only "Hours" spinner at this point)
-    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
+    // Change main duration to 2 days via the slider outside the lead-time-fields area
+    const allSliders = screen.getAllByRole('slider', { name: /days/i })
+    const mainSlider = allSliders.find(s => !fields.contains(s))!
+    fireEvent.change(mainSlider, { target: { value: '2' } })
 
-    // Now remaining is 2h 5m — Hours should appear in lead time
-    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
+    // daysUntilTarget should now be 2
+    expect(within(fields).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '2')
   })
 
-  it('resets a hidden field to 0 when it becomes visible again', () => {
+  it('lead time DurationPicker days slider starts at 0 after activation', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
-    // Switch to FromNow to get a DurationInput with controllable remaining time
-    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
-    // Expand duration to 2 hours so Hours field appears
-    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    // Set lead time hours to 1
-    const fields = leadTimeFields()
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^hours$/i }), { target: { value: '1' } })
-    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toHaveValue('01')
-
-    // Shrink duration below 1 hour — Hours field hides
-    fireEvent.change(screen.getAllByRole('textbox', { name: /^hours$/i })[0], { target: { value: '0' } })
-    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
-
-    // Expand duration back above 1 hour — Hours field reappears, should be 0
-    fireEvent.change(screen.getByRole('textbox', { name: /^hours$/i }), { target: { value: '2' } })
-    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toHaveValue('00')
+    expect(within(leadTimeFields()).getByRole('slider', { name: /days/i })).toHaveValue('0')
   })
 
-  it('shows all four spinners when remaining time is >= 1 day', async () => {
-    const futureTarget = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
+  it('lead time slider maxDays matches days until target when target is days away', async () => {
+    // Use 2.5 days from now so daysUntilTarget=2 regardless of elapsed test time (buffer = 12h)
+    const futureTarget = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000)
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
 
     render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    const fields = leadTimeFields()
-    expect(within(fields).getByRole('textbox', { name: /^days$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
+    expect(within(leadTimeFields()).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '2')
   })
 
-  it('shows Hours, Minutes and Seconds when remaining time is >= 1 hour', async () => {
+  it('lead time DurationPicker is always shown with dial and slider regardless of remaining time', async () => {
     const futureTarget = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2 hours from now
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
@@ -309,22 +290,16 @@ describe('CreateEditView — leadTimeMs', () => {
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
     const fields = leadTimeFields()
-    expect(within(fields).getByRole('textbox', { name: /^hours$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
-    expect(within(fields).queryByRole('textbox', { name: /^days$/i })).not.toBeInTheDocument()
+    expect(within(fields).getByTestId('dial-face')).toBeInTheDocument()
+    expect(within(fields).getByRole('slider', { name: /days/i })).toBeInTheDocument()
   })
 
-  it('shows only Minutes and Seconds when remaining time is < 1 hour', () => {
+  it('lead time DurationPicker maxDays is 0 when remaining time is less than one day', () => {
     render(<CreateEditView onDone={() => {}} userId={null} />)
-    // Default duration is 5 min — less than 1 hour
+    // Default AtTime target is ~1h from now → daysUntilTarget = 0
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    const fields = leadTimeFields()
-    expect(within(fields).getByRole('textbox', { name: /^minutes$/i })).toBeInTheDocument()
-    expect(within(fields).getByRole('textbox', { name: /^seconds$/i })).toBeInTheDocument()
-    expect(within(fields).queryByRole('textbox', { name: /^hours$/i })).not.toBeInTheDocument()
-    expect(within(fields).queryByRole('textbox', { name: /^days$/i })).not.toBeInTheDocument()
+    expect(within(leadTimeFields()).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '0')
   })
 
   it('removing lead time stores null', async () => {
@@ -350,31 +325,27 @@ describe('CreateEditView — lead time notification preview', () => {
   })
 
   it('preview shows "Notifies: DD/MM/YYYY HH:MM" when lead is set and target is in the future', () => {
-    const atTime = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2h from now
     render(<CreateEditView onDone={() => {}} userId={null} />)
 
-    // Switch to AtTime and set a future time via the hidden input
+    // Default mode is AtTime with target ~1h from now.
+    // Clicking "Set time" activates lead time with 0ms — notification falls at target time itself,
+    // which is in the future, so the preview shows "Notifies: ...".
     fireEvent.click(screen.getByRole('button', { name: /at time/i }))
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    // Set 30s lead (always < 2h remaining → future notification)
-    fireEvent.change(screen.getByRole('textbox', { name: /^seconds$/i }), { target: { value: '30' } })
-
     const preview = screen.getByTestId('lead-time-preview')
     expect(preview.textContent).toMatch(/^Notifies: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)
-    void atTime
   })
 
-  it('preview shows "Invalid" when lead time exceeds the remaining duration', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+  it('preview shows "Invalid" when the notification time would fall in the past', async () => {
+    // Use an expired timer: with any lead time, notifyMs ≤ now → "Invalid"
+    const pastTarget = new Date(Date.now() - 60 * 1000) // expired 1 min ago
+    const id = await createTimer({ ...BASE, targetDatetime: pastTarget }, null)
+    const existing = await db.timers.get(id!)
 
-    // Default mode is AtTime; default atTime is ~1h from now
-    // Switch to FromNow with 5 min duration
-    fireEvent.click(screen.getByRole('button', { name: /from now/i }))
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    // Activate lead time (leadTimeMs=0); notifyMs = pastTarget → in the past → "Invalid"
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
-
-    // Set lead time to 10 minutes — exceeds the 5-min duration
-    fireEvent.change(screen.getByRole('textbox', { name: /^minutes$/i }), { target: { value: '10' } })
 
     expect(screen.getByTestId('lead-time-preview').textContent).toBe('Invalid')
   })
@@ -493,11 +464,10 @@ describe('CreateEditView — Recurring mode', () => {
     })
   })
 
-  it('recurring daily timer shows Days lead-time spinner even when next occurrence is only 3h away', async () => {
-    // The period of a daily cron is 1 day, so the lead time bound is 1 day —
-    // the Days spinner must appear regardless of how soon the next occurrence is.
+  it('recurring daily timer lead time slider maxDays uses period (1 day) not next occurrence distance', async () => {
+    // The period of a daily cron is 1 day; daysUntilTarget should use computePeriodMs,
+    // giving maxDays=1 even when the next occurrence is only 3h away.
     vi.spyOn(recurrenceMod, 'computePeriodMs').mockReturnValue(86_400_000) // 1 day
-    // next occurrence in 3 hours — well under 1 day remaining
     vi.spyOn(recurrenceMod, 'nextOccurrence').mockReturnValue(
       new Date(Date.now() + 3 * 60 * 60 * 1000),
     )
@@ -511,8 +481,7 @@ describe('CreateEditView — Recurring mode', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    const fields = screen.getByTestId('lead-time-fields')
-    expect(within(fields).getByRole('textbox', { name: /^days$/i })).toBeInTheDocument()
+    expect(within(leadTimeFields()).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '1')
   })
 
   it('recurring daily timer accepts a 1-day lead time without masking it away', async () => {
@@ -530,8 +499,7 @@ describe('CreateEditView — Recurring mode', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
-    const fields = screen.getByTestId('lead-time-fields')
-    fireEvent.change(within(fields).getByRole('textbox', { name: /^days$/i }), {
+    fireEvent.change(within(leadTimeFields()).getByRole('slider', { name: /days/i }), {
       target: { value: '1' },
     })
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
