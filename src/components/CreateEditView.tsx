@@ -24,10 +24,10 @@ const TimerMode = {
 type TimerMode = (typeof TimerMode)[keyof typeof TimerMode];
 
 export type LeadTimeVisibility = {
-  showDays: boolean
-  showHours: boolean
-  showMinutes: boolean
-}
+  showDays: boolean;
+  showHours: boolean;
+  showMinutes: boolean;
+};
 
 export function computeLeadTimeVisibility(
   mode: TimerMode,
@@ -37,13 +37,13 @@ export function computeLeadTimeVisibility(
   const boundMs =
     mode === TimerMode.Recurrence && recurrenceRule
       ? computePeriodMs(recurrenceRule.cron, recurrenceRule.tz)
-      : remainingMs
+      : remainingMs;
 
-  const d = msToDuration(Math.max(0, boundMs))
-  const showDays = d.days >= 1
-  const showHours = showDays || d.hours >= 1
-  const showMinutes = showHours || d.minutes >= 1
-  return { showDays, showHours, showMinutes }
+  const d = msToDuration(Math.max(0, boundMs));
+  const showDays = d.days >= 1;
+  const showHours = showDays || d.hours >= 1;
+  const showMinutes = showHours || d.minutes >= 1;
+  return { showDays, showHours, showMinutes };
 }
 
 interface Props {
@@ -167,12 +167,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   function renderModeInput() {
     switch (mode) {
       case TimerMode.FromNow:
-        return (
-          <DurationPicker
-            value={duration}
-            onChange={setDuration}
-          />
-        );
+        return <DurationPicker value={duration} onChange={setDuration} />;
       case TimerMode.AtTime:
         return (
           <>
@@ -182,7 +177,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
               maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
             />
             {atTime.getTime() < Date.now() && (
-              <p className="text-sm text-amber-400">This time is in the past</p>
+              <p className="text-sm text-amber-400 text-center">
+                This time is in the past
+              </p>
             )}
           </>
         );
@@ -209,7 +206,9 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         return null;
       }
     }
-    return Date.now() + durationToMs(duration.days, duration.hours, duration.minutes);
+    return (
+      Date.now() + durationToMs(duration.days, duration.hours, duration.minutes)
+    );
   })();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const leadPreview =
@@ -219,17 +218,23 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
 
   const daysUntilTarget: number = (() => {
     if (mode === TimerMode.Recurrence && recurrenceRule) {
-      const periodMs = computePeriodMs(recurrenceRule.cron, recurrenceRule.tz)
-      return Math.min(28, Math.max(0, Math.floor(periodMs / 86_400_000)))
+      const periodMs = computePeriodMs(recurrenceRule.cron, recurrenceRule.tz);
+      return Math.min(28, Math.max(0, Math.floor(periodMs / 86_400_000)));
     }
     if (targetMs !== null) {
-      return Math.min(28, Math.max(0, Math.floor((targetMs - Date.now()) / 86_400_000)))
+      return Math.min(
+        28,
+        Math.max(0, Math.floor((targetMs - Date.now()) / 86_400_000)),
+      );
     }
-    return 28
-  })()
+    return 28;
+  })();
 
   return (
-    <form onSubmit={handleSubmit} className="overflow-y-auto overflow-x-hidden h-full box-border">
+    <form
+      onSubmit={handleSubmit}
+      className="overflow-y-auto overflow-x-hidden h-full box-border"
+    >
       <div className="flex flex-col gap-5 px-4 pt-4">
         <div className="flex gap-2 items-center">
           <input
@@ -362,13 +367,20 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
           <div data-testid="lead-time-fields">
             <DurationPicker
               value={leadDuration}
-              onChange={(d) => setLeadTimeMs(durationToMs(d.days, d.hours, d.minutes))}
+              onChange={(d) =>
+                setLeadTimeMs(durationToMs(d.days, d.hours, d.minutes))
+              }
               maxDays={daysUntilTarget}
             />
           </div>
           {leadPreview !== null && (
-            <p className="text-sm text-slate-400" data-testid="lead-time-preview">
-              {leadPreview === "Invalid" ? "Invalid" : `Notifies: ${leadPreview}`}
+            <p
+              className="text-sm text-slate-400"
+              data-testid="lead-time-preview"
+            >
+              {leadPreview === "Invalid"
+                ? "Invalid"
+                : `Notifies: ${leadPreview}`}
             </p>
           )}
         </OptionalField>
