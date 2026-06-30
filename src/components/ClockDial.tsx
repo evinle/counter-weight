@@ -158,10 +158,9 @@ export function ClockDial({
     <div className="flex flex-col items-center gap-3">
       <svg
         ref={svgRef}
-        width={SIZE}
-        height={SIZE}
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
         data-testid="dial-face"
-        className="cursor-pointer touch-none"
+        className="w-full max-w-[240px] cursor-pointer touch-none"
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

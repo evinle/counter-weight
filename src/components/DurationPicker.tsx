@@ -101,16 +101,18 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
           })}
           {` · +${value.days}d`}
         </span>
-        <input
-          type="range"
-          min={0}
-          max={maxDays}
-          step={1}
-          value={value.days}
-          onChange={(e) => onChange({ ...value, days: Number(e.target.value) })}
-          className="w-full accent-blue-500 py-2"
-          aria-label="Days"
-        />
+        <div className="py-3">
+          <input
+            type="range"
+            min={0}
+            max={maxDays}
+            step={1}
+            value={value.days}
+            onChange={(e) => onChange({ ...value, days: Number(e.target.value) })}
+            className="w-full accent-blue-500"
+            aria-label="Days"
+          />
+        </div>
         <div className="flex justify-between">
           <span className="text-xs text-slate-400">{leftEdgeLabel}</span>
           <span className="text-xs text-slate-400">{rightEdgeLabel}</span>

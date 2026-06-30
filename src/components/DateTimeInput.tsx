@@ -130,6 +130,7 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
   }
 
   const nativeDateValue = `${String(value.getFullYear()).padStart(4, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  const todayIso = `${String(today.getFullYear()).padStart(4, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   // Edge labels: computed once per render from today
   const leftEdgeDate = todayStart;
@@ -157,19 +158,22 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
               type="date"
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               value={nativeDateValue}
+              min={todayIso}
               onChange={handleNativeDateChange}
             />
           </div>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={28}
-          value={clampedSlider}
-          onChange={handleSliderChange}
-          className="w-full accent-blue-500 py-2"
-          aria-label="Day"
-        />
+        <div className="py-3">
+          <input
+            type="range"
+            min={0}
+            max={28}
+            value={clampedSlider}
+            onChange={handleSliderChange}
+            className="w-full accent-blue-500"
+            aria-label="Day"
+          />
+        </div>
         <div className="flex justify-between">
           <span className="text-xs text-slate-400">{leftEdgeLabel}</span>
           <span className="text-xs text-slate-400">{rightEdgeLabel}</span>
