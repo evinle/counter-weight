@@ -375,7 +375,8 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
 
         <button
           type="submit"
-          className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all"
+          disabled={mode === TimerMode.AtTime && atTime.getTime() < Date.now()}
+          className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
         >
           {existing ? "Update Timer" : "Create Timer"}
         </button>
