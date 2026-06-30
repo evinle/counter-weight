@@ -67,7 +67,7 @@ describe('DurationPicker — days slider', () => {
     renderPicker(value)
 
     // Assert
-    expect(screen.getByText('3 days')).toBeInTheDocument()
+    expect(screen.getByText(/^3 days/)).toBeInTheDocument()
   })
 
   it('shows "1 day" (singular) when days is 1', () => {
@@ -78,7 +78,7 @@ describe('DurationPicker — days slider', () => {
     renderPicker(value)
 
     // Assert
-    expect(screen.getByText('1 day')).toBeInTheDocument()
+    expect(screen.getByText(/^1 day/)).toBeInTheDocument()
   })
 
   it('calls onChange with updated days when slider changes', () => {

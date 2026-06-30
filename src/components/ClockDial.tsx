@@ -82,10 +82,10 @@ export function ClockDial({
   const swipeStartX = useRef<number | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture?.(e.pointerId);
     if (isInCenter(e)) {
       swipeStartX.current = e.clientX;
     } else {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
       dragging.current = true;
       setLiveAngle(angleFromEvent(e));
     }

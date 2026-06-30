@@ -93,6 +93,12 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium text-slate-200">
           {value.days} {value.days === 1 ? "day" : "days"}
+          {" · "}
+          {new Date(todayStart.getTime() + value.days * DAY_MS).toLocaleDateString("en-GB", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          })}
         </span>
         <input
           type="range"
