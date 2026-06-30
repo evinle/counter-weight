@@ -130,7 +130,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
   }
 
   const nativeDateValue = `${String(value.getFullYear()).padStart(4, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
-  const todayIso = `${String(today.getFullYear()).padStart(4, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   // Edge labels: computed once per render from today
   const leftEdgeDate = todayStart;
@@ -158,7 +157,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
               type="date"
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               value={nativeDateValue}
-              min={todayIso}
               onChange={handleNativeDateChange}
             />
           </div>

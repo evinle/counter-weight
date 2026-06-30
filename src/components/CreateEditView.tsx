@@ -175,11 +175,16 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
         );
       case TimerMode.AtTime:
         return (
-          <DateTimeInput
-            value={atTime}
-            onChange={setAtTime}
-            maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
-          />
+          <>
+            <DateTimeInput
+              value={atTime}
+              onChange={setAtTime}
+              maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
+            />
+            {atTime.getTime() < Date.now() && (
+              <p className="text-sm text-amber-400">This time is in the past</p>
+            )}
+          </>
         );
       case TimerMode.Recurrence:
         return (
