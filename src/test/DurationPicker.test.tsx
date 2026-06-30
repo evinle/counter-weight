@@ -103,7 +103,7 @@ describe('DurationPicker — days slider', () => {
     renderPicker()
 
     // Assert
-    expect(screen.getByText(/\+0d/)).toBeInTheDocument()
+    expect(screen.getAllByText(/\+0d/).length).toBeGreaterThan(0)
   })
 
   it('renders right edge label containing "+28d" by default', () => {

@@ -35,13 +35,13 @@ describe('DateTimeInput — day slider', () => {
 
   it('shows "Today" label when selected date is today', () => {
     renderPicker(NOW)
-    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.getByText(/Today/)).toBeInTheDocument()
   })
 
   it('shows "Tomorrow" when selected date is one day ahead', () => {
     const tomorrow = new Date(2026, 5, 30, 10, 0, 0)
     renderPicker(tomorrow)
-    expect(screen.getByText('Tomorrow')).toBeInTheDocument()
+    expect(screen.getByText(/Tomorrow/)).toBeInTheDocument()
   })
 
   it('shows formatted day label for dates beyond tomorrow', () => {
@@ -72,7 +72,7 @@ describe('DateTimeInput — day slider', () => {
 
   it('renders edge labels showing today (+0d) and 28 days out (+28d)', () => {
     renderPicker(NOW)
-    expect(screen.getByText(/\+0d/)).toBeInTheDocument()
+    expect(screen.getAllByText(/\+0d/).length).toBeGreaterThan(0)
     expect(screen.getByText(/\+28d/)).toBeInTheDocument()
   })
 

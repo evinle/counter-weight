@@ -21,13 +21,16 @@ function dayLabel(date: Date, today: Date): string {
   const diffDays = Math.round(
     (startOfDay(date).getTime() - startOfDay(today).getTime()) / DAY_MS,
   );
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  return date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  const suffix = ` · +${diffDays}d`;
+  if (diffDays === 0) return `Today${suffix}`;
+  if (diffDays === 1) return `Tomorrow${suffix}`;
+  return (
+    date.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }) + suffix
+  );
 }
 
 function edgeLabel(date: Date, offsetDays: number): string {

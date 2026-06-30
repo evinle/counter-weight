@@ -99,6 +99,7 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
             day: "numeric",
             month: "short",
           })}
+          {` · +${value.days}d`}
         </span>
         <input
           type="range"
