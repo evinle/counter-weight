@@ -212,10 +212,16 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       ? formatLeadNotificationPreview(targetMs, leadTimeMs, new Date(), tz)
       : null;
 
-  const daysUntilTarget =
-    targetMs !== null
-      ? Math.min(28, Math.max(0, Math.floor((targetMs - Date.now()) / 86400000)))
-      : 28;
+  const daysUntilTarget: number = (() => {
+    if (mode === TimerMode.Recurrence && recurrenceRule) {
+      const periodMs = computePeriodMs(recurrenceRule.cron, recurrenceRule.tz)
+      return Math.min(28, Math.max(0, Math.floor(periodMs / 86_400_000)))
+    }
+    if (targetMs !== null) {
+      return Math.min(28, Math.max(0, Math.floor((targetMs - Date.now()) / 86_400_000)))
+    }
+    return 28
+  })()
 
   return (
     <form onSubmit={handleSubmit} className="overflow-auto h-full box-border">
