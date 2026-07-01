@@ -160,4 +160,17 @@ describe('DateTimeInput — clock dial', () => {
 
     expect(screen.getByTestId('ampm-icon')).toHaveTextContent('🌙')
   })
+
+  it('toggling AM/PM emits the updated hour via onChange', () => {
+    const onChange = vi.fn()
+    renderPicker(new Date(2026, 5, 29, 9, 0, 0), onChange) // 9 AM
+    const face = screen.getByTestId('dial-face')
+
+    fireEvent.pointerDown(face, { clientX: 120, clientY: 120 })
+    fireEvent.pointerUp(face, { clientX: 180, clientY: 120 })
+
+    expect(onChange).toHaveBeenCalledOnce()
+    const emitted: Date = onChange.mock.calls[0][0]
+    expect(emitted.getHours()).toBe(21) // 9 AM → 9 PM = 21:00
+  })
 })

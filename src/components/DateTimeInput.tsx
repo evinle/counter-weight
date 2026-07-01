@@ -126,7 +126,12 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
   }
 
   function handleToggleAmPm(): void {
-    setDialIsPm((prev) => !prev);
+    setDialIsPm((prev) => {
+      const next = !prev;
+      const { hour: h24, minute: min } = to24h(dialHour, dialMinute, next);
+      emitDate(fields.year, fields.month, fields.day, h24, min);
+      return next;
+    });
   }
 
   const nativeDateValue = `${String(value.getFullYear()).padStart(4, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
