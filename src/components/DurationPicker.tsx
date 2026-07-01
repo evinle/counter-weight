@@ -60,7 +60,6 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
 
   function handleHourConfirm(h: number): void {
     setDialHour(h);
-    setPhase("minute");
     const h24 = hour12To24(h, dialIsPm);
     onChange({ ...value, hours: h24 });
   }

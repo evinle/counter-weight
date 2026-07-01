@@ -315,7 +315,6 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
   // Time-of-day dial handlers
   function handleTodHourConfirm(h: number) {
     setTodDialHour(h);
-    setTodPhase("minute");
     const h24 = to24h(h, todDialMinute, todDialIsPm).hour;
     handleHour(h24);
   }
@@ -336,7 +335,6 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
   // Interval dial handlers
   function handleIntHourConfirm(h: number) {
     setIntDialHour(h);
-    setIntPhase("minute");
     const h24 = to24h(h, intDialMinute, intDialIsPm).hour;
     handleEveryH(h24);
   }

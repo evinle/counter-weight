@@ -110,39 +110,39 @@ describe('DateTimeInput — clock dial', () => {
     expect(screen.getByTestId('ampm-icon')).toHaveTextContent('☀️')
   })
 
-  it('transitions to minute mode after pointerdown + pointerup on the dial face', () => {
+  it('stays on hour phase after confirming hour', () => {
     renderPicker(NOW)
     const face = screen.getByTestId('dial-face')
     fireEvent.pointerDown(face, { clientX: 0, clientY: 0 })
     fireEvent.pointerUp(face, { clientX: 0, clientY: 0 })
-    // Minute ring labels: 12, 3, 6, 9 (shown as 0, 15, 30, 45) or minute labels
-    expect(screen.getByTestId('minute-label-0')).toBeInTheDocument()
+    expect(screen.getByTestId('hour-label-12')).toBeInTheDocument()
   })
 
-  it('calls onChange after pointerup on minute ring', () => {
+  it('calls onChange when hour is confirmed and again when minute is confirmed', () => {
     const onChange = vi.fn()
     renderPicker(NOW, onChange)
     const face = screen.getByTestId('dial-face')
 
-    // Phase 1: set hour
+    // Confirm hour — emits immediately, stays on hour phase
     fireEvent.pointerDown(face, { clientX: 0, clientY: 0 })
     fireEvent.pointerUp(face, { clientX: 0, clientY: 0 })
-
-    // Phase 2: set minute — pointerup confirms
-    fireEvent.pointerDown(face, { clientX: 0, clientY: 0 })
-    fireEvent.pointerUp(face, { clientX: 0, clientY: 0 })
-
     expect(onChange).toHaveBeenCalledOnce()
-    const emitted: Date = onChange.mock.calls[0][0]
-    expect(emitted).toBeInstanceOf(Date)
+
+    // Explicitly switch to minute phase
+    fireEvent.click(screen.getByTestId('dial-minute'))
+
+    // Confirm minute — emits again
+    fireEvent.pointerDown(face, { clientX: 0, clientY: 0 })
+    fireEvent.pointerUp(face, { clientX: 0, clientY: 0 })
+    expect(onChange).toHaveBeenCalledTimes(2)
+    expect(onChange.mock.calls[1][0]).toBeInstanceOf(Date)
   })
 
   it('tapping the hour display segment switches back to hour ring', () => {
     renderPicker(NOW)
-    const face = screen.getByTestId('dial-face')
-    // Advance to minute phase
-    fireEvent.pointerDown(face, { clientX: 0, clientY: 0 })
-    fireEvent.pointerUp(face, { clientX: 0, clientY: 0 })
+    // Explicitly switch to minute phase
+    fireEvent.click(screen.getByTestId('dial-minute'))
+    expect(screen.getByTestId('minute-label-0')).toBeInTheDocument()
 
     // Tap hour segment → back to hour ring
     fireEvent.click(screen.getByTestId('dial-hour'))

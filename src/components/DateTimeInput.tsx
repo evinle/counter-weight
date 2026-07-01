@@ -115,13 +115,13 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
 
   function handleHourConfirm(h: number): void {
     setDialHour(h);
-    setPhase("minute");
+    const { hour: h24, minute: min } = to24h(h, dialMinute, dialIsPm);
+    emitDate(fields.year, fields.month, fields.day, h24, min);
   }
 
   function handleMinuteConfirm(m: number): void {
-    const { hour: h24, minute: min } = to24h(dialHour, m, dialIsPm);
     setDialMinute(m);
-    setPhase("hour");
+    const { hour: h24, minute: min } = to24h(dialHour, m, dialIsPm);
     emitDate(fields.year, fields.month, fields.day, h24, min);
   }
 
