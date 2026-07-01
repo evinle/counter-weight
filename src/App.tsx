@@ -16,6 +16,9 @@ import type { Group, Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
+import { useSwipeBack } from "./hooks/useSwipeBack";
+import { useTabSwipe } from "./hooks/useTabSwipe";
+import { ALL_TABS } from "./lib/navigation";
 import { useNotifications } from "./hooks/useNotifications";
 import { LoginView } from "./components/LoginView";
 import { UnclaimedTimersModal } from "./components/UnclaimedTimersModal";
@@ -37,9 +40,24 @@ export function App() {
 
   const { state, user } = useAuth();
   const { syncing, triggerSync } = useSyncEngine({ user });
-  const { containerRef, pullDistance } = usePullToRefresh({
-    onRefresh: user ? triggerSync : null,
+  const overlayOpen = activeAction !== ActiveAction.None;
+  const pullEnabled = !overlayOpen && tab !== Tab.Settings;
+  const { containerRef: pullRef, pullDistance } = usePullToRefresh({
+    onRefresh: pullEnabled && user ? triggerSync : null,
   });
+  const { containerRef: tabSwipeRef } = useTabSwipe({
+    tabs: ALL_TABS,
+    activeTab: tab,
+    onTabChange: (t) => setTab(t as Tab),
+  });
+  useSwipeBack({
+    isOpen: overlayOpen,
+    onClose: () => setActiveAction(ActiveAction.None),
+  });
+  const containerRef = (el: HTMLElement | null) => {
+    pullRef(el);
+    tabSwipeRef(el);
+  };
 
   const [unclaimedDismissed, setUnclaimedDismissed] = useState(false);
   useEffect(() => {

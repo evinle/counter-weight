@@ -8,6 +8,7 @@ export const Tab = {
 } as const satisfies Record<string, typeof ALL_TABS[number]>
 export type Tab = typeof Tab[keyof typeof Tab]
 
+// TODO: replace Tab + ActiveAction with a unified Route discriminated union for single-source-of-truth screen identity
 export const ALL_ACTIONS = ['none', 'create-edit', 'create-edit-group', 'manage-groups'] as const
 
 export const ActiveAction = {
