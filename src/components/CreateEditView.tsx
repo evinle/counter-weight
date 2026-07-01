@@ -50,13 +50,14 @@ interface Props {
   existing?: Timer;
   onDone: () => void;
   userId: string | null;
+  getNow?: () => number;
 }
 
 function snapshotDurationFor(existing: Timer): DurationValue {
   return msToDuration(timeRemaining(existing.targetDatetime));
 }
 
-export function CreateEditView({ existing, onDone, userId }: Props) {
+export function CreateEditView({ existing, onDone, userId, getNow = Date.now }: Props) {
   const [title, setTitle] = useState(existing?.title ?? "");
   const [emoji, setEmoji] = useState(existing?.emoji ?? "");
   const [priority, setPriority] = useState<Priority>(
@@ -86,7 +87,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
   );
   const [atTime, setAtTime] = useState<Date>(() => {
     if (existing) return new Date(existing.targetDatetime);
-    const d = new Date();
+    const d = new Date(getNow());
     d.setHours(d.getHours() + 1, 0, 0, 0);
     return d;
   });
@@ -106,7 +107,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       const targetDatetime = timeEditUnlocked
         ? mode === TimerMode.FromNow
           ? new Date(
-              Date.now() +
+              getNow() +
                 durationToMs(duration.days, duration.hours, duration.minutes),
             )
           : mode === TimerMode.Recurrence && recurrenceRule
@@ -134,7 +135,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       const targetDatetime =
         mode === TimerMode.FromNow
           ? new Date(
-              Date.now() +
+              getNow() +
                 durationToMs(duration.days, duration.hours, duration.minutes),
             )
           : mode === TimerMode.Recurrence && recurrenceRule
@@ -176,7 +177,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
               onChange={setAtTime}
               maxDate={isAlreadyExtended ? existing!.targetDatetime : undefined}
             />
-            {atTime.getTime() < Date.now() && (
+            {atTime.getTime() < getNow() && (
               <p className="text-sm text-amber-400 text-center">
                 This time is in the past
               </p>
@@ -207,13 +208,13 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
       }
     }
     return (
-      Date.now() + durationToMs(duration.days, duration.hours, duration.minutes)
+      getNow() + durationToMs(duration.days, duration.hours, duration.minutes)
     );
   })();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const leadPreview =
     leadTimeMs !== null && targetMs !== null
-      ? formatLeadNotificationPreview(targetMs, leadTimeMs, new Date(), tz)
+      ? formatLeadNotificationPreview(targetMs, leadTimeMs, new Date(getNow()), tz)
       : null;
 
   const daysUntilTarget: number = (() => {
@@ -224,7 +225,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
     if (targetMs !== null) {
       return Math.min(
         28,
-        Math.max(0, Math.floor((targetMs - Date.now()) / 86_400_000)),
+        Math.max(0, Math.floor((targetMs - getNow()) / 86_400_000)),
       );
     }
     return 28;
@@ -387,7 +388,7 @@ export function CreateEditView({ existing, onDone, userId }: Props) {
 
         <button
           type="submit"
-          disabled={mode === TimerMode.AtTime && atTime.getTime() < Date.now()}
+          disabled={mode === TimerMode.AtTime && atTime.getTime() < getNow()}
           className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
         >
           {existing ? "Update Timer" : "Create Timer"}

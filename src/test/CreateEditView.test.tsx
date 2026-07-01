@@ -10,11 +10,15 @@ import { TimerType } from '../db/schema'
 import type { Timer } from '../db/schema'
 import * as recurrenceMod from '@cw/recurrence'
 
+// Fixed "now" used across tests — must be before BASE.targetDatetime so the submit button is enabled
+const NOW = new Date('2026-05-01T12:00:00Z').getTime()
+const getNow = () => NOW
+
 const BASE = {
   title: 'Test Timer',
   description: null,
   emoji: null,
-  targetDatetime: new Date('2099-06-01T12:00:00Z'),
+  targetDatetime: new Date('2026-06-01T12:00:00Z'),
   status: 'active',
   priority: 'medium',
   recurrenceRule: null,
@@ -38,7 +42,7 @@ describe('CreateEditView — edit mode', () => {
     const id = await createTimer(BASE, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     expect(screen.queryByRole('button', { name: /from now/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /at time/i })).not.toBeInTheDocument()
@@ -49,7 +53,7 @@ describe('CreateEditView — edit mode', () => {
     beforeEach(async () => {
       const id = await createTimer(BASE, null)
       const existing = await db.timers.get(id!)
-      render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+      render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
       fireEvent.click(screen.getByText(/edit time/i))
     })
 
@@ -70,7 +74,7 @@ describe('CreateEditView — edit mode', () => {
     const id = await createTimer(BASE, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), {
       target: { value: 'Retitled' },
@@ -93,7 +97,7 @@ describe('CreateEditView — edit mode', () => {
     const id = await createTimer(BASE, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.click(screen.getByText(/edit time/i))
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
@@ -107,7 +111,7 @@ describe('CreateEditView — edit mode', () => {
 
 describe('CreateEditView — create mode', () => {
   it('shows time inputs immediately without an Edit time button', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     expect(screen.getByRole('button', { name: /from now/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /at time/i })).toBeInTheDocument()
@@ -117,7 +121,7 @@ describe('CreateEditView — create mode', () => {
 
 describe('CreateEditView — timerType checkbox', () => {
   it('checkbox is unchecked by default, saving stores timerType reminder', async () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     expect(screen.getByRole('checkbox', { name: /task/i })).not.toBeChecked()
 
@@ -131,7 +135,7 @@ describe('CreateEditView — timerType checkbox', () => {
   })
 
   it('checking the Task checkbox saves timerType task', async () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Test' } })
     fireEvent.click(screen.getByRole('checkbox', { name: /task/i }))
@@ -147,7 +151,7 @@ describe('CreateEditView — timerType checkbox', () => {
     const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     expect(screen.getByRole('checkbox', { name: /task/i })).toBeChecked()
   })
@@ -156,7 +160,7 @@ describe('CreateEditView — timerType checkbox', () => {
     const id = await createTimer({ ...BASE, timerType: TimerType.Task }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('checkbox', { name: /task/i }))
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
@@ -174,7 +178,7 @@ function leadTimeFields() {
 
 describe('CreateEditView — leadTimeMs', () => {
   it('lead time field is hidden by default, stores null on submit', async () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     expect(screen.queryByRole('textbox', { name: /^minutes$/i })).not.toBeInTheDocument()
 
@@ -188,7 +192,7 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('clicking Set time reveals the DurationPicker', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -198,7 +202,7 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('adding a lead time via days slider stores it as milliseconds', async () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Test' } })
     // Switch to FromNow and set a 2-day duration first so the lead time slider allows days >= 1
@@ -220,7 +224,7 @@ describe('CreateEditView — leadTimeMs', () => {
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget, leadTimeMs: 15 * 60 * 1000 }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     // msToDuration(900000) = { days: 0, hours: 0, minutes: 15 }
     // interval mode: isPm=false, hourDisplay=0, minuteDisplay='15'
@@ -232,7 +236,7 @@ describe('CreateEditView — leadTimeMs', () => {
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
     fireEvent.change(within(leadTimeFields()).getByRole('slider', { name: /days/i }), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
@@ -244,7 +248,7 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('lead time slider maxDays tracks the main duration when in FromNow mode', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /from now/i }))
     // Default 5 min duration → daysUntilTarget = 0
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
@@ -262,7 +266,7 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('lead time DurationPicker days slider starts at 0 after activation', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -270,12 +274,12 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('lead time slider maxDays matches days until target when target is days away', async () => {
-    // Use 2.5 days from now so daysUntilTarget=2 regardless of elapsed test time (buffer = 12h)
-    const futureTarget = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000)
+    // Use 2.5 days from NOW so daysUntilTarget=2 (buffer = 12h)
+    const futureTarget = new Date(NOW + 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000)
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
     expect(within(leadTimeFields()).getByRole('slider', { name: /days/i })).toHaveAttribute('max', '2')
@@ -286,7 +290,7 @@ describe('CreateEditView — leadTimeMs', () => {
     const id = await createTimer({ ...BASE, targetDatetime: futureTarget }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
     const fields = leadTimeFields()
@@ -295,7 +299,7 @@ describe('CreateEditView — leadTimeMs', () => {
   })
 
   it('lead time DurationPicker maxDays is 0 when remaining time is less than one day', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
     // Default AtTime target is ~1h from now → daysUntilTarget = 0
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -306,7 +310,7 @@ describe('CreateEditView — leadTimeMs', () => {
     const id = await createTimer({ ...BASE, leadTimeMs: 900000 }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('button', { name: /cancel reminder/i }))
     fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
@@ -320,12 +324,12 @@ describe('CreateEditView — leadTimeMs', () => {
 
 describe('CreateEditView — lead time notification preview', () => {
   it('preview is absent when lead time is not active', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
     expect(screen.queryByTestId('lead-time-preview')).not.toBeInTheDocument()
   })
 
   it('preview shows "Notifies: DD/MM/YYYY HH:MM" when lead is set and target is in the future', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
 
     // Default mode is AtTime with target ~1h from now.
     // Clicking "Set time" activates lead time with 0ms — notification falls at target time itself,
@@ -339,11 +343,11 @@ describe('CreateEditView — lead time notification preview', () => {
 
   it('preview shows "Invalid" when the notification time would fall in the past', async () => {
     // Use an expired timer: with any lead time, notifyMs ≤ now → "Invalid"
-    const pastTarget = new Date(Date.now() - 60 * 1000) // expired 1 min ago
+    const pastTarget = new Date(NOW - 60 * 1000) // expired 1 min ago relative to injected getNow
     const id = await createTimer({ ...BASE, targetDatetime: pastTarget }, null)
     const existing = await db.timers.get(id!)
 
-    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId={null} getNow={getNow} />)
     // Activate lead time (leadTimeMs=0); notifyMs = pastTarget → in the past → "Invalid"
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -386,31 +390,31 @@ describe('computeLeadTimeVisibility', () => {
 
 describe('CreateEditView — Recurring mode', () => {
   it('Recurring tab is absent for guest users', () => {
-    render(<CreateEditView onDone={() => {}} userId={null} />)
+    render(<CreateEditView onDone={() => {}} userId={null} getNow={getNow} />)
     expect(screen.queryByRole('button', { name: /recurring/i })).not.toBeInTheDocument()
   })
 
   it('Recurring tab is present for logged-in users', () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     expect(screen.getByRole('button', { name: /recurring/i })).toBeInTheDocument()
   })
 
   it('AtTime mode has no recurrence affordance', () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /at time/i }))
     expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /schedule/i })).not.toBeInTheDocument()
   })
 
   it('clicking Recurring tab shows Schedule picker directly (no OptionalField)', () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
     expect(screen.getByRole('combobox', { name: /schedule/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /set recurrence/i })).not.toBeInTheDocument()
   })
 
   it('submitting Recurring mode stores recurrenceRule with cron and tz', async () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Daily standup' } })
     fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
     // default is Every day — just submit
@@ -425,7 +429,7 @@ describe('CreateEditView — Recurring mode', () => {
   })
 
   it('submitting Recurring mode computes targetDatetime in the future', async () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Daily standup' } })
     fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
     fireEvent.click(screen.getByRole('button', { name: /create timer/i }))
@@ -442,14 +446,14 @@ describe('CreateEditView — Recurring mode', () => {
       'user-1',
     )
     const existing = await db.timers.get(id!)
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
     expect(screen.getByRole('combobox', { name: /schedule/i })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: /schedule/i })).toHaveValue('daily')
   })
 
   it('switching days in Recurring mode and submitting stores custom-weekly cron', async () => {
-    render(<CreateEditView onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView onDone={() => {}} userId="user-1" getNow={getNow} />)
     fireEvent.change(screen.getByPlaceholderText(/what are you timing/i), { target: { value: 'Weekly' } })
     fireEvent.click(screen.getByRole('button', { name: /recurring/i }))
     fireEvent.change(screen.getByRole('combobox', { name: /schedule/i }), { target: { value: 'weekly' } })
@@ -477,7 +481,7 @@ describe('CreateEditView — Recurring mode', () => {
       'user-1',
     )
     const existing = await db.timers.get(id!)
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -495,7 +499,7 @@ describe('CreateEditView — Recurring mode', () => {
       'user-1',
     )
     const existing = await db.timers.get(id!)
-    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+    render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
 
     fireEvent.click(screen.getByRole('button', { name: /set time/i }))
 
@@ -521,7 +525,7 @@ describe('CreateEditView — Recurring mode', () => {
 
     it('switching to "At time" clears recurrenceRule on save', async () => {
       const existing = await createRecurringTimer()
-      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
 
       fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
       fireEvent.click(screen.getByRole('button', { name: /at time/i }))
@@ -535,7 +539,7 @@ describe('CreateEditView — Recurring mode', () => {
 
     it('switching to "From now" clears recurrenceRule on save', async () => {
       const existing = await createRecurringTimer()
-      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
 
       fireEvent.click(screen.getByRole('button', { name: /edit time/i }))
       fireEvent.click(screen.getByRole('button', { name: /from now/i }))
@@ -549,7 +553,7 @@ describe('CreateEditView — Recurring mode', () => {
 
     it('staying in Recurring mode preserves recurrenceRule on save', async () => {
       const existing = await createRecurringTimer()
-      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" />)
+      render(<CreateEditView existing={existing} onDone={() => {}} userId="user-1" getNow={getNow} />)
 
       fireEvent.click(screen.getByRole('button', { name: /update timer/i }))
 
