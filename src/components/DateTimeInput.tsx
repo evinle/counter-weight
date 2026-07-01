@@ -109,7 +109,6 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
       setDialHour(updated.hour);
       setDialMinute(updated.minute);
       setDialIsPm(updated.isPm);
-      setPhase("hour");
     }
   }, [value]);
 

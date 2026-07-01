@@ -54,7 +54,6 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
       setDialHour(h12);
       setDialMinute(value.minutes);
       setDialIsPm(isPm);
-      setPhase("hour");
     }
   }, [value]);
 
