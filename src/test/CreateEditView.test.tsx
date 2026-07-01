@@ -14,7 +14,7 @@ const BASE = {
   title: 'Test Timer',
   description: null,
   emoji: null,
-  targetDatetime: new Date('2026-06-01T12:00:00Z'),
+  targetDatetime: new Date('2099-06-01T12:00:00Z'),
   status: 'active',
   priority: 'medium',
   recurrenceRule: null,
