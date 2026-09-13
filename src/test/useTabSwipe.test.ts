@@ -83,4 +83,31 @@ describe('useTabSwipe', () => {
     act(() => { swipe(el, 120, 200) })
     expect(onTabChange).not.toHaveBeenCalled()
   })
+
+  it('does not fire when disabled, even past threshold', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Timers, onTabChange, threshold: 70, enabled: false })
+    )
+    act(() => { result.current.containerRef(el) })
+    act(() => { swipe(el, 200, 120) })
+    expect(onTabChange).not.toHaveBeenCalled()
+  })
+
+  it('does not fire when the swipe starts inside a horizontally-scrollable descendant (e.g. the emoji picker)', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Timers, onTabChange, threshold: 70 })
+    )
+    act(() => { result.current.containerRef(el) })
+
+    const picker = document.createElement('div')
+    picker.style.overflowX = 'auto'
+    Object.defineProperty(picker, 'scrollWidth', { value: 500 })
+    Object.defineProperty(picker, 'clientWidth', { value: 200 })
+    const emoji = document.createElement('span')
+    picker.appendChild(emoji)
+    el.appendChild(picker)
+
+    act(() => { swipe(emoji, 200, 120) })
+    expect(onTabChange).not.toHaveBeenCalled()
+  })
 })

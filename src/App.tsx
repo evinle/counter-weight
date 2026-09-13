@@ -45,6 +45,7 @@ export function App() {
     tabs: ALL_TABS,
     activeTab: tab,
     onTabChange: (t) => setTab(t as Tab),
+    enabled: !overlayOpen,
   });
   useSwipeBack({
     isOpen: overlayOpen,

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { findGestureOwner } from "../lib/gestureScope";
 
 interface Options {
   tabs: readonly string[];
   activeTab: string;
   onTabChange: (tab: string) => void;
   threshold?: number;
+  enabled?: boolean;
 }
 
-export function useTabSwipe({ tabs, activeTab, onTabChange, threshold = 70 }: Options) {
+export function useTabSwipe({ tabs, activeTab, onTabChange, threshold = 70, enabled = true }: Options) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const containerRef = useCallback((el: HTMLElement | null) => setContainer(el), []);
   const startX = useRef<number | null>(null);
@@ -19,6 +21,8 @@ export function useTabSwipe({ tabs, activeTab, onTabChange, threshold = 70 }: Op
     if (!container) return;
 
     function onTouchStart(e: TouchEvent) {
+      if (!enabled) return;
+      if (findGestureOwner(e.target, "x", container!)) return;
       startX.current = e.touches[0].clientX;
       startY.current = e.touches[0].clientY;
     }
@@ -57,7 +61,7 @@ export function useTabSwipe({ tabs, activeTab, onTabChange, threshold = 70 }: Op
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
     };
-  }, [container, tabs, onTabChange, threshold]);
+  }, [container, tabs, onTabChange, threshold, enabled]);
 
   return { containerRef };
 }
