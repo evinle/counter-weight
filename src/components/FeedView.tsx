@@ -3,8 +3,10 @@ import { useScrollEdges } from "../hooks/useScrollEdges";
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
 import { useSortMode } from "../hooks/useSortMode";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { TimerCard } from "./TimerCard";
 import { GroupSearchPanel } from "./GroupSearchPanel";
+import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import { SortModes, SortDirections } from "../lib/sort";
 import type { SortMode } from "../lib/sort";
 import type { Timer } from "../db/schema";
@@ -13,6 +15,8 @@ interface Props {
   onEdit: (timer: Timer) => void;
   onManageGroups: () => void;
   userId: string | null;
+  onRefresh: (() => Promise<void>) | null;
+  syncing: boolean;
 }
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
@@ -25,12 +29,13 @@ const SORT_MODE_LABELS: Record<SortMode, string> = {
 
 const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
 
-export function FeedView({ onEdit, onManageGroups, userId }: Props) {
+export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }: Props) {
   const { mode, setMode, direction, setDirection } = useSortMode();
   const timers = useFilteredFeed(mode, direction);
   const tagsMap = useTagsMap();
   const activePillRef = useRef<HTMLButtonElement>(null);
   const { scrollRef, showLeft, showRight } = useScrollEdges();
+  const { containerRef: pullRef } = usePullToRefresh({ onRefresh });
 
   useEffect(() => {
     activePillRef.current?.scrollIntoView({ behavior: "instant", block: "nearest", inline: "start" });
@@ -54,11 +59,13 @@ export function FeedView({ onEdit, onManageGroups, userId }: Props) {
     );
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
+    <div ref={pullRef} className="flex flex-col h-full overflow-auto">
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
         <h1 className="text-2xl font-bold tracking-tight text-white">Timers</h1>
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
       </div>
+
+      <PullToRefreshIndicator syncing={syncing} />
 
       <div className="sticky top-0 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
         <button

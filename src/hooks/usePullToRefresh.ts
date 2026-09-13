@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePullDistance } from "../contexts/PullToRefreshContext";
 
 interface Options {
   onRefresh: (() => Promise<void>) | null;
@@ -8,7 +9,7 @@ interface Options {
 export function usePullToRefresh({ onRefresh, threshold = 70 }: Options) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const containerRef = useCallback((el: HTMLElement | null) => setContainer(el), []);
-  const [pullDistance, setPullDistance] = useState(0);
+  const { pullDistance, setPullDistance } = usePullDistance();
   const startY = useRef<number | null>(null);
   const pullDistanceRef = useRef(0);
   const refreshing = useRef(false);
