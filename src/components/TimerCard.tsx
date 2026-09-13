@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useAnimatedCountdown } from "../hooks/useAnimatedCountdown";
 import { useAnimatedElapsed } from "../hooks/useAnimatedElapsed";
+import { useSwipeToComplete } from "../hooks/useSwipeToComplete";
 import { formatDuration } from "../lib/countdown";
 import {
   completeTimer,
@@ -34,6 +35,15 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
   const hasSessions = timer.workSessions.length > 0;
   const [dropArmed, setDropArmed] = useState(false);
   const dropTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipeThreshold = 96;
+  const { containerRef: swipeRef, dragX } = useSwipeToComplete({
+    threshold: swipeThreshold,
+    onComplete: () => {
+      if (timer.id === undefined) return;
+      if (isTask) doneTask(timer.id);
+      else completeTimer(timer.id);
+    },
+  });
 
   function armDrop() {
     setDropArmed(true);
@@ -58,7 +68,22 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
   });
 
   return (
-    <div className="rounded-xl p-4 bg-slate-800 flex flex-col gap-2">
+    <div className="relative rounded-xl overflow-hidden">
+      <div
+        className="absolute inset-0 bg-green-700 flex items-center pl-4 text-white font-medium"
+        aria-hidden="true"
+      >
+        ✓ Done
+      </div>
+      <div
+        ref={swipeRef}
+        data-gesture-owner="x"
+        className="relative rounded-xl p-4 bg-slate-800 flex flex-col gap-2"
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: dragX === 0 ? "transform 0.15s ease-out" : "none",
+        }}
+      >
       <div className="flex items-center justify-between gap-2">
         <span className="text-lg font-medium text-white truncate">
           {timer.emoji && <span className="mr-2">{timer.emoji}</span>}
@@ -110,19 +135,6 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
       )}
 
       <div className="flex items-center gap-3 mt-1">
-        {
-          <button
-            onClick={() => {
-              if (timer.id === undefined) return;
-              if (isTask) doneTask(timer.id);
-              else completeTimer(timer.id);
-            }}
-            className="flex-1 py-3 rounded-xl bg-green-700 text-white text-base font-medium min-h-[48px] hover:bg-green-600 active:scale-95 transition-all cursor-pointer"
-          >
-            Done
-          </button>
-        }
-
         {!isOverdue && (
           <button
             onClick={() => onEdit(timer)}
@@ -174,6 +186,9 @@ export function TimerCard({ timer, tagsMap, onEdit }: Props) {
             🗑️
           </button>
         )}
+      </div>
+
+      <p className="text-xs text-slate-500 text-right">Swipe right to complete →</p>
       </div>
     </div>
   );
