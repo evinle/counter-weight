@@ -41,11 +41,13 @@ export function App() {
   const { state, user } = useAuth();
   const { syncing, triggerSync } = useSyncEngine({ user });
   const overlayOpen = activeAction !== ActiveAction.None;
-  const { containerRef } = useTabSwipe({
+  const tabSwipeThreshold = 70;
+  const { containerRef, dragDirection, dragDistance } = useTabSwipe({
     tabs: ALL_TABS,
     activeTab: tab,
     onTabChange: (t) => setTab(t as Tab),
     enabled: !overlayOpen,
+    threshold: tabSwipeThreshold,
   });
   useSwipeBack({
     isOpen: overlayOpen,
@@ -269,6 +271,16 @@ export function App() {
         ref={containerRef}
         className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top"
       >
+        {dragDirection && (
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 z-50 text-slate-300 text-3xl pointer-events-none ${
+              dragDirection === "next" ? "right-2" : "left-2"
+            }`}
+            style={{ opacity: Math.min(1, dragDistance / tabSwipeThreshold) }}
+          >
+            {dragDirection === "next" ? "›" : "‹"}
+          </div>
+        )}
         <ToastContainer />
         {swDebug && (
           <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">

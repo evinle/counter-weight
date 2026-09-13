@@ -110,4 +110,66 @@ describe('useTabSwipe', () => {
     act(() => { swipe(emoji, 200, 120) })
     expect(onTabChange).not.toHaveBeenCalled()
   })
+
+  it('exposes dragDirection and dragDistance while dragging left with a next tab available', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Timers, onTabChange, threshold: 70 })
+    )
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 200, 200) })
+    act(() => { fireTouch(el, 'touchmove', 160, 200) }) // 40px left
+
+    expect(result.current.dragDirection).toBe('next')
+    expect(result.current.dragDistance).toBe(40)
+  })
+
+  it('does not expose a direction when dragging left on the last tab (no next)', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Settings, onTabChange, threshold: 70 })
+    )
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 200, 200) })
+    act(() => { fireTouch(el, 'touchmove', 160, 200) })
+
+    expect(result.current.dragDirection).toBeNull()
+    expect(result.current.dragDistance).toBe(0)
+  })
+
+  it('does not expose a direction when dragging right on the first tab (no prev)', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Timers, onTabChange, threshold: 70 })
+    )
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 160, 200) })
+    act(() => { fireTouch(el, 'touchmove', 200, 200) })
+
+    expect(result.current.dragDirection).toBeNull()
+    expect(result.current.dragDistance).toBe(0)
+  })
+
+  it('resets dragDirection and dragDistance to null/0 when released before threshold', () => {
+    const { result } = renderHook(() =>
+      useTabSwipe({ tabs: ALL_TABS, activeTab: Tab.Timers, onTabChange, threshold: 70 })
+    )
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 200, 200) })
+    act(() => { fireTouch(el, 'touchmove', 160, 200) })
+    expect(result.current.dragDirection).toBe('next')
+
+    act(() => { fireTouch(el, 'touchend', 160, 200) })
+
+    expect(result.current.dragDirection).toBeNull()
+    expect(result.current.dragDistance).toBe(0)
+    expect(onTabChange).not.toHaveBeenCalled()
+  })
 })
+
+function fireTouch(el: Element, type: string, x: number, y: number) {
+  const touch = fakeTouch(el, x, y)
+  el.dispatchEvent(new TouchEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    touches: type === 'touchend' ? [] : [touch],
+    changedTouches: [touch],
+  }))
+}
