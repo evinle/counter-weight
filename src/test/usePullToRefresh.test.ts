@@ -9,12 +9,14 @@ function fakeTouch(el: Element, y: number): Touch {
 
 function fireTouch(el: Element, type: string, y: number) {
   const touch = fakeTouch(el, y)
-  el.dispatchEvent(new TouchEvent(type, {
+  const event = new TouchEvent(type, {
     bubbles: true,
     cancelable: true,
     touches: type === 'touchend' ? [] : [touch],
     changedTouches: [touch],
-  }))
+  })
+  el.dispatchEvent(event)
+  return event
 }
 
 function makeEl() {
@@ -71,6 +73,43 @@ describe('usePullToRefresh', () => {
     act(() => { fireTouch(el, 'touchstart', 100) })
     act(() => { fireTouch(el, 'touchmove', 160) })
     expect(result.current.pullDistance).toBe(0)
+  })
+
+  it('claims the gesture from the browser while pulling down from the top', () => {
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: vi.fn().mockResolvedValue(undefined) }), { wrapper: PullToRefreshProvider })
+    const el = makeEl()
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 100) })
+
+    let move!: Event
+    act(() => { move = fireTouch(el, 'touchmove', 140) })
+
+    expect(move.defaultPrevented).toBe(true)
+  })
+
+  it('leaves an upward drag to the browser so the list can scroll', () => {
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: vi.fn().mockResolvedValue(undefined) }), { wrapper: PullToRefreshProvider })
+    const el = makeEl()
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 100) })
+
+    let move!: Event
+    act(() => { move = fireTouch(el, 'touchmove', 60) })
+
+    expect(move.defaultPrevented).toBe(false)
+  })
+
+  it('leaves a drag that starts scrolled down to the browser', () => {
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: vi.fn().mockResolvedValue(undefined) }), { wrapper: PullToRefreshProvider })
+    const el = makeEl()
+    ;(el as unknown as { scrollTop: number }).scrollTop = 50
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 100) })
+
+    let move!: Event
+    act(() => { move = fireTouch(el, 'touchmove', 160) })
+
+    expect(move.defaultPrevented).toBe(false)
   })
 
   it('calls onRefresh when released past threshold', async () => {

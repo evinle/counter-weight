@@ -31,6 +31,7 @@ export function usePullToRefresh({ onRefresh, threshold = 70 }: Options) {
         setPullDistance(0);
         return;
       }
+      if (e.cancelable) e.preventDefault();
       const clamped = Math.min(delta, threshold);
       pullDistanceRef.current = clamped;
       setPullDistance(clamped);
@@ -48,7 +49,7 @@ export function usePullToRefresh({ onRefresh, threshold = 70 }: Options) {
     }
 
     container.addEventListener('touchstart', onTouchStart);
-    container.addEventListener('touchmove', onTouchMove);
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd);
     return () => {
       container.removeEventListener('touchstart', onTouchStart);
