@@ -36,8 +36,9 @@ async function seedTag(name: string, serverId: string | null = `srv-${name}`) {
 
 async function longPress(el: HTMLElement) {
   fireEvent.pointerDown(el)
-  // Allow the 0ms macrotask to fire before continuing
-  await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  // Wait for the popover itself: the long-press timer and the React update it
+  // triggers land at an unpredictable time under load, so a fixed sleep is racy.
+  await screen.findByRole('button', { name: /rename/i })
 }
 
 describe('TagPicker long-press popover', () => {
