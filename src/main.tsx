@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { trpcReact, trpcReactClient } from './lib/trpc'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { BOTTOM_TAB_BAR_HEIGHT } from './lib/layout'
 import './index.css'
 
@@ -16,10 +17,12 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <trpcReact.Provider client={trpcReactClient} queryClient={queryClient}>
-        <App />
-      </trpcReact.Provider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <trpcReact.Provider client={trpcReactClient} queryClient={queryClient}>
+          <App />
+        </trpcReact.Provider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>
 )
