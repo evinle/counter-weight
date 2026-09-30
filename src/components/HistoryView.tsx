@@ -107,7 +107,7 @@ export function HistoryView({ onRefresh, syncing }: Props) {
 
   return (
     <div ref={pullRef} className="flex flex-col h-full overflow-auto">
-      <ScreenTitle title="History" />
+      <ScreenTitle title="History" onRefresh={onRefresh} syncing={syncing} />
       <PullToRefreshIndicator syncing={syncing} />
       {renderTimersHistoryContent()}
     </div>

@@ -31,10 +31,10 @@ const BASE_TIMER = {
   version: null,
 } satisfies Omit<Timer, 'id'>
 
-function renderFeed() {
+function renderFeed(onRefresh: (() => Promise<void>) | null = null, syncing = false) {
   return render(
     <PullToRefreshProvider>
-      <FeedView onEdit={() => {}} onManageGroups={() => {}} userId={null} onRefresh={null} syncing={false} />
+      <FeedView onEdit={() => {}} onManageGroups={() => {}} userId={null} onRefresh={onRefresh} syncing={syncing} />
     </PullToRefreshProvider>,
   )
 }
@@ -112,5 +112,28 @@ describe('FeedView — departing cards', () => {
     await pause(100)
 
     expect(screen.queryByText('Pizza')).not.toBeInTheDocument()
+  })
+})
+
+describe('FeedView refresh button', () => {
+  it('refreshes when the button is clicked', () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined)
+    renderFeed(onRefresh)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    expect(onRefresh).toHaveBeenCalledOnce()
+  })
+
+  it('has no refresh button when the feed is not refreshable', () => {
+    renderFeed(null)
+
+    expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull()
+  })
+
+  it('disables the button while syncing', () => {
+    renderFeed(vi.fn().mockResolvedValue(undefined), true)
+
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled()
   })
 })

@@ -5,6 +5,7 @@ import { useTagsMap } from "../hooks/useTags";
 import { useLingeringTimers } from "../hooks/useLingeringTimers";
 import { useSortMode } from "../hooks/useSortMode";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { RefreshButton } from "./RefreshButton";
 import { TimerCard } from "./TimerCard";
 import { GroupSearchPanel } from "./GroupSearchPanel";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -61,9 +62,10 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
 
   return (
     <div ref={pullRef} className="flex flex-col h-full overflow-auto">
-      <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+      <div className="relative z-40 flex items-center gap-2 px-4 pt-4 pb-2">
         <h1 className="text-2xl font-bold tracking-tight text-white">Timers</h1>
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
+        <RefreshButton onRefresh={onRefresh} syncing={syncing} />
       </div>
 
       <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">

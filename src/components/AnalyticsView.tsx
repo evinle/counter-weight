@@ -12,7 +12,7 @@ export function AnalyticsView({ onRefresh, syncing }: Props) {
 
   return (
     <div ref={pullRef} className="flex flex-col h-full overflow-auto pb-tab-bar">
-      <ScreenTitle title="Analytics" />
+      <ScreenTitle title="Analytics" onRefresh={onRefresh} syncing={syncing} />
       <PullToRefreshIndicator syncing={syncing} />
       <div className="flex flex-col items-center justify-center py-20 text-slate-500">
         <span className="text-5xl mb-3">📊</span>
