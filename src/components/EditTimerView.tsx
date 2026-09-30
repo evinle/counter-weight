@@ -96,20 +96,20 @@ export function EditTimerView({
       <button
         type="button"
         onClick={cancelTimeEdit}
-        className="text-sm text-slate-500 text-center w-full active:opacity-60 transition-opacity"
+        className="text-sm text-ink-faint text-center w-full active:opacity-60 transition-opacity"
       >
         Cancel time edit
       </button>
     </>
   ) : (
     <div className="flex items-center justify-between">
-      <span className="text-slate-300 text-base">
+      <span className="text-ink-muted text-base">
         {existing.targetDatetime.toLocaleString()}
       </span>
       <button
         type="button"
         onClick={() => setTimeEditUnlocked(true)}
-        className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
+        className="text-sm text-accent font-medium active:opacity-60 transition-opacity"
       >
         Edit time
       </button>

@@ -153,7 +153,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
               <input
                 key={dexieId}
                 autoFocus
-                className="px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-white outline-none focus:ring-2 focus:ring-white w-28"
+                className="px-3 py-1 rounded-full text-sm font-medium bg-surface-strong text-ink outline-none focus:ring-2 focus:ring-ink w-28"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onBlur={() => commitRename(dexieId)}
@@ -170,7 +170,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
               <button
                 type="button"
                 className={`px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
-                  selected ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : 'opacity-60 hover:opacity-90'
+                  selected ? 'ring-2 ring-ink ring-offset-1 ring-offset-surface' : 'opacity-60 hover:opacity-90'
                 }`}
                 style={{ backgroundColor: tag.color ?? '#6b7280', color: '#fff' }}
                 onClick={(e) => { e.stopPropagation(); toggleTag(dexieId) }}
@@ -186,19 +186,19 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
 
               {popoverTagId === dexieId && (
                 <div
-                  className="absolute bottom-full left-0 mb-1 z-10 flex flex-col rounded-lg bg-slate-700 shadow-lg overflow-hidden text-sm"
+                  className="absolute bottom-full left-0 mb-1 z-10 flex flex-col rounded-lg bg-surface-raised shadow-lg overflow-hidden text-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
                     type="button"
-                    className="px-4 py-2 text-left hover:bg-slate-600 text-white cursor-pointer whitespace-nowrap"
+                    className="px-4 py-2 text-left hover:bg-surface-strong text-ink cursor-pointer whitespace-nowrap"
                     onClick={() => openRename(dexieId, tag.name)}
                   >
                     Rename
                   </button>
                   <button
                     type="button"
-                    className="px-4 py-2 text-left hover:bg-red-700 text-red-400 cursor-pointer whitespace-nowrap"
+                    className="px-4 py-2 text-left hover:bg-danger-soft text-danger cursor-pointer whitespace-nowrap"
                     onClick={() => {
                       setPopoverTagId(null)
                       void deleteTag(tag)
@@ -218,17 +218,17 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
         <button
           type="button"
           onClick={() => setShowCreate((v) => !v)}
-          className="px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-slate-300 hover:bg-slate-500 transition-colors cursor-pointer"
+          className="px-3 py-1 rounded-full text-sm font-medium bg-surface-strong text-ink-muted hover:bg-line-strong transition-colors cursor-pointer"
         >
           + New
         </button>
       </div>
 
       {showCreate && (
-        <div className="flex flex-col gap-2 p-3 bg-slate-700 rounded-lg">
+        <div className="flex flex-col gap-2 p-3 bg-surface-raised rounded-lg">
           <input
             autoFocus
-            className="rounded p-2 bg-slate-600 text-white text-sm placeholder:text-slate-400 outline-none focus:ring-1 focus:ring-blue-500"
+            className="rounded p-2 bg-surface-strong text-ink text-sm placeholder:text-ink-muted outline-none focus:ring-1 focus:ring-accent"
             placeholder="Tag name"
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
@@ -246,7 +246,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
                 type="button"
                 onClick={() => setNewTagColor(c)}
                 className={`w-6 h-6 rounded-full transition-all cursor-pointer ${
-                  newTagColor === c ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-700' : ''
+                  newTagColor === c ? 'ring-2 ring-ink ring-offset-1 ring-offset-surface-raised' : ''
                 }`}
                 style={{ backgroundColor: c }}
               />
@@ -257,7 +257,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
               type="button"
               onClick={() => void handleCreate()}
               disabled={!newTagName.trim() || creating}
-              className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-blue-500 transition-colors cursor-pointer"
+              className="flex-1 py-2 rounded-lg bg-accent text-on-accent text-sm font-medium disabled:opacity-50 hover:bg-accent/90 transition-colors cursor-pointer"
             >
               {creating ? 'Creating…' : 'Create'}
             </button>
@@ -267,7 +267,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
                 setShowCreate(false)
                 setNewTagName('')
               }}
-              className="px-4 py-2 rounded-lg bg-slate-600 text-slate-300 text-sm cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-surface-strong text-ink-muted text-sm cursor-pointer"
             >
               Cancel
             </button>

@@ -177,7 +177,7 @@ export function ClockDial({
           cx={CX}
           cy={CY}
           r={CX - 4}
-          className="fill-slate-700 stroke-slate-600"
+          className="fill-surface-raised stroke-line-strong"
           strokeWidth={1}
         />
 
@@ -196,7 +196,7 @@ export function ClockDial({
               textAnchor="middle"
               dominantBaseline="central"
               data-testid={testId}
-              className="fill-slate-200 text-sm select-none pointer-events-none"
+              className="fill-ink text-sm select-none pointer-events-none"
               fontSize={13}
             >
               {val}
@@ -233,16 +233,16 @@ export function ClockDial({
                 type="button"
                 data-testid="dial-hour"
                 onClick={() => onPhaseSelect("hour")}
-                className={`text-xl font-bold ${phase === "hour" ? "text-blue-400" : "text-slate-300"}`}
+                className={`text-xl font-bold ${phase === "hour" ? "text-accent" : "text-ink-muted"}`}
               >
                 {hourDisplay}
               </button>
-              <span className="text-slate-300 text-xl">:</span>
+              <span className="text-ink-muted text-xl">:</span>
               <button
                 type="button"
                 data-testid="dial-minute"
                 onClick={() => onPhaseSelect("minute")}
-                className={`text-xl font-bold ${phase === "minute" ? "text-blue-400" : "text-slate-300"}`}
+                className={`text-xl font-bold ${phase === "minute" ? "text-accent" : "text-ink-muted"}`}
               >
                 {minuteDisplay}
               </button>
@@ -258,10 +258,10 @@ export function ClockDial({
             </button>
             <div className="flex gap-1">
               <div
-                className={`w-1.5 h-1.5 rounded-full ${!isPm ? "bg-blue-400" : "bg-slate-500"}`}
+                className={`w-1.5 h-1.5 rounded-full ${!isPm ? "bg-accent" : "bg-line-strong"}`}
               />
               <div
-                className={`w-1.5 h-1.5 rounded-full ${isPm ? "bg-blue-400" : "bg-slate-500"}`}
+                className={`w-1.5 h-1.5 rounded-full ${isPm ? "bg-accent" : "bg-line-strong"}`}
               />
             </div>
           </div>

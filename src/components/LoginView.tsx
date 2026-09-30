@@ -9,15 +9,15 @@ export function LoginView() {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-8 px-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">Counter Weight</h1>
-        <p className="text-slate-400 text-sm">Sign in to sync your timers across devices</p>
+        <h1 className="text-3xl font-bold text-ink mb-2">Counter Weight</h1>
+        <p className="text-ink-muted text-sm">Sign in to sync your timers across devices</p>
       </div>
 
       <div className="w-full max-w-xs flex flex-col gap-3">
         {lastUser && (
           <button
             onClick={loginSilent}
-            className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
+            className="w-full bg-accent text-on-accent font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
           >
             Continue as {lastUser.firstName}
           </button>
@@ -25,7 +25,7 @@ export function LoginView() {
 
         <button
           onClick={login}
-          className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
+          className="w-full flex items-center justify-center gap-3 bg-ink text-canvas font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -50,13 +50,13 @@ export function LoginView() {
 
         <button
           onClick={continueAsGuest}
-          className="w-full text-slate-400 text-sm py-2 active:opacity-70 transition-opacity cursor-pointer"
+          className="w-full text-ink-muted text-sm py-2 active:opacity-70 transition-opacity cursor-pointer"
         >
           Continue without signing in
         </button>
       </div>
 
-      <p className="text-slate-600 text-xs text-center">
+      <p className="text-ink-faint text-xs text-center">
         Your timers are stored locally and sync when you're online
       </p>
     </div>

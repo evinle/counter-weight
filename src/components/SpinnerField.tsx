@@ -27,7 +27,7 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label, 
         type="button"
         onClick={() => apply(value + 1)}
         aria-label={`Increase ${label}`}
-        className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none"
+        className="flex items-center justify-center w-full min-h-[44px] text-ink-muted hover:text-ink active:text-ink transition-colors text-xl leading-none"
       >
         ▲
       </button>
@@ -62,17 +62,17 @@ export function SpinnerField({ value, onChange, min, max, clamp = false, label, 
         }}
         onPointerCancel={() => { dragRef.current = null }}
         aria-label={label}
-        className="w-full text-center text-2xl font-mono text-white bg-slate-700 rounded-lg py-3 cursor-ns-resize select-none"
+        className="w-full text-center text-2xl font-mono text-ink bg-surface-raised rounded-lg py-3 cursor-ns-resize select-none"
       />
       <button
         type="button"
         onClick={() => apply(value - 1)}
         aria-label={`Decrease ${label}`}
-        className="flex items-center justify-center w-full min-h-[44px] text-slate-400 hover:text-white active:text-white transition-colors text-xl leading-none"
+        className="flex items-center justify-center w-full min-h-[44px] text-ink-muted hover:text-ink active:text-ink transition-colors text-xl leading-none"
       >
         ▼
       </button>
-      <span className="text-xs text-slate-500 mt-0.5">{label}</span>
+      <span className="text-xs text-ink-faint mt-0.5">{label}</span>
     </div>
   )
 }

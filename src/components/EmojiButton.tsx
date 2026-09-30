@@ -65,7 +65,7 @@ export function EmojiButton({ value, onChange }: Props) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Pick emoji"
-        className="h-[52px] flex items-center justify-center rounded-lg bg-slate-700 text-xl hover:bg-slate-600 active:scale-95 transition-all px-1"
+        className="h-[52px] flex items-center justify-center rounded-lg bg-surface-raised text-xl hover:bg-surface-strong active:scale-95 transition-all px-1"
       >
         {value || "🙂+"}
       </button>
@@ -74,7 +74,7 @@ export function EmojiButton({ value, onChange }: Props) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="absolute top-full right-0 z-50 mt-1 bg-slate-800 border border-slate-600 rounded-xl p-2 shadow-xl overflow-x-auto"
+            className="absolute top-full right-0 z-50 mt-1 bg-surface border border-line-strong rounded-xl p-2 shadow-xl overflow-x-auto"
             style={{ maxWidth: "calc(100vw - 1rem)" }}
           >
             <div className="flex gap-1 w-max">
@@ -86,7 +86,7 @@ export function EmojiButton({ value, onChange }: Props) {
                     onChange(emoji);
                     setOpen(false);
                   }}
-                  className="w-10 h-10 flex items-center justify-center text-2xl rounded-lg hover:bg-slate-700 active:scale-90 transition-all shrink-0"
+                  className="w-10 h-10 flex items-center justify-center text-2xl rounded-lg hover:bg-surface-raised active:scale-90 transition-all shrink-0"
                 >
                   {emoji}
                 </button>

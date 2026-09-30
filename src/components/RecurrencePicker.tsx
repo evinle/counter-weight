@@ -405,11 +405,12 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
               key={label}
               type="button"
               aria-label={label}
+              aria-pressed={weeklyDays.includes(idx)}
               onClick={() => toggleDay(idx)}
               className={`px-2 py-1 rounded text-xs font-medium ${
                 weeklyDays.includes(idx)
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-700 text-slate-300"
+                  ? "bg-accent text-on-accent"
+                  : "bg-surface-raised text-ink-muted"
               }`}
             >
               {label}
@@ -425,11 +426,12 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
               key={n}
               type="button"
               aria-label={`Day ${n}`}
+              aria-pressed={!monthlyLastDay && monthlyDom === n}
               onClick={() => handleMonthlyDom(n)}
               className={`rounded py-1 text-xs font-medium ${
                 !monthlyLastDay && monthlyDom === n
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-700 text-slate-200"
+                  ? "bg-accent text-on-accent"
+                  : "bg-surface-raised text-ink"
               }`}
             >
               {n}
@@ -438,11 +440,12 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
           <button
             type="button"
             aria-label="Last day"
+            aria-pressed={monthlyLastDay}
             onClick={() => handleMonthlyLastDay(true)}
             className={`rounded py-1 text-xs font-medium italic ${
               monthlyLastDay
-                ? "bg-blue-600 text-white"
-                : "bg-slate-700 text-slate-200"
+                ? "bg-accent text-on-accent"
+                : "bg-surface-raised text-ink"
             }`}
           >
             L
@@ -452,14 +455,14 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
 
       {preset === Preset.EveryNDays && (
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-300">Every {everyN} days</span>
+          <span className="text-sm text-ink-muted">Every {everyN} days</span>
           <input
             type="range"
             min={2}
             max={90}
             value={everyN}
             onChange={(e) => handleEveryN(Number(e.target.value))}
-            className="w-full accent-blue-500 py-2"
+            className="w-full accent-accent py-2"
             aria-label="Every N days"
           />
         </div>
@@ -495,7 +498,7 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
 
       {nextText && (
         <p
-          className="text-sm text-slate-400"
+          className="text-sm text-ink-muted"
           data-testid="next-occurrence-preview"
         >
           Next: {nextText}

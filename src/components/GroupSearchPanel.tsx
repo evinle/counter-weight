@@ -43,8 +43,8 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
         onClick={() => setOpen((o) => !o)}
         className={`p-2 rounded-lg transition-colors ${
           open || selectedGroupId !== null
-            ? "text-blue-400 bg-blue-500/10"
-            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            ? "text-accent bg-accent/10"
+            : "text-ink-muted hover:text-ink hover:bg-surface"
         }`}
       >
         <FilterIcon className="icon-md" />
@@ -52,13 +52,13 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
 
       {/* Active filter badge */}
       {selectedGroup && (
-        <div className="flex items-center gap-1.5 bg-blue-600/20 border border-blue-500/40 rounded-full pl-3 pr-1 py-1 text-sm text-blue-300">
+        <div className="flex items-center gap-1.5 bg-accent/20 border border-accent/40 rounded-full pl-3 pr-1 py-1 text-sm text-accent">
           {selectedGroup.emoji && <span>{selectedGroup.emoji}</span>}
           <span className="max-w-[120px] truncate">{selectedGroup.name}</span>
           <button
             aria-label="Clear filter"
             onClick={clearSelectedGroup}
-            className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-blue-500/30 text-blue-400 hover:text-blue-200 transition-colors"
+            className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-accent/30 text-accent hover:text-accent/80 transition-colors"
           >
             ×
           </button>
@@ -70,21 +70,21 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
 
       {/* Floating dropdown */}
       {open && (
-        <div className="absolute top-full left-0 mt-2 z-20 w-72 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-slate-700">
+        <div className="absolute top-full left-0 mt-2 z-20 w-72 bg-surface border border-line rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="p-3 border-b border-line">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search groups…"
               autoFocus
-              className="w-full bg-slate-700 rounded-xl px-4 py-3 text-base text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-surface-raised rounded-xl px-4 py-3 text-base text-ink placeholder-ink-faint outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           <ul className="flex flex-col overflow-y-auto max-h-64">
             {filtered.length === 0 && (
-              <li className="px-4 py-4 text-sm text-slate-500 text-center">
+              <li className="px-4 py-4 text-sm text-ink-faint text-center">
                 No groups found
               </li>
             )}
@@ -94,8 +94,8 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
                   onClick={() => handleSelect(group)}
                   className={`w-full text-left flex items-center gap-3 px-4 py-4 text-base transition-colors ${
                     group.id === selectedGroupId
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-200 hover:bg-slate-700 active:bg-slate-600"
+                      ? "bg-accent text-on-accent"
+                      : "text-ink hover:bg-surface-raised active:bg-surface-strong"
                   }`}
                 >
                   {group.emoji ? (
@@ -111,13 +111,13 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
             ))}
           </ul>
 
-          <div className="border-t border-slate-700">
+          <div className="border-t border-line">
             <button
               onClick={() => {
                 close();
                 onManageGroups();
               }}
-              className="w-full text-left px-4 py-4 text-base text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-4 py-4 text-base text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors"
             >
               Manage groups →
             </button>

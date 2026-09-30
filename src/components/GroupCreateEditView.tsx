@@ -220,7 +220,7 @@ export function GroupCreateEditView({
       <ScreenTitle title={existing ? "Edit Group" : "New Group"} />
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor="group-name" className="text-sm text-slate-400">
+          <label htmlFor="group-name" className="text-sm text-ink-muted">
             Name
           </label>
           <div className="flex gap-2 items-center">
@@ -231,7 +231,7 @@ export function GroupCreateEditView({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Group name"
-              className="flex-1 rounded-lg p-3 bg-slate-700 text-white text-base placeholder:text-slate-400 min-h-[52px]"
+              className="flex-1 rounded-lg p-3 bg-surface-raised text-ink text-base placeholder:text-ink-muted min-h-[52px]"
             />
             <EmojiButton value={emoji} onChange={setEmoji} />
           </div>
@@ -239,7 +239,7 @@ export function GroupCreateEditView({
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-slate-400">Color</span>
+            <span className="text-sm text-ink-muted">Color</span>
             <div className="flex gap-2 flex-wrap">
               {PRESET_COLORS.map((c) => (
                 <button
@@ -249,7 +249,7 @@ export function GroupCreateEditView({
                   aria-label={c}
                   className={`w-7 h-7 rounded-full transition-all cursor-pointer ${
                     color === c
-                      ? "ring-2 ring-white ring-offset-2 ring-offset-slate-800"
+                      ? "ring-2 ring-ink ring-offset-2 ring-offset-surface"
                       : ""
                   }`}
                   style={{ backgroundColor: c }}
@@ -260,7 +260,7 @@ export function GroupCreateEditView({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-ink-muted">
             Conditions (ALL must match)
           </span>
           {drafts.map((draft, i) => (
@@ -276,7 +276,7 @@ export function GroupCreateEditView({
             type="button"
             aria-label="Add condition"
             onClick={addCondition}
-            className="text-sm text-blue-400 hover:text-blue-300 text-left"
+            className="text-sm text-accent hover:text-accent/80 text-left"
           >
             + Add condition
           </button>
@@ -286,14 +286,14 @@ export function GroupCreateEditView({
           type="submit"
           aria-label="Save"
           disabled={!name.trim()}
-          className="bg-blue-600 text-white font-semibold rounded-xl py-3 disabled:opacity-40"
+          className="bg-accent text-on-accent font-semibold rounded-xl py-3 disabled:opacity-40"
         >
           Save
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="text-slate-400 text-base py-3"
+          className="text-ink-muted text-base py-3"
         >
           Cancel
         </button>
@@ -334,9 +334,9 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
     if (!needsValue) return null;
 
     const selectClass =
-      "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none";
+      "flex-1 bg-surface border border-line-strong rounded-lg px-2 py-1.5 text-ink text-sm outline-none";
     const inputClass =
-      "flex-1 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none min-w-0";
+      "flex-1 bg-surface border border-line-strong rounded-lg px-2 py-1.5 text-ink text-sm outline-none min-w-0";
 
     if (isArrayOp(draft.op)) {
       const items = Array.isArray(draft.value) ? draft.value : [];
@@ -385,7 +385,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
                 type="button"
                 aria-label="Remove value"
                 onClick={() => removeValueItem(idx)}
-                className="text-slate-500 hover:text-red-400 text-lg font-bold px-1"
+                className="text-ink-faint hover:text-danger text-lg font-bold px-1"
               >
                 ×
               </button>
@@ -395,7 +395,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
             type="button"
             aria-label="Add value"
             onClick={addValueItem}
-            className="text-xs text-blue-400 hover:text-blue-300 h-full"
+            className="text-xs text-accent hover:text-accent/80 h-full"
           >
             + Add value
           </button>
@@ -476,7 +476,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
         type="button"
         aria-label="Remove condition"
         onClick={onRemove}
-        className="text-slate-500 hover:text-red-400 text-2xl font-bold mt-0.5"
+        className="text-ink-faint hover:text-danger text-2xl font-bold mt-0.5"
       >
         ×
       </button>
@@ -485,7 +485,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
         aria-label="Field"
         value={draft.field}
         onChange={(e) => onChange({ field: e.target.value as ConditionField })}
-        className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none"
+        className="bg-surface border border-line-strong rounded-lg px-2 py-1.5 text-ink text-sm outline-none"
       >
         {FIELD_OPTIONS.map((f) => (
           <option key={f.value} value={f.value}>
@@ -498,7 +498,7 @@ function ConditionRow({ draft, tags, onChange, onRemove }: ConditionRowProps) {
         aria-label="Operator"
         value={draft.op}
         onChange={(e) => onChange({ op: e.target.value })}
-        className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm outline-none"
+        className="bg-surface border border-line-strong rounded-lg px-2 py-1.5 text-ink text-sm outline-none"
       >
         {ops.map((o) => (
           <option key={o.value} value={o.value}>

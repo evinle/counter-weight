@@ -89,7 +89,7 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
     <div className="flex flex-col gap-4">
       {/* Days slider */}
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-slate-200">
+        <span className="text-sm font-medium text-ink">
           {value.days} {value.days === 1 ? "day" : "days"}
           {" · "}
           {new Date(todayStart.getTime() + value.days * DAY_MS).toLocaleDateString("en-GB", {
@@ -107,13 +107,13 @@ export function DurationPicker({ value, onChange, maxDays = 28 }: Props) {
             step={1}
             value={value.days}
             onChange={(e) => onChange({ ...value, days: Number(e.target.value) })}
-            className="w-full accent-blue-500"
+            className="w-full accent-accent"
             aria-label="Days"
           />
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-400">{leftEdgeLabel}</span>
-          <span className="text-xs text-slate-400">{rightEdgeLabel}</span>
+          <span className="text-xs text-ink-muted">{leftEdgeLabel}</span>
+          <span className="text-xs text-ink-muted">{rightEdgeLabel}</span>
         </div>
       </div>
 

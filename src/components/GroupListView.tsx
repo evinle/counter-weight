@@ -40,7 +40,7 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
         <button
           aria-label="Done"
           onClick={onDone}
-          className="text-base font-medium text-blue-400 hover:text-blue-300 px-2"
+          className="text-base font-medium text-accent hover:text-accent/80 px-2"
         >
           Done
         </button>
@@ -51,7 +51,7 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
           <button
             aria-label="New group"
             onClick={onCreateNew}
-            className="w-full flex items-center justify-center gap-3 bg-blue-600 rounded-xl px-4 py-4 text-base font-medium text-white hover:bg-blue-500 active:bg-blue-700 transition-colors"
+            className="w-full flex items-center justify-center gap-3 bg-accent rounded-xl px-4 py-4 text-base font-medium text-on-accent hover:bg-accent/90 active:bg-accent/80 transition-colors"
           >
             <span className="text-xl w-7 text-center">＋</span>
             New group
@@ -61,14 +61,14 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
         {groups.map((group) => (
           <li
             key={group.id}
-            className="bg-slate-800 rounded-xl flex items-center gap-3 px-4 py-4"
+            className="bg-surface rounded-xl flex items-center gap-3 px-4 py-4"
           >
             {group.emoji ? (
               <span className="text-xl w-7 text-center">{group.emoji}</span>
             ) : (
               <span className="w-7" />
             )}
-            <span className="flex-1 text-base font-medium text-white">
+            <span className="flex-1 text-base font-medium text-ink">
               {group.name}
             </span>
 
@@ -76,7 +76,7 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
               <button
                 aria-label="Confirm delete"
                 onClick={() => void confirmDrop(group)}
-                className="text-base font-medium text-white bg-red-700 rounded-xl px-4 py-3 min-h-[48px] hover:bg-red-600 active:scale-95 transition-all"
+                className="text-base font-medium text-on-accent bg-danger rounded-xl px-4 py-3 min-h-[48px] hover:bg-danger/90 active:scale-95 transition-all"
               >
                 DROP?
               </button>
@@ -85,14 +85,14 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
                 <button
                   aria-label={`Edit ${group.name}`}
                   onClick={() => onEdit(group)}
-                  className="text-base font-medium text-white bg-slate-600 rounded-xl px-4 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
+                  className="text-base font-medium text-ink bg-surface-strong rounded-xl px-4 py-3 min-h-[48px] hover:bg-line-strong active:scale-95 transition-all"
                 >
                   Edit
                 </button>
                 <button
                   aria-label={`Delete ${group.name}`}
                   onClick={() => armDrop(group.id ?? 0)}
-                  className="flex items-center justify-center text-base font-medium text-white bg-slate-600 rounded-xl w-12 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
+                  className="flex items-center justify-center text-base font-medium text-ink bg-surface-strong rounded-xl w-12 py-3 min-h-[48px] hover:bg-line-strong active:scale-95 transition-all"
                 >
                   <TrashIcon className="icon-md" />
                 </button>

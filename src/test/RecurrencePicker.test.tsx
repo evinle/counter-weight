@@ -101,9 +101,9 @@ describe('RecurrencePicker — Every week', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
     fireEvent.change(scheduleSelect(), { target: { value: 'weekly' } })
     const sun = screen.getByRole('button', { name: /^sun$/i })
-    expect(sun.className).toContain('bg-blue-600')
+    expect(sun).toHaveAttribute('aria-pressed', 'true')
     const mon = screen.getByRole('button', { name: /^mon$/i })
-    expect(mon.className).toContain('bg-slate-700')
+    expect(mon).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('emits correct weekly cron on day toggle', () => {
@@ -130,7 +130,7 @@ describe('RecurrencePicker — Every month', () => {
   it('defaults active tile to today (dom=21)', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
     fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
-    expect(screen.getByRole('button', { name: 'Day 21' }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Day 21' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('clicking tile 15 emits the correct cron', () => {
@@ -153,8 +153,8 @@ describe('RecurrencePicker — Every month', () => {
     render(<RecurrencePicker value={null} onChange={onChange} now={NOW} />)
     fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     fireEvent.click(screen.getByRole('button', { name: 'Last day' }))
-    expect(screen.getByRole('button', { name: 'Last day' }).className).toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: 'Day 21' }).className).not.toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Last day' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Day 21' })).toHaveAttribute('aria-pressed', 'false')
     const last = onChange.mock.calls.at(-1)?.[0]
     expect(last?.cron).toBe('0 9 L * *')
   })
@@ -164,8 +164,8 @@ describe('RecurrencePicker — Every month', () => {
     fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     fireEvent.click(screen.getByRole('button', { name: 'Last day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Day 10' }))
-    expect(screen.getByRole('button', { name: 'Last day' }).className).not.toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: 'Day 10' }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Last day' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Day 10' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
@@ -219,10 +219,10 @@ describe('RecurrencePicker — backwards compat pre-population', () => {
   it('pre-populates Every week from a stored custom-weekly cron with correct days', () => {
     render(<RecurrencePicker value={{ cron: '0 9 * * 1,3,5', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
     expect(scheduleSelect()).toHaveValue('weekly')
-    expect(screen.getByRole('button', { name: /^mon$/i }).className).toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: /^wed$/i }).className).toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: /^fri$/i }).className).toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: /^sun$/i }).className).toContain('bg-slate-700')
+    expect(screen.getByRole('button', { name: /^mon$/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^wed$/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^fri$/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^sun$/i })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('pre-populates Every month from a stored monthly cron', () => {
@@ -233,7 +233,7 @@ describe('RecurrencePicker — backwards compat pre-population', () => {
   it('pre-populates Every month with L tile active from an L-dom cron', () => {
     render(<RecurrencePicker value={{ cron: '0 9 L * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
     expect(scheduleSelect()).toHaveValue('monthly')
-    expect(screen.getByRole('button', { name: 'Last day' }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Last day' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('pre-populates Every N days from a stored every-n-days cron', () => {
@@ -257,8 +257,8 @@ describe('RecurrencePicker — backwards compat pre-population', () => {
   it('pre-populates old weekday cron (1-5) as Every week with Mon-Fri active', () => {
     render(<RecurrencePicker value={{ cron: '0 8 * * 1-5', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
     expect(scheduleSelect()).toHaveValue('weekly')
-    expect(screen.getByRole('button', { name: /^mon$/i }).className).toContain('bg-blue-600')
-    expect(screen.getByRole('button', { name: /^fri$/i }).className).toContain('bg-blue-600')
+    expect(screen.getByRole('button', { name: /^mon$/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^fri$/i })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

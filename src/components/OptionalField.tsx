@@ -20,12 +20,12 @@ export function OptionalField({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-slate-400">{label}</span>
+        <span className="text-sm text-ink-muted">{label}</span>
         {!active && (
           <button
             type="button"
             onClick={onActivate}
-            className="text-sm text-blue-400 font-medium active:opacity-60 transition-opacity"
+            className="text-sm text-accent font-medium active:opacity-60 transition-opacity"
           >
             {activateLabel}
           </button>
@@ -37,7 +37,7 @@ export function OptionalField({
           <button
             type="button"
             onClick={onClear}
-            className="text-sm text-slate-500 active:opacity-60 transition-opacity"
+            className="text-sm text-ink-faint active:opacity-60 transition-opacity"
           >
             {clearLabel}
           </button>

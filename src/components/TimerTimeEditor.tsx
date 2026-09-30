@@ -34,7 +34,7 @@ export function TimerTimeEditor({
               maxDate={atTimeMaxDate}
             />
             {atTime.getTime() < getNow() && (
-              <p className="text-sm text-amber-400 text-center">
+              <p className="text-sm text-warning text-center">
                 This time is in the past
               </p>
             )}

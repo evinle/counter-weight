@@ -71,17 +71,17 @@ export function SettingsView() {
       <div className="flex flex-col gap-3 p-4">
         <button
           onClick={handleExport}
-          className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
+          className="flex items-center gap-3 bg-surface rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
         >
           <UploadIcon className="icon-lg" />
-          <span className="text-white font-medium">Export Timers</span>
+          <span className="text-ink font-medium">Export Timers</span>
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
+          className="flex items-center gap-3 bg-surface rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
         >
           <DownloadIcon className="icon-lg" />
-          <span className="text-white font-medium">Import Timers</span>
+          <span className="text-ink font-medium">Import Timers</span>
         </button>
         <input
           ref={fileInputRef}
@@ -96,14 +96,14 @@ export function SettingsView() {
               await logout();
               window.location.reload();
             }}
-            className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
+            className="flex items-center gap-3 bg-surface rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
           >
             <LogOutIcon className="icon-lg" />
-            <span className="text-white font-medium">Logout</span>
+            <span className="text-ink font-medium">Logout</span>
           </button>
         )}
       </div>
-      <p className="px-4 pt-2 text-xs text-slate-600 tabular-nums">
+      <p className="px-4 pt-2 text-xs text-ink-faint tabular-nums">
         {__APP_SHA__} · {new Date(__BUILD_TIME__).toLocaleString("en-AU")}
       </p>
     </div>

@@ -147,14 +147,14 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
       {/* Day slider */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-200">
+          <span className="text-sm font-medium text-ink">
             {dayLabel(value, today)}
           </span>
           <div className="relative ml-auto">
             <button
               type="button"
               aria-label="Open calendar"
-              className="text-slate-400 hover:text-slate-200"
+              className="text-ink-muted hover:text-ink"
             >
               <CalendarIcon className="icon-md" />
             </button>
@@ -173,13 +173,13 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
             max={28}
             value={clampedSlider}
             onChange={handleSliderChange}
-            className="w-full accent-blue-500"
+            className="w-full accent-accent"
             aria-label="Day"
           />
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-400">{leftEdgeLabel}</span>
-          <span className="text-xs text-slate-400">{rightEdgeLabel}</span>
+          <span className="text-xs text-ink-muted">{leftEdgeLabel}</span>
+          <span className="text-xs text-ink-muted">{rightEdgeLabel}</span>
         </div>
       </div>
 

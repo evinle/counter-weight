@@ -55,7 +55,7 @@ export function TimerFormFrame({
         <div className="flex gap-2 items-center">
           <input
             id="timer-title"
-            className="flex-1 rounded-lg p-3 bg-slate-700 text-white text-base placeholder:text-slate-400 min-h-[52px]"
+            className="flex-1 rounded-lg p-3 bg-surface-raised text-ink text-base placeholder:text-ink-muted min-h-[52px]"
             placeholder="What are you timing?"
             value={fields.title}
             onChange={(e) => fields.setTitle(e.target.value)}
@@ -82,7 +82,7 @@ export function TimerFormFrame({
         </SelectField>
 
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-400">Tags</span>
+          <span className="text-sm text-ink-muted">Tags</span>
           <TagPicker
             userId={userId}
             initialServerIds={initialTagServerIds}
@@ -94,7 +94,7 @@ export function TimerFormFrame({
           <input
             type="checkbox"
             aria-label="Task"
-            className="w-5 h-5 rounded accent-blue-500"
+            className="w-5 h-5 rounded accent-accent"
             checked={fields.isTask}
             onChange={(e) =>
               fields.setTimerType(
@@ -102,7 +102,7 @@ export function TimerFormFrame({
               )
             }
           />
-          <span className="text-sm text-slate-400">Task</span>
+          <span className="text-sm text-ink-muted">Task</span>
         </label>
 
         <OptionalField
@@ -124,7 +124,7 @@ export function TimerFormFrame({
           </div>
           {leadPreview !== null && (
             <p
-              className="text-sm text-slate-400"
+              className="text-sm text-ink-muted"
               data-testid="lead-time-preview"
             >
               {leadPreview === "Invalid"
@@ -137,7 +137,7 @@ export function TimerFormFrame({
         <button
           type="submit"
           disabled={submitDisabled}
-          className="rounded-lg p-4 bg-blue-600 text-white text-base font-semibold min-h-[52px] hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+          className="rounded-lg p-4 bg-accent text-on-accent text-base font-semibold min-h-[52px] hover:bg-accent/90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
         >
           {submitLabel}
         </button>
@@ -145,7 +145,7 @@ export function TimerFormFrame({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg p-3 text-slate-400 text-base font-medium active:opacity-60 transition-opacity cursor-pointer"
+          className="rounded-lg p-3 text-ink-muted text-base font-medium active:opacity-60 transition-opacity cursor-pointer"
         >
           Cancel
         </button>

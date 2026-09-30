@@ -9,13 +9,13 @@ interface Props {
 }
 
 const SELECT_CLASS = {
-  default: 'rounded-lg p-3 bg-slate-700 text-white text-base min-h-[52px]',
-  sub: 'rounded-md p-2 bg-slate-800 text-white text-sm',
+  default: 'rounded-lg p-3 bg-surface-raised text-ink text-base min-h-[52px]',
+  sub: 'rounded-md p-2 bg-surface text-ink text-sm',
 } as const
 
 const LABEL_CLASS = {
-  default: 'text-sm text-slate-400',
-  sub: 'text-xs text-slate-500',
+  default: 'text-sm text-ink-muted',
+  sub: 'text-xs text-ink-faint',
 } as const
 
 export function SelectField({ label, id, 'aria-label': ariaLabel, value, onChange, children, variant = 'default' }: Props) {
