@@ -6,7 +6,8 @@ import { FeedView } from "./components/FeedView";
 import { HistoryView } from "./components/HistoryView";
 import { AnalyticsView } from "./components/AnalyticsView";
 import { SettingsView } from "./components/SettingsView";
-import { CreateEditView } from "./components/CreateEditView";
+import { CreateTimerView } from "./components/CreateTimerView";
+import { EditTimerView } from "./components/EditTimerView";
 import { GroupCreateEditView } from "./components/GroupCreateEditView";
 import { GroupListView } from "./components/GroupListView";
 import { BottomTabBar } from "./components/BottomTabBar";
@@ -205,12 +206,15 @@ export function App() {
     }
 
     if (activeAction === ActiveAction.CreateEdit) {
-      return (
-        <CreateEditView
+      const userId = user?.userId ?? null;
+      return editTimer ? (
+        <EditTimerView
           existing={editTimer}
           onDone={handleDone}
-          userId={user?.userId ?? null}
+          userId={userId}
         />
+      ) : (
+        <CreateTimerView onDone={handleDone} userId={userId} />
       );
     }
 
