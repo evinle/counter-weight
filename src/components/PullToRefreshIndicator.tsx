@@ -15,7 +15,7 @@ export function PullToRefreshIndicator({ syncing }: Props) {
     <div
       role={refreshing ? "status" : undefined}
       aria-label={refreshing ? "Refreshing" : undefined}
-      className="flex items-center justify-center overflow-hidden"
+      className="flex items-center justify-center overflow-hidden shrink-0"
       style={{
         height: refreshing && pullDistance === 0 ? 32 : pullDistance,
         transition: pullDistance === 0 ? "height 0.15s ease-out" : "none",
