@@ -21,10 +21,10 @@ import { TimerType } from "../db/schema";
 import type { Timer, Priority, Tag } from "../db/schema";
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
-  low: "text-slate-400",
-  medium: "text-blue-400",
-  high: "text-amber-400",
-  critical: "text-red-500",
+  low: "text-priority-low",
+  medium: "text-priority-medium",
+  high: "text-priority-high",
+  critical: "text-priority-critical",
 };
 
 interface Props {
@@ -94,20 +94,20 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
   });
 
   const menuItemClass =
-    "w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm text-white hover:bg-slate-600 cursor-pointer";
+    "w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm text-ink hover:bg-surface-strong cursor-pointer";
 
   return (
     <div className="relative rounded-xl overflow-hidden">
       {side === "complete" && (
         <div
           data-testid="complete-panel"
-          className="absolute inset-0 bg-emerald-900/70 flex items-center pl-6 text-emerald-200 font-medium"
+          className="absolute inset-0 bg-success-soft/70 flex items-center pl-6 text-success font-medium"
           aria-hidden="true"
         >
           {completed ? (
             <span
               data-testid="complete-confirmation"
-              className="w-full text-center text-7xl text-emerald-200"
+              className="w-full text-center text-7xl text-success"
             >
               <CheckIcon className="icon-xl mx-auto" />
             </span>
@@ -120,7 +120,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
         </div>
       )}
       {side === "drop" && dropped && (
-        <div className="absolute inset-0 bg-rose-900/70 flex items-center justify-center">
+        <div className="absolute inset-0 bg-danger-soft/70 flex items-center justify-center">
           <span data-testid="drop-confirmation">
             <TrashIcon className="icon-xl" />
           </span>
@@ -131,7 +131,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
           data-testid="drop-panel"
           disabled={!armed}
           onClick={drop}
-          className="absolute inset-0 bg-rose-900/70 flex items-center justify-end text-rose-200 font-medium cursor-pointer disabled:cursor-default"
+          className="absolute inset-0 bg-danger-soft/70 flex items-center justify-end text-danger font-medium cursor-pointer disabled:cursor-default"
         >
           <span className="flex items-center justify-center gap-1.5" style={{ width: DROP_REVEAL_WIDTH }}>
             Drop
@@ -146,7 +146,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
           const settled = e.target === e.currentTarget && e.propertyName === "transform";
           if (settled && dragX === 0 && !armed && !dropped && !completed) setSide(null);
         }}
-        className="relative rounded-xl p-5 min-h-44 bg-slate-800 flex flex-col gap-3 touch-pan-y select-none"
+        className="relative rounded-xl p-5 min-h-44 bg-surface flex flex-col gap-3 touch-pan-y select-none"
         style={{
           transform: dropped
             ? "translateX(-100%)"
@@ -157,7 +157,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
         }}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-lg font-medium text-white truncate">
+          <span className="text-lg font-medium text-ink truncate">
             {timer.emoji && <span className="mr-2">{timer.emoji}</span>}
             {timer.title}
           </span>
@@ -165,13 +165,14 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
             {timer.recurrenceRule !== null && (
               <span
                 data-testid="recurring-indicator"
-                className="text-xs text-slate-400"
+                className="text-xs text-ink-muted"
                 title="Recurring"
               >
                 ↻
               </span>
             )}
             <span
+              data-testid="priority-label"
               className={`text-sm font-semibold uppercase ${PRIORITY_COLOURS[timer.priority]}`}
             >
               {timer.priority}
@@ -182,14 +183,14 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((open) => !open)}
-                className="w-8 h-8 -mr-2 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"
+                className="w-8 h-8 -mr-2 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-surface-raised cursor-pointer"
               >
                 <KebabIcon className="icon-md" />
               </button>
               {menuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-1 z-20 min-w-36 p-1 rounded-xl bg-slate-700 shadow-lg"
+                  className="absolute right-0 top-full mt-1 z-20 min-w-36 p-1 rounded-xl bg-surface-raised shadow-lg"
                 >
                   {!isOverdue && (
                     <button
@@ -206,7 +207,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                   )}
                   <button
                     role="menuitem"
-                    className={`${menuItemClass} text-rose-200`}
+                    className={`${menuItemClass} text-danger`}
                     onClick={drop}
                   >
                     <TrashIcon />
@@ -221,16 +222,17 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
         <div className="flex-1 flex flex-col justify-center gap-2">
           <div className="flex items-center justify-between gap-3">
             <span
+              data-testid="countdown"
               className={`font-mono tabular-nums tracking-tight leading-none whitespace-nowrap ${
                 /\d+d /.test(countdownText) ? "text-4xl" : "text-[2.5rem]"
-              } ${isOverdue ? "text-red-400" : "text-white"}`}
+              } ${isOverdue ? "text-danger" : "text-ink"}`}
             >
               {countdownText}
             </span>
             <button
               aria-label="Complete"
               onClick={complete}
-              className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
+              className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-success text-on-accent hover:bg-success/90 active:scale-95 transition-all cursor-pointer"
             >
               <CheckIcon className="icon-lg" />
             </button>
@@ -254,7 +256,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                   else startWork(timer.id);
                 }}
                 className={`w-11 h-11 -ml-2 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${
-                  hasOpenSession ? "text-amber-400 hover:text-amber-300" : "text-slate-400 hover:text-white"
+                  hasOpenSession ? "text-warning hover:text-warning/80" : "text-ink-muted hover:text-ink"
                 }`}
               >
                 {hasOpenSession ? <PauseIcon className="icon-md" /> : <PlayIcon className="icon-md" />}
@@ -266,7 +268,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
             {resolvedTags.map((tag) => (
               <span
                 key={tag.serverId}
-                className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                className="px-2 py-0.5 rounded-full text-xs font-medium text-ink"
                 style={{ backgroundColor: tag.color ?? "#6b7280" }}
               >
                 {tag.name}

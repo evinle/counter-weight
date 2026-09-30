@@ -576,3 +576,29 @@ describe('TimerCard — layout', () => {
     expect(within(screen.getByTestId('timer-tags')).getAllByText(/Alpha|long tag|Gamma/)).toHaveLength(3)
   })
 })
+
+describe('TimerCard — theme colours', () => {
+  it.each(['low', 'medium', 'high', 'critical'] as const)(
+    'colours a %s priority label with its priority token',
+    (priority) => {
+      render(<TimerCard timer={{ ...BASE_TIMER, priority }} tagsMap={new Map()} onEdit={() => {}} />)
+
+      expect(screen.getByTestId('priority-label')).toHaveClass(`text-priority-${priority}`)
+    },
+  )
+
+  it('shows the countdown in the danger colour once the timer is overdue', () => {
+    const overdue = { ...BASE_TIMER, targetDatetime: new Date(Date.now() - 60_000) }
+
+    render(<TimerCard timer={overdue} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.getByTestId('countdown')).toHaveClass('text-danger')
+  })
+
+  it('shows the countdown in the normal ink colour while time remains', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.getByTestId('countdown')).toHaveClass('text-ink')
+    expect(screen.getByTestId('countdown')).not.toHaveClass('text-danger')
+  })
+})

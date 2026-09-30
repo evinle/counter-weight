@@ -75,7 +75,7 @@ export function FeedView({
 
   const renderTimersContent = () =>
     timers.length === 0 ? (
-      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+      <div className="flex flex-col items-center justify-center h-full text-ink-faint">
         <HourglassIcon className="icon-xl mb-3" />
         <p className="text-sm">No active timers. Create one to get started.</p>
       </div>
@@ -96,15 +96,15 @@ export function FeedView({
   return (
     <div ref={pullRef} className="flex flex-col h-full overflow-auto">
       <div className="relative z-40 flex items-center gap-2 px-4 pt-4 pb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Timers</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Timers</h1>
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
         <RefreshButton onRefresh={onRefresh} syncTrigger={syncTrigger} />
       </div>
 
-      <div className="sticky top-0 z-30 flex items-stretch gap-2 px-4 bg-slate-900 border-b border-slate-800">
+      <div className="sticky top-0 z-30 flex items-stretch gap-2 px-4 bg-canvas border-b border-line">
         <button
           onClick={toggleDirection}
-          className="flex-shrink-0 self-center w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          className="flex-shrink-0 self-center w-8 h-8 flex items-center justify-center rounded-md text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors"
           aria-label={
             direction === SortDirections.Asc ? "Ascending" : "Descending"
           }
@@ -118,7 +118,7 @@ export function FeedView({
 
         <div className="flex items-stretch gap-1 flex-1 min-w-0">
           {showLeft && (
-            <ChevronLeftIcon className="icon-md flex-shrink-0 self-center text-slate-500" />
+            <ChevronLeftIcon className="icon-md flex-shrink-0 self-center text-ink-faint" />
           )}
           <div
             ref={scrollRef}
@@ -133,8 +133,8 @@ export function FeedView({
                 onClick={() => setMode(m)}
                 className={`flex-shrink-0 snap-start flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                   mode === m
-                    ? "bg-slate-600 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                    ? "bg-surface-strong text-ink"
+                    : "text-ink-muted hover:text-ink hover:bg-surface-raised"
                 }`}
               >
                 <SortIcon className="icon-sm" />
@@ -144,7 +144,7 @@ export function FeedView({
             })}
           </div>
           {showRight && (
-            <ChevronRightIcon className="icon-md flex-shrink-0 self-center text-slate-500" />
+            <ChevronRightIcon className="icon-md flex-shrink-0 self-center text-ink-faint" />
           )}
         </div>
       </div>

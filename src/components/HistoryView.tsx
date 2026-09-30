@@ -19,15 +19,15 @@ const STATUS_LABELS: Record<HistoryStatus, string> = {
 };
 
 const STATUS_COLORS: Record<HistoryStatus, string> = {
-  completed: "text-green-400",
-  missed: "text-red-400",
-  cancelled: "text-slate-400",
+  completed: "text-success",
+  missed: "text-danger",
+  cancelled: "text-ink-muted",
 };
 
 const TIMING_COLORS: Record<HistoryTiming, string> = {
-  "on-time": "text-slate-400",
-  early: "text-green-400",
-  overdue: "text-red-400",
+  "on-time": "text-ink-muted",
+  early: "text-success",
+  overdue: "text-danger",
 };
 
 function formatAnnotation(text: string, timing: HistoryTiming): string {
@@ -47,7 +47,7 @@ export function HistoryView({ onRefresh, syncTrigger }: Props) {
 
   const renderTimersHistoryContent = () =>
     timers.length === 0 ? (
-      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+      <div className="flex flex-col items-center justify-center h-full text-ink-faint">
         <HistoryIcon className="icon-xl mb-3" />
         <p className="text-sm">No completed timers yet.</p>
       </div>
@@ -65,10 +65,10 @@ export function HistoryView({ onRefresh, syncTrigger }: Props) {
             return (
               <div
                 key={timer.id}
-                className="bg-slate-800 rounded-xl p-4 flex flex-col gap-1"
+                className="bg-surface rounded-xl p-4 flex flex-col gap-1"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-red-500">
+                  <span className="text-danger">
                     Invalid timer data: {status}
                   </span>
                 </div>
@@ -78,11 +78,11 @@ export function HistoryView({ onRefresh, syncTrigger }: Props) {
           return (
             <div
               key={timer.id}
-              className="bg-slate-800 rounded-xl p-4 flex flex-col gap-1"
+              className="bg-surface rounded-xl p-4 flex flex-col gap-1"
             >
               <div className="flex items-center gap-2">
                 {timer.emoji && <span>{timer.emoji}</span>}
-                <span className="font-semibold text-white flex-1 truncate">
+                <span className="font-semibold text-ink flex-1 truncate">
                   {timer.title}
                 </span>
                 <span
@@ -95,7 +95,7 @@ export function HistoryView({ onRefresh, syncTrigger }: Props) {
               <p className={`text-xs ${TIMING_COLORS[timing]}`}>
                 {formatAnnotation(text, timing)}
                 {extensionText && (
-                  <p className="text-xs text-slate-500 inline">
+                  <p className="text-xs text-ink-faint inline">
                     {" "}
                     {extensionText}
                   </p>

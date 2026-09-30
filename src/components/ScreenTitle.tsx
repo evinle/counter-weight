@@ -10,7 +10,7 @@ interface Props {
 export function ScreenTitle({ title, onRefresh = null, syncTrigger = null }: Props) {
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-      <h1 className="text-2xl font-bold tracking-tight text-white">{title}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
       <RefreshButton onRefresh={onRefresh} syncTrigger={syncTrigger} />
     </div>
   )
