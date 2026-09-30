@@ -3,6 +3,12 @@ import { createGroup, updateGroup } from "../hooks/useGroups";
 import { useUserTags } from "../hooks/useTags";
 import { ScreenTitle } from "./ScreenTitle";
 import { EmojiButton } from "./EmojiButton";
+import {
+  GROUP_COLORS,
+  entityColorLabel,
+  entityColorVar,
+  normalizeEntityColor,
+} from "../lib/entityColors";
 import type {
   Group,
   GroupConditions,
@@ -12,17 +18,6 @@ import type {
   Tag,
 } from "../db/schema";
 import { PRIORITIES, TIMER_STATUSES } from "../db/schema";
-
-const PRESET_COLORS = [
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#6b7280",
-];
 
 type ConditionField = FieldCondition["field"];
 
@@ -145,7 +140,7 @@ export function GroupCreateEditView({
 }: Props) {
   const [name, setName] = useState(existing?.name ?? "");
   const [emoji, setEmoji] = useState(existing?.emoji ?? "");
-  const [color, setColor] = useState(existing?.color ?? "");
+  const [color, setColor] = useState<string>(normalizeEntityColor(existing?.color ?? null) ?? "");
   const tags = useUserTags(userId);
   const [drafts, setDrafts] = useState<DraftCondition[]>(
     () =>
@@ -241,18 +236,19 @@ export function GroupCreateEditView({
           <div className="flex flex-col gap-1">
             <span className="text-sm text-ink-muted">Color</span>
             <div className="flex gap-2 flex-wrap">
-              {PRESET_COLORS.map((c) => (
+              {GROUP_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor((prev) => (prev === c ? "" : c))}
-                  aria-label={c}
+                  aria-label={entityColorLabel(c)}
+                  aria-pressed={color === c}
                   className={`w-7 h-7 rounded-full transition-all cursor-pointer ${
                     color === c
                       ? "ring-2 ring-ink ring-offset-2 ring-offset-surface"
                       : ""
                   }`}
-                  style={{ backgroundColor: c }}
+                  style={{ backgroundColor: entityColorVar(c) }}
                 />
               ))}
             </div>

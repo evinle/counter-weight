@@ -222,3 +222,47 @@ describe('GroupCreateEditView', () => {
     })
   })
 })
+
+describe('GroupCreateEditView colours', () => {
+  function renderCreate() {
+    render(<GroupCreateEditView userId="user-1" onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Coloured' } })
+  }
+
+  it('offers the colour slots as named swatches, without grey', () => {
+    renderCreate()
+
+    for (const name of ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Violet', 'Pink']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: 'Grey' })).not.toBeInTheDocument()
+  })
+
+  it('stores the slot name of the picked colour', async () => {
+    renderCreate()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Violet' }))
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(async () => expect((await db.groups.toArray())[0]?.color).toBe('violet'))
+  })
+
+  it('saves no colour when the picked swatch is tapped again', async () => {
+    renderCreate()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Violet' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Violet' }))
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(async () => expect((await db.groups.toArray())[0]?.color).toBeNull())
+  })
+
+  it('shows the swatch as selected for a group still holding an old preset hex', async () => {
+    const id = await db.groups.add({ ...BASE_GROUP, color: '#ef4444' })
+    const existing = await db.groups.get(id)
+    render(<GroupCreateEditView existing={existing} userId="user-1" onDone={() => {}} onCancel={() => {}} />)
+
+    expect(screen.getByRole('button', { name: 'Red' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Blue' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})

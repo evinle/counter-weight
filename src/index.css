@@ -64,6 +64,21 @@ html {
   --color-priority-critical: oklch(0.72 0.22 20);
 }
 
+/* Tag and group colours. Tags and groups store the slot name ('red'); the value
+   lives here so it can be retuned without a data migration. 'static' emits every
+   variable even though components reference them only by name at runtime.
+   Soft set: L 0.80, C 0.09, evenly spaced hues. */
+@theme static {
+  --color-swatch-red: oklch(0.8 0.09 20);
+  --color-swatch-orange: oklch(0.8 0.09 55);
+  --color-swatch-yellow: oklch(0.8 0.09 95);
+  --color-swatch-green: oklch(0.8 0.09 155);
+  --color-swatch-blue: oklch(0.8 0.09 240);
+  --color-swatch-violet: oklch(0.8 0.09 295);
+  --color-swatch-pink: oklch(0.8 0.09 345);
+  --color-swatch-grey: oklch(0.78 0.02 265);
+}
+
 @utility pb-tab-bar {
   padding-bottom: var(--spacing-bottom-bar-inset);
 }

@@ -602,3 +602,27 @@ describe('TimerCard — theme colours', () => {
     expect(screen.getByTestId('countdown')).not.toHaveClass('text-danger')
   })
 })
+
+describe('TimerCard — tag colours', () => {
+  const makeTag = (color: string | null) =>
+    ({
+      serverId: 'a', userId: null, name: 'Alpha', color, emoji: null, version: null,
+      syncStatus: 'synced', createdAt: new Date(), updatedAt: new Date(),
+    }) satisfies Tag
+
+  it.each([
+    ['a slot name', 'green', 'var(--color-swatch-green)'],
+    ['an old preset hex', '#8b5cf6', 'var(--color-swatch-violet)'],
+    ['no colour', null, 'var(--color-swatch-grey)'],
+  ])('paints a tag chip from %s', (_label, color, expected) => {
+    render(<TimerCard timer={{ ...BASE_TIMER, tagIds: ['a'] }} tagsMap={new Map([['a', makeTag(color)]])} onEdit={() => {}} />)
+
+    expect(screen.getByText('Alpha').getAttribute('style')).toContain(expected)
+  })
+
+  it('uses the dark on-accent text colour on tag chips', () => {
+    render(<TimerCard timer={{ ...BASE_TIMER, tagIds: ['a'] }} tagsMap={new Map([['a', makeTag('red')]])} onEdit={() => {}} />)
+
+    expect(screen.getByText('Alpha')).toHaveClass('text-on-accent')
+  })
+})

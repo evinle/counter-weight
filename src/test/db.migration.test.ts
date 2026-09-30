@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { migrateV1toV2, migrateV2toV3, migrateV5toV6 } from '../db/migrations'
+import { migrateEntityColor, migrateV1toV2, migrateV2toV3, migrateV5toV6 } from '../db/migrations'
 import type { TimerV1, TimerV2, TimerV5 } from '../db/schema'
 
 const V1_FIXTURE = {
@@ -95,5 +95,31 @@ describe('migrateV2toV3', () => {
     const v3 = migrateV2toV3(V2_FIXTURE)
     expect(v3.title).toBe('Test')
     expect(v3.originalTargetDatetime).toBe(V1_FIXTURE.targetDatetime)
+  })
+})
+
+describe('migrateEntityColor', () => {
+  const ROW = { name: 'Work', color: '#3b82f6', serverId: 'srv-1', syncStatus: 'synced' } as const
+
+  it('replaces an old preset hex with its slot name', () => {
+    expect(migrateEntityColor(ROW).color).toBe('blue')
+  })
+
+  it('marks a row that is already on the server pending, so sync carries the change', () => {
+    expect(migrateEntityColor(ROW).syncStatus).toBe('pending')
+  })
+
+  it('leaves a local-only row synced, since there is nothing to push', () => {
+    expect(migrateEntityColor({ ...ROW, serverId: null }).syncStatus).toBe('synced')
+  })
+
+  it.each(['pending', 'deleted'] as const)('keeps a %s row in that state', (syncStatus) => {
+    expect(migrateEntityColor({ ...ROW, syncStatus }).syncStatus).toBe(syncStatus)
+  })
+
+  it.each([null, 'blue', '#123456'])('leaves colour %j untouched', (color) => {
+    const row = { ...ROW, color }
+
+    expect(migrateEntityColor(row)).toEqual(row)
   })
 })

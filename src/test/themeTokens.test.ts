@@ -19,13 +19,11 @@ describe('theme tokens', () => {
 })
 
 // Colour literals (`#3b82f6`, `rgb(…)`) bypass the theme just like palette classes do.
-// These files hold colours that no theme token can stand in for.
+// These files hold colours that no theme token can stand in for. Tag and group colours
+// are not here: they are slots resolved through `--color-swatch-*` tokens.
 const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/g
 const LITERAL_ALLOWED: Record<string, string> = {
   'LoginView.tsx': 'Google logo brand colours',
-  'GroupCreateEditView.tsx': 'user-selectable group colour swatches',
-  'TagPicker.tsx': 'user-selectable tag colour swatches and chip fallback',
-  'TimerCard.tsx': 'tag chip fallback colour',
 }
 
 describe('theme tokens: colour literals', () => {

@@ -145,3 +145,48 @@ describe('TagPicker long-press popover', () => {
     void id
   })
 })
+
+describe('TagPicker colours', () => {
+  async function createTagWith(pickColor?: string) {
+    render(<TagPicker userId={null} onChange={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
+    fireEvent.change(screen.getByPlaceholderText('Tag name'), { target: { value: 'Errands' } })
+    if (pickColor) fireEvent.click(screen.getByRole('button', { name: pickColor }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(async () => expect(await db.tags.count()).toBe(1))
+    return (await db.tags.toArray())[0]
+  }
+
+  it('offers every colour slot as a named swatch', () => {
+    render(<TagPicker userId={null} onChange={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
+
+    for (const name of ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Violet', 'Pink', 'Grey']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('creates a new tag in blue unless another colour is picked', async () => {
+    expect((await createTagWith()).color).toBe('blue')
+  })
+
+  it('stores the slot name of the picked colour, not a hex', async () => {
+    expect((await createTagWith('Red')).color).toBe('red')
+  })
+
+  it.each([
+    ['a slot name', 'red', 'var(--color-swatch-red)'],
+    ['an old preset hex', '#3b82f6', 'var(--color-swatch-blue)'],
+    ['no colour', null, 'var(--color-swatch-grey)'],
+  ])('paints a tag chip from %s', async (_label, color, expected) => {
+    await db.tags.add({
+      name: 'Work', serverId: 'srv-1', userId: 'user-1', color, emoji: null,
+      version: 1, syncStatus: SyncStatuses.Synced, createdAt: new Date(), updatedAt: new Date(),
+    })
+    render(<TagPicker userId="user-1" onChange={() => {}} />)
+
+    const chip = await screen.findByRole('button', { name: /Work/ })
+
+    expect(chip.getAttribute('style')).toContain(expected)
+  })
+})

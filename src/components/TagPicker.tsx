@@ -3,17 +3,7 @@ import { useUserTags, createTag, deleteTag, renameTag } from '../hooks/useTags'
 import { SyncStatuses } from '../db/schema'
 import { db } from '../db'
 import { trpc } from '../lib/trpc'
-
-const PRESET_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#6b7280',
-]
+import { ENTITY_COLORS, EntityColor, entityColorCss, entityColorLabel, entityColorVar } from '../lib/entityColors'
 
 const LONG_PRESS_MS = 500
 
@@ -48,7 +38,7 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [newTagName, setNewTagName] = useState('')
-  const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[4])
+  const [newTagColor, setNewTagColor] = useState<EntityColor>(EntityColor.Blue)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -169,10 +159,10 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
             <div key={dexieId} className="relative">
               <button
                 type="button"
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+                className={`px-3 py-1 rounded-full text-sm font-medium text-on-accent transition-all cursor-pointer select-none ${
                   selected ? 'ring-2 ring-ink ring-offset-1 ring-offset-surface' : 'opacity-60 hover:opacity-90'
                 }`}
-                style={{ backgroundColor: tag.color ?? '#6b7280', color: '#fff' }}
+                style={{ backgroundColor: entityColorCss(tag.color) }}
                 onClick={(e) => { e.stopPropagation(); toggleTag(dexieId) }}
                 onPointerDown={(e) => { e.stopPropagation(); startLongPress(dexieId) }}
                 onPointerUp={cancelLongPress}
@@ -240,15 +230,17 @@ export function TagPicker({ userId, initialServerIds = [], onChange, longPressMs
             }}
           />
           <div className="flex gap-2 flex-wrap">
-            {PRESET_COLORS.map((c) => (
+            {ENTITY_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
+                aria-label={entityColorLabel(c)}
+                aria-pressed={newTagColor === c}
                 onClick={() => setNewTagColor(c)}
                 className={`w-6 h-6 rounded-full transition-all cursor-pointer ${
                   newTagColor === c ? 'ring-2 ring-ink ring-offset-1 ring-offset-surface-raised' : ''
                 }`}
-                style={{ backgroundColor: c }}
+                style={{ backgroundColor: entityColorVar(c) }}
               />
             ))}
           </div>

@@ -10,6 +10,7 @@ import { PauseIcon } from "../icons/PauseIcon";
 import { PencilIcon } from "../icons/PencilIcon";
 import { PlayIcon } from "../icons/PlayIcon";
 import { TrashIcon } from "../icons/TrashIcon";
+import { entityColorCss } from "../lib/entityColors";
 import {
   completeTimer,
   cancelTimer,
@@ -268,8 +269,8 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
             {resolvedTags.map((tag) => (
               <span
                 key={tag.serverId}
-                className="px-2 py-0.5 rounded-full text-xs font-medium text-ink"
-                style={{ backgroundColor: tag.color ?? "#6b7280" }}
+                className="px-2 py-0.5 rounded-full text-xs font-medium text-on-accent"
+                style={{ backgroundColor: entityColorCss(tag.color) }}
               >
                 {tag.name}
               </span>
