@@ -15,6 +15,3 @@ export const DEPARTURE_LINGER_MS = 1000
 
 /** Distance in px a pointer must travel before the drag commits to the horizontal (swipe) or vertical (scroll) axis. */
 export const SWIPE_AXIS_SLOP_PX = 10
-
-/** Minimum time the refresh spinner stays on screen, so a fast sync is still visibly acknowledged. */
-export const MIN_REFRESH_INDICATOR_MS = 600

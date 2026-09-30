@@ -31,7 +31,13 @@ const SORT_MODE_LABELS: Record<SortMode, string> = {
 
 const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
 
-export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }: Props) {
+export function FeedView({
+  onEdit,
+  onManageGroups,
+  userId,
+  onRefresh,
+  syncing,
+}: Props) {
   const { mode, setMode, direction, setDirection } = useSortMode();
   const { timers, hold } = useLingeringTimers(useFilteredFeed(mode, direction));
   const tagsMap = useTagsMap();
@@ -40,11 +46,19 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
   const { containerRef: pullRef } = usePullToRefresh({ onRefresh });
 
   useEffect(() => {
-    activePillRef.current?.scrollIntoView({ behavior: "instant", block: "nearest", inline: "start" });
+    activePillRef.current?.scrollIntoView({
+      behavior: "instant",
+      block: "nearest",
+      inline: "start",
+    });
   }, [mode]);
 
   const toggleDirection = () =>
-    setDirection(direction === SortDirections.Asc ? SortDirections.Desc : SortDirections.Asc);
+    setDirection(
+      direction === SortDirections.Asc
+        ? SortDirections.Desc
+        : SortDirections.Asc,
+    );
 
   const renderTimersContent = () =>
     timers.length === 0 ? (
@@ -55,7 +69,13 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
     ) : (
       <div className="flex flex-col gap-3 p-4 box-border">
         {timers.map((timer) => (
-          <TimerCard key={timer.id} timer={timer} tagsMap={tagsMap} onEdit={onEdit} onDepart={hold} />
+          <TimerCard
+            key={timer.id}
+            timer={timer}
+            tagsMap={tagsMap}
+            onEdit={onEdit}
+            onDepart={hold}
+          />
         ))}
       </div>
     );
@@ -72,14 +92,21 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
         <button
           onClick={toggleDirection}
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-          aria-label={direction === SortDirections.Asc ? "Ascending" : "Descending"}
+          aria-label={
+            direction === SortDirections.Asc ? "Ascending" : "Descending"
+          }
         >
           {direction === SortDirections.Asc ? "↑" : "↓"}
         </button>
 
         <div className="flex items-center gap-1 flex-1 min-w-0">
-          {showLeft && <span className="flex-shrink-0 text-slate-500 text-xl">‹</span>}
-          <div ref={scrollRef} className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0">
+          {showLeft && (
+            <span className="flex-shrink-0 text-slate-500 text-xl">‹</span>
+          )}
+          <div
+            ref={scrollRef}
+            className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0"
+          >
             {ALL_SORT_MODES.map((m) => (
               <button
                 key={m}
@@ -95,11 +122,13 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
               </button>
             ))}
           </div>
-          {showRight && <span className="flex-shrink-0 text-slate-500 text-xl">›</span>}
+          {showRight && (
+            <span className="flex-shrink-0 text-slate-500 text-xl">›</span>
+          )}
         </div>
       </div>
 
-      <PullToRefreshIndicator syncing={syncing} />
+      <PullToRefreshIndicator syncing={syncing} className="mt-5" />
 
       {renderTimersContent()}
     </div>
