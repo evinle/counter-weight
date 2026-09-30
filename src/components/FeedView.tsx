@@ -1,4 +1,16 @@
 import { useEffect, useRef } from "react";
+import type { ComponentType } from "react";
+import type { IconProps } from "../icons/Icon";
+import { ArrowDownIcon } from "../icons/ArrowDownIcon";
+import { ArrowUpIcon } from "../icons/ArrowUpIcon";
+import { CalendarIcon } from "../icons/CalendarIcon";
+import { ChevronLeftIcon } from "../icons/ChevronLeftIcon";
+import { ChevronRightIcon } from "../icons/ChevronRightIcon";
+import { ClockIcon } from "../icons/ClockIcon";
+import { FlameIcon } from "../icons/FlameIcon";
+import { HourglassIcon } from "../icons/HourglassIcon";
+import { TypeIcon } from "../icons/TypeIcon";
+import { ZapIcon } from "../icons/ZapIcon";
 import { useScrollEdges } from "../hooks/useScrollEdges";
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
@@ -22,12 +34,12 @@ interface Props {
   syncTrigger: SyncTrigger | null;
 }
 
-const SORT_MODE_LABELS: Record<SortMode, string> = {
-  smart: "⚡ Smart",
-  targetDatetime: "📅 Date",
-  createdAt: "🕐 Created",
-  priority: "🔥 Priority",
-  title: "🔤 Title",
+const SORT_MODES: Record<SortMode, { label: string; icon: ComponentType<IconProps> }> = {
+  smart: { label: "Smart", icon: ZapIcon },
+  targetDatetime: { label: "Date", icon: CalendarIcon },
+  createdAt: { label: "Created", icon: ClockIcon },
+  priority: { label: "Priority", icon: FlameIcon },
+  title: { label: "Title", icon: TypeIcon },
 };
 
 const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
@@ -64,7 +76,7 @@ export function FeedView({
   const renderTimersContent = () =>
     timers.length === 0 ? (
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
-        <span className="text-5xl mb-3">⏳</span>
+        <HourglassIcon className="icon-xl mb-3" />
         <p className="text-sm">No active timers. Create one to get started.</p>
       </div>
     ) : (
@@ -97,34 +109,42 @@ export function FeedView({
             direction === SortDirections.Asc ? "Ascending" : "Descending"
           }
         >
-          {direction === SortDirections.Asc ? "↑" : "↓"}
+          {direction === SortDirections.Asc ? (
+            <ArrowUpIcon className="icon-md" />
+          ) : (
+            <ArrowDownIcon className="icon-md" />
+          )}
         </button>
 
         <div className="flex items-stretch gap-1 flex-1 min-w-0">
           {showLeft && (
-            <span className="flex-shrink-0 self-center text-slate-500 text-xl">‹</span>
+            <ChevronLeftIcon className="icon-md flex-shrink-0 self-center text-slate-500" />
           )}
           <div
             ref={scrollRef}
             className="flex items-center gap-2 py-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0"
           >
-            {ALL_SORT_MODES.map((m) => (
+            {ALL_SORT_MODES.map((m) => {
+              const { label, icon: SortIcon } = SORT_MODES[m];
+              return (
               <button
                 key={m}
                 ref={mode === m ? activePillRef : null}
                 onClick={() => setMode(m)}
-                className={`flex-shrink-0 snap-start px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 snap-start flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                   mode === m
                     ? "bg-slate-600 text-white"
                     : "text-slate-400 hover:text-white hover:bg-slate-700"
                 }`}
               >
-                {SORT_MODE_LABELS[m]}
+                <SortIcon className="icon-sm" />
+                {label}
               </button>
-            ))}
+              );
+            })}
           </div>
           {showRight && (
-            <span className="flex-shrink-0 self-center text-slate-500 text-xl">›</span>
+            <ChevronRightIcon className="icon-md flex-shrink-0 self-center text-slate-500" />
           )}
         </div>
       </div>

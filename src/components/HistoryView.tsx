@@ -1,3 +1,4 @@
+import { HistoryIcon } from "../icons/HistoryIcon";
 import { useHistoryTimers } from "../hooks/useTimers";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { ScreenTitle } from "./ScreenTitle";
@@ -47,7 +48,7 @@ export function HistoryView({ onRefresh, syncTrigger }: Props) {
   const renderTimersHistoryContent = () =>
     timers.length === 0 ? (
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
-        <span className="text-5xl mb-3">📋</span>
+        <HistoryIcon className="icon-xl mb-3" />
         <p className="text-sm">No completed timers yet.</p>
       </div>
     ) : (

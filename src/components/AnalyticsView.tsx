@@ -1,3 +1,4 @@
+import { AnalyticsIcon } from "../icons/AnalyticsIcon";
 import { ScreenTitle } from './ScreenTitle'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 import { PullToRefreshIndicator } from './PullToRefreshIndicator'
@@ -16,7 +17,7 @@ export function AnalyticsView({ onRefresh, syncTrigger }: Props) {
       <ScreenTitle title="Analytics" onRefresh={onRefresh} syncTrigger={syncTrigger} />
       <PullToRefreshIndicator syncTrigger={syncTrigger} />
       <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-        <span className="text-5xl mb-3">📊</span>
+        <AnalyticsIcon className="icon-xl mb-3" />
         <p className="text-sm">Analytics coming soon.</p>
       </div>
     </div>

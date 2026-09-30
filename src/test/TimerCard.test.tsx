@@ -507,6 +507,20 @@ describe('TimerCard — work timer row', () => {
     expect(within(screen.getByTestId('work-row')).getByRole('button', { name: 'Pause work' })).toBeInTheDocument()
   })
 
+  it('tints the elapsed time with the accent colour while a session is running', () => {
+    const running = { ...TASK, workSessions: [{ startedAt: new Date(), endedAt: null }] }
+    render(<TimerCard timer={running} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.getByTestId('work-elapsed')).toHaveClass('text-accent')
+  })
+
+  it('mutes the elapsed time while no session is running', () => {
+    render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.getByTestId('work-elapsed')).toHaveClass('text-ink-muted')
+    expect(screen.getByTestId('work-elapsed')).not.toHaveClass('text-accent')
+  })
+
   it('starts a work session when Start work is tapped', async () => {
     const id = await db.timers.add({ ...TASK, id: undefined })
     render(<TimerCard timer={{ ...TASK, id }} tagsMap={new Map()} onEdit={() => {}} />)

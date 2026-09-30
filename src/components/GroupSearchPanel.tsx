@@ -1,3 +1,4 @@
+import { FilterIcon } from "../icons/FilterIcon";
 import { useState } from "react";
 import { useGroups } from "../hooks/useGroups";
 import { useViewStore } from "../store/viewStore";
@@ -46,11 +47,7 @@ export function GroupSearchPanel({ userId, onManageGroups }: Props) {
             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
         }`}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <rect x="2" y="4" width="16" height="2" rx="1" />
-          <rect x="5" y="9" width="10" height="2" rx="1" />
-          <rect x="8" y="14" width="4" height="2" rx="1" />
-        </svg>
+        <FilterIcon className="icon-md" />
       </button>
 
       {/* Active filter badge */}

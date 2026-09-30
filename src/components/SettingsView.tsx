@@ -1,3 +1,6 @@
+import { DownloadIcon } from "../icons/DownloadIcon";
+import { LogOutIcon } from "../icons/LogOutIcon";
+import { UploadIcon } from "../icons/UploadIcon";
 import { useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
@@ -70,14 +73,14 @@ export function SettingsView() {
           onClick={handleExport}
           className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
         >
-          <span className="text-2xl">📤</span>
+          <UploadIcon className="icon-lg" />
           <span className="text-white font-medium">Export Timers</span>
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
         >
-          <span className="text-2xl">📥</span>
+          <DownloadIcon className="icon-lg" />
           <span className="text-white font-medium">Import Timers</span>
         </button>
         <input
@@ -95,7 +98,7 @@ export function SettingsView() {
             }}
             className="flex items-center gap-3 bg-slate-800 rounded-xl p-4 active:opacity-70 transition-opacity cursor-pointer w-full text-left"
           >
-            <span className="text-2xl">❌</span>
+            <LogOutIcon className="icon-lg" />
             <span className="text-white font-medium">Logout</span>
           </button>
         )}

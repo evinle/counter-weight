@@ -1,3 +1,4 @@
+import { TrashIcon } from "../icons/TrashIcon";
 import { useState, useRef, useEffect } from "react";
 import { useGroups, deleteGroup } from "../hooks/useGroups";
 import { ScreenTitle } from "./ScreenTitle";
@@ -91,9 +92,9 @@ export function GroupListView({ userId, onEdit, onCreateNew, onDone }: Props) {
                 <button
                   aria-label={`Delete ${group.name}`}
                   onClick={() => armDrop(group.id ?? 0)}
-                  className="text-base font-medium text-white bg-slate-600 rounded-xl w-12 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
+                  className="flex items-center justify-center text-base font-medium text-white bg-slate-600 rounded-xl w-12 py-3 min-h-[48px] hover:bg-slate-500 active:scale-95 transition-all"
                 >
-                  🗑️
+                  <TrashIcon className="icon-md" />
                 </button>
               </div>
             )}

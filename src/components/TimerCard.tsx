@@ -4,7 +4,12 @@ import { useAnimatedElapsed } from "../hooks/useAnimatedElapsed";
 import { useSwipeToComplete } from "../hooks/useSwipeToComplete";
 import { formatDuration } from "../lib/countdown";
 import { DROP_REVEAL_WIDTH } from "../lib/gestures";
-import { CheckIcon, KebabIcon, PauseIcon, PencilIcon, PlayIcon, TrashIcon } from "./CardIcons";
+import { CheckIcon } from "../icons/CheckIcon";
+import { KebabIcon } from "../icons/KebabIcon";
+import { PauseIcon } from "../icons/PauseIcon";
+import { PencilIcon } from "../icons/PencilIcon";
+import { PlayIcon } from "../icons/PlayIcon";
+import { TrashIcon } from "../icons/TrashIcon";
 import {
   completeTimer,
   cancelTimer,
@@ -104,17 +109,20 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
               data-testid="complete-confirmation"
               className="w-full text-center text-7xl text-emerald-200"
             >
-              ✓
+              <CheckIcon className="icon-xl mx-auto" />
             </span>
           ) : (
-            "✓ Done"
+            <span className="flex items-center gap-2">
+              <CheckIcon className="icon-md" />
+              Done
+            </span>
           )}
         </div>
       )}
       {side === "drop" && dropped && (
         <div className="absolute inset-0 bg-rose-900/70 flex items-center justify-center">
-          <span data-testid="drop-confirmation" className="text-6xl">
-            🗑
+          <span data-testid="drop-confirmation">
+            <TrashIcon className="icon-xl" />
           </span>
         </div>
       )}
@@ -127,7 +135,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
         >
           <span className="flex items-center justify-center gap-1.5" style={{ width: DROP_REVEAL_WIDTH }}>
             Drop
-            <TrashIcon size={18} />
+            <TrashIcon className="icon-md" />
           </span>
         </button>
       )}
@@ -176,7 +184,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                 onClick={() => setMenuOpen((open) => !open)}
                 className="w-8 h-8 -mr-2 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"
               >
-                <KebabIcon size={20} />
+                <KebabIcon className="icon-md" />
               </button>
               {menuOpen && (
                 <div
@@ -224,13 +232,18 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
               onClick={complete}
               className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
             >
-              <CheckIcon size={22} />
+              <CheckIcon className="icon-lg" />
             </button>
           </div>
 
           {isTask && (
             <div data-testid="work-row" className="flex items-center gap-3 min-h-11">
-              <span className="text-lg font-mono tabular-nums tracking-tight text-emerald-400">
+              <span
+                data-testid="work-elapsed"
+                className={`text-lg font-mono tabular-nums tracking-tight ${
+                  hasOpenSession ? "text-accent" : "text-ink-muted"
+                }`}
+              >
                 {formatDuration(elapsed)}
               </span>
               <button
@@ -244,7 +257,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                   hasOpenSession ? "text-amber-400 hover:text-amber-300" : "text-slate-400 hover:text-white"
                 }`}
               >
-                {hasOpenSession ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
+                {hasOpenSession ? <PauseIcon className="icon-md" /> : <PlayIcon className="icon-md" />}
               </button>
             </div>
           )}

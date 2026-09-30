@@ -150,3 +150,39 @@ describe('FeedView refresh button', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 })
+
+describe('FeedView sort header', () => {
+  beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = () => {}
+  })
+
+  it.each(['Smart', 'Date', 'Created', 'Priority', 'Title'])(
+    'shows a %s sort pill with an svg icon and a plain-text label',
+    (label) => {
+      renderFeed()
+
+      const pill = screen.getByRole('button', { name: label })
+
+      expect(pill.querySelector('svg')).toBeInTheDocument()
+      expect(pill.textContent).toBe(label)
+    },
+  )
+
+  it('shows the sort direction as an svg icon, not a text arrow', () => {
+    renderFeed()
+
+    const toggle = screen.getByRole('button', { name: /ascending|descending/i })
+
+    expect(toggle.querySelector('svg')).toBeInTheDocument()
+    expect(toggle.textContent).toBe('')
+  })
+
+  it('flips the sort direction when the toggle is tapped', () => {
+    renderFeed()
+    const before = screen.getByRole('button', { name: /ascending|descending/i }).getAttribute('aria-label')
+
+    fireEvent.click(screen.getByRole('button', { name: /ascending|descending/i }))
+
+    expect(screen.getByRole('button', { name: /ascending|descending/i }).getAttribute('aria-label')).not.toBe(before)
+  })
+})

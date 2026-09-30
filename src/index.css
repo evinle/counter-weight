@@ -29,8 +29,81 @@ html {
   --text-sm: 1rem; /* was 14 px → 16 px */
 }
 
+/* Muted / pastel-neon palette (#97). Added alongside the existing Tailwind
+   palette; nothing uses these yet — the re-theme tickets (#98–#100) migrate
+   screens onto them. Base tones are low-chroma; accents are soft but vivid
+   and are reserved for the primary action, priority, success, danger and
+   warning. Pastel accents are light, so text on them uses --color-on-accent. */
+@theme {
+  /* Base: background, surfaces, borders, text */
+  --color-canvas: oklch(0.19 0.012 265);
+  --color-surface: oklch(0.235 0.014 265);
+  --color-surface-raised: oklch(0.29 0.016 265);
+  --color-surface-strong: oklch(0.35 0.018 265);
+  --color-line: oklch(0.36 0.014 265);
+  --color-line-strong: oklch(0.46 0.016 265);
+  --color-ink: oklch(0.94 0.008 265);
+  --color-ink-muted: oklch(0.75 0.02 265);
+  --color-ink-faint: oklch(0.6 0.02 265);
+  --color-on-accent: oklch(0.18 0.04 168);
+
+  /* Accents (pastel neon). *-soft is a dim tint for backgrounds behind
+     the accent-coloured text/border, e.g. toasts and swipe overlays. */
+  --color-accent: oklch(0.84 0.16 168);
+  --color-accent-soft: oklch(0.3 0.07 168);
+  --color-success: oklch(0.86 0.2 160);
+  --color-success-soft: oklch(0.3 0.08 160);
+  --color-danger: oklch(0.72 0.22 20);
+  --color-danger-soft: oklch(0.3 0.1 20);
+  --color-warning: oklch(0.9 0.18 95);
+  --color-warning-soft: oklch(0.34 0.08 95);
+
+  /* Priority levels */
+  --color-priority-low: oklch(0.72 0.03 250);
+  --color-priority-medium: oklch(0.75 0.15 250);
+  --color-priority-high: oklch(0.87 0.18 75);
+  --color-priority-critical: oklch(0.72 0.22 20);
+}
+
 @utility pb-tab-bar {
   padding-bottom: var(--spacing-bottom-bar-inset);
+}
+
+/* Icons (src/icons). Stroke icons draw with currentColor; pick a size with
+   icon-sm/md/lg/xl and a colour with any text-* utility. */
+@utility icon {
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@utility icon-filled {
+  flex-shrink: 0;
+  fill: currentColor;
+  stroke: none;
+}
+
+@utility icon-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+@utility icon-md {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@utility icon-lg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+@utility icon-xl {
+  width: 3rem;
+  height: 3rem;
 }
 
 @utility scrollbar-none {

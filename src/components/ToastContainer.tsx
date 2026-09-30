@@ -1,3 +1,4 @@
+import { CloseIcon } from "../icons/CloseIcon";
 import { useToastStore } from "../hooks/useToast";
 import type { Toast } from "../hooks/useToast";
 
@@ -22,9 +23,9 @@ function ToastItem({
       <button
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="text-slate-400 text-2xl min-w-4 min-h-4 flex items-center justify-center active:opacity-60 transition-opacity cursor-pointer"
+        className="text-slate-400 min-w-4 min-h-4 flex items-center justify-center active:opacity-60 transition-opacity cursor-pointer"
       >
-        ✕
+        <CloseIcon className="icon-md" />
       </button>
     </div>
   );

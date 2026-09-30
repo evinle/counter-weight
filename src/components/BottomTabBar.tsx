@@ -1,4 +1,10 @@
+import type { ComponentType } from "react";
 import { Tab } from "../lib/navigation";
+import type { IconProps } from "../icons/Icon";
+import { AnalyticsIcon } from "../icons/AnalyticsIcon";
+import { HistoryIcon } from "../icons/HistoryIcon";
+import { SettingsIcon } from "../icons/SettingsIcon";
+import { TimerIcon } from "../icons/TimerIcon";
 
 interface Props {
     activeTab: Tab;
@@ -7,23 +13,23 @@ interface Props {
 }
 
 const LEFT_TABS = [
-    { tab: Tab.Timers, label: "Timers", icon: "⏱" },
-    { tab: Tab.History, label: "History", icon: "📋" },
+    { tab: Tab.Timers, label: "Timers", icon: TimerIcon },
+    { tab: Tab.History, label: "History", icon: HistoryIcon },
 ] as const;
 
 const RIGHT_TABS = [
-    { tab: Tab.Analytics, label: "Analytics", icon: "📊" },
-    { tab: Tab.Settings, label: "Settings", icon: "⚙️" },
+    { tab: Tab.Analytics, label: "Analytics", icon: AnalyticsIcon },
+    { tab: Tab.Settings, label: "Settings", icon: SettingsIcon },
 ] as const;
 
 interface TabButtonProps {
     active: boolean;
     label: string;
-    icon: string;
+    icon: ComponentType<IconProps>;
     onClick: () => void;
 }
 
-function TabButton({ active, label, icon, onClick }: TabButtonProps) {
+function TabButton({ active, label, icon: IconComponent, onClick }: TabButtonProps) {
     return (
         <button
             type="button"
@@ -34,7 +40,7 @@ function TabButton({ active, label, icon, onClick }: TabButtonProps) {
                 active ? "text-blue-400" : "text-slate-500"
             }`}
         >
-            <span className="text-xl leading-none">{icon}</span>
+            <IconComponent className="icon-lg" />
             <span className="text-xs font-medium">{label}</span>
         </button>
     );
