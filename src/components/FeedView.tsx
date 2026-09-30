@@ -89,10 +89,10 @@ export function FeedView({
         <RefreshButton onRefresh={onRefresh} syncTrigger={syncTrigger} />
       </div>
 
-      <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
+      <div className="sticky top-0 z-30 flex items-stretch gap-2 px-4 bg-slate-900 border-b border-slate-800">
         <button
           onClick={toggleDirection}
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          className="flex-shrink-0 self-center w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
           aria-label={
             direction === SortDirections.Asc ? "Ascending" : "Descending"
           }
@@ -100,13 +100,13 @@ export function FeedView({
           {direction === SortDirections.Asc ? "↑" : "↓"}
         </button>
 
-        <div className="flex items-center gap-1 flex-1 min-w-0">
+        <div className="flex items-stretch gap-1 flex-1 min-w-0">
           {showLeft && (
-            <span className="flex-shrink-0 text-slate-500 text-xl">‹</span>
+            <span className="flex-shrink-0 self-center text-slate-500 text-xl">‹</span>
           )}
           <div
             ref={scrollRef}
-            className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0"
+            className="flex items-center gap-2 py-2 overflow-x-auto scrollbar-none snap-x snap-mandatory flex-1 min-w-0"
           >
             {ALL_SORT_MODES.map((m) => (
               <button
@@ -124,7 +124,7 @@ export function FeedView({
             ))}
           </div>
           {showRight && (
-            <span className="flex-shrink-0 text-slate-500 text-xl">›</span>
+            <span className="flex-shrink-0 self-center text-slate-500 text-xl">›</span>
           )}
         </div>
       </div>
