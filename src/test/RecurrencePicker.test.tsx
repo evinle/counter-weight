@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { isValidCron } from '@cw/recurrence'
 import { RecurrencePicker } from '../components/RecurrencePicker'
 
 const NOW = new Date('2026-06-21T09:00:00Z') // Sunday=dow0, dom=21, UTC 09:00
@@ -170,13 +171,13 @@ describe('RecurrencePicker — Every month', () => {
 })
 
 describe('RecurrencePicker — Every N days', () => {
-  it('shows a range input with min=2 max=90', () => {
+  it('shows a range input with min=2 max=31', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
     fireEvent.change(scheduleSelect(), { target: { value: 'every-n-days' } })
     const slider = screen.getByRole('slider', { name: /every n days/i })
     expect(slider).toBeInTheDocument()
     expect(slider).toHaveAttribute('min', '2')
-    expect(slider).toHaveAttribute('max', '90')
+    expect(slider).toHaveAttribute('max', '31')
   })
 
   it('shows "Every 2 days" label by default', () => {
@@ -279,5 +280,51 @@ describe('RecurrencePicker — next occurrence preview', () => {
     fireEvent.change(scheduleSelect(), { target: { value: 'monthly' } })
     const after = screen.getByTestId('next-occurrence-preview').textContent
     expect(after).toMatch(/^Next: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)
+  })
+})
+
+describe('RecurrencePicker — only emits schedules that can run', () => {
+  const lastRule = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.calls.at(-1)?.[0]
+
+  it.each([2, 7, 15, 31])('emits a valid cron for Every %i days', (n) => {
+    const onChange = vi.fn()
+    render(<RecurrencePicker value={null} onChange={onChange} now={NOW} />)
+    fireEvent.change(scheduleSelect(), { target: { value: 'every-n-days' } })
+
+    fireEvent.change(screen.getByRole('slider', { name: /every n days/i }), { target: { value: String(n) } })
+
+    expect(isValidCron(lastRule(onChange).cron, 'UTC')).toBe(true)
+  })
+
+  describe('for a saved every-1h-30m schedule, which cron cannot express', () => {
+    const rule = { cron: '*/90 * * * *', tz: 'UTC' }
+
+    it('never emits an invalid cron', () => {
+      const onChange = vi.fn()
+
+      render(<RecurrencePicker value={rule} onChange={onChange} now={NOW} />)
+
+      for (const [emitted] of onChange.mock.calls) {
+        expect(isValidCron(emitted.cron, 'UTC')).toBe(true)
+      }
+    })
+
+    it('tells the user to use whole hours or up to 59 minutes', () => {
+      render(<RecurrencePicker value={rule} onChange={() => {}} now={NOW} />)
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/whole hours|59 minutes/i)
+    })
+  })
+
+  it('tells the user Every N days is capped at 31 for a saved longer schedule', () => {
+    render(<RecurrencePicker value={{ cron: '0 9 */45 * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/31 days/i)
+  })
+
+  it('shows no problem message for a schedule that can run', () => {
+    render(<RecurrencePicker value={{ cron: '*/30 * * * *', tz: 'UTC' }} onChange={() => {}} now={NOW} />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

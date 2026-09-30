@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { computeLeadTimeVisibility } from '../lib/timerForm'
+import { computeLeadTimeVisibility, leadTimeMaxDays } from '../lib/timerForm'
 import * as recurrenceMod from '@cw/recurrence'
 
 describe('computeLeadTimeVisibility', () => {
@@ -32,5 +32,27 @@ describe('computeLeadTimeVisibility', () => {
     const result = computeLeadTimeVisibility('recurrence', 3 * 60 * 60 * 1000, rule)
     expect(result).toStrictEqual({ showDays: true, showHours: true, showMinutes: true })
     vi.restoreAllMocks()
+  })
+})
+
+describe('leadTimeMaxDays', () => {
+  const NOW = new Date('2026-06-21T09:00:00Z').getTime()
+  const inputs = (recurrenceRule: { cron: string; tz: string } | null) => ({
+    mode: 'recurrence' as const,
+    duration: { days: 0, hours: 0, minutes: 5 },
+    atTime: new Date(NOW),
+    recurrenceRule,
+  })
+
+  it('uses the recurrence period for a valid rule', () => {
+    expect(leadTimeMaxDays(inputs({ cron: '0 9 * * *', tz: 'UTC' }), null, NOW)).toBe(1)
+  })
+
+  it('does not throw for a saved rule croner cannot schedule', () => {
+    expect(() => leadTimeMaxDays(inputs({ cron: '0 9 */45 * *', tz: 'UTC' }), null, NOW)).not.toThrow()
+  })
+
+  it('falls back to the widest range when the rule cannot be scheduled', () => {
+    expect(leadTimeMaxDays(inputs({ cron: '0 9 */45 * *', tz: 'UTC' }), null, NOW)).toBe(28)
   })
 })

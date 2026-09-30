@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   nextOccurrence,
+  isValidCron,
   computePeriodMs,
   buildDailyCron,
   buildWeeklyCron,
@@ -62,5 +63,27 @@ describe('computePeriodMs', () => {
     // buildCustomEveryHMCron with hours=0, minutes=30 produces "*/30 * * * *"
     const cron = buildCustomEveryHMCron(0, 30)
     expect(computePeriodMs(cron, 'UTC', now)).toBe(30 * 60 * 1000)
+  })
+})
+
+describe('isValidCron', () => {
+  it.each([
+    '0 9 * * *',
+    '0 9 */31 * *',
+    '*/59 * * * *',
+    '0 */23 * * *',
+    '0 9 L * *',
+    '30 8 * * 1,3,5',
+  ])('accepts %s', (cron) => {
+    expect(isValidCron(cron, 'UTC')).toBe(true)
+  })
+
+  it.each([
+    ['a day-of-month step above 31', '0 9 */32 * *'],
+    ['a minute step above 60', '*/90 * * * *'],
+    ['an hour step above 24', '0 */36 * * *'],
+    ['something that is not a cron', 'every day'],
+  ])('rejects %s', (_label, cron) => {
+    expect(isValidCron(cron, 'UTC')).toBe(false)
   })
 })

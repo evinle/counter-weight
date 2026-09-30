@@ -8,6 +8,7 @@ import {
   buildCustomEveryHMCron,
   parseCron,
   nextOccurrence,
+  isValidCron,
 } from "@cw/recurrence";
 import { SelectField } from "./SelectField";
 import { ClockDial } from "./ClockDial";
@@ -174,6 +175,18 @@ interface Props {
   now?: Date;
 }
 
+interface BuildState {
+  preset: Preset;
+  hour: number;
+  minute: number;
+  weeklyDays: number[];
+  monthlyDom: number;
+  monthlyLastDay: boolean;
+  everyN: number;
+  everyH: number;
+  everyM: number;
+}
+
 export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
   const init = initState(value, now);
   const [preset, setPreset] = useState<Preset>(init.preset);
@@ -221,17 +234,14 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
     if (rule !== null) onChange(rule);
   }, []);
 
-  function buildRule(s: {
-    preset: Preset;
-    hour: number;
-    minute: number;
-    weeklyDays: number[];
-    monthlyDom: number;
-    monthlyLastDay: boolean;
-    everyN: number;
-    everyH: number;
-    everyM: number;
-  }): RecurrenceRule | null {
+  // Cron steps beyond their field (e.g. every 90 minutes) can't be scheduled, so such a
+  // selection produces no rule rather than one that throws later.
+  function buildRule(s: BuildState): RecurrenceRule | null {
+    const rule = buildRawRule(s);
+    return rule !== null && isValidCron(rule.cron, rule.tz) ? rule : null;
+  }
+
+  function buildRawRule(s: BuildState): RecurrenceRule | null {
     const time = toTimeString(s.hour, s.minute);
     switch (s.preset) {
       case Preset.Daily:
@@ -354,7 +364,7 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
 
   const showTimeOfDayDial = preset !== Preset.EveryNHoursMinutes;
 
-  const currentRule = buildRule({
+  const currentState = {
     preset,
     hour,
     minute,
@@ -364,7 +374,15 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
     everyN,
     everyH,
     everyM,
-  });
+  };
+  const currentRule = buildRule(currentState);
+  // A selection was made but cron can't express it.
+  const problem =
+    currentRule !== null || buildRawRule(currentState) === null
+      ? null
+      : preset === Preset.EveryNDays
+        ? "Every N days can be at most 31 days."
+        : "Hours and minutes can't be combined. Use whole hours, or up to 59 minutes.";
   let nextText: string | null = null;
   if (currentRule) {
     try {
@@ -459,7 +477,7 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
           <input
             type="range"
             min={2}
-            max={90}
+            max={31}
             value={everyN}
             onChange={(e) => handleEveryN(Number(e.target.value))}
             className="w-full accent-accent py-2"
@@ -494,6 +512,12 @@ export function RecurrencePicker({ value, onChange, now = new Date() }: Props) {
           onPhaseSelect={setTodPhase}
           onToggleAmPm={handleTodToggleAmPm}
         />
+      )}
+
+      {problem && (
+        <p role="alert" className="text-sm text-danger">
+          {problem}
+        </p>
       )}
 
       {nextText && (

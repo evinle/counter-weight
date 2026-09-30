@@ -129,3 +129,12 @@ export function computePeriodMs(cron: string, tz: string, now = new Date()): num
   const second = nextOccurrence(cron, tz, first)
   return second.getTime() - first.getTime()
 }
+
+/** Whether croner can schedule this cron. A step beyond its field (day-of-month every 45 days, say) throws in croner. */
+export function isValidCron(cron: string, tz: string): boolean {
+  try {
+    return new Cron(cron, { timezone: tz }).nextRun() !== null
+  } catch {
+    return false
+  }
+}

@@ -28,15 +28,25 @@ export type LeadTimeVisibility = {
   showMinutes: boolean;
 };
 
+/** Period of a recurrence rule, or null when croner can't schedule it (e.g. a saved day step above 31). */
+function periodMsOrNull(rule: RecurrenceRule): number | null {
+  try {
+    return computePeriodMs(rule.cron, rule.tz);
+  } catch {
+    return null;
+  }
+}
+
 export function computeLeadTimeVisibility(
   mode: TimerMode,
   remainingMs: number,
   recurrenceRule: RecurrenceRule | null,
 ): LeadTimeVisibility {
-  const boundMs =
+  const periodMs =
     mode === TimerMode.Recurrence && recurrenceRule
-      ? computePeriodMs(recurrenceRule.cron, recurrenceRule.tz)
-      : remainingMs;
+      ? periodMsOrNull(recurrenceRule)
+      : null;
+  const boundMs = periodMs ?? remainingMs;
 
   const d = msToDuration(Math.max(0, boundMs));
   const showDays = d.days >= 1;
@@ -84,8 +94,11 @@ export function leadTimeMaxDays(
   now: number,
 ): number {
   const { mode, recurrenceRule } = inputs;
-  if (mode === TimerMode.Recurrence && recurrenceRule) {
-    const periodMs = computePeriodMs(recurrenceRule.cron, recurrenceRule.tz);
+  const periodMs =
+    mode === TimerMode.Recurrence && recurrenceRule
+      ? periodMsOrNull(recurrenceRule)
+      : null;
+  if (periodMs !== null) {
     return Math.min(28, Math.max(0, Math.floor(periodMs / 86_400_000)));
   }
   if (targetMs !== null) {
