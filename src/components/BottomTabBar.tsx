@@ -37,7 +37,7 @@ function TabButton({ active, label, icon: IconComponent, onClick }: TabButtonPro
             aria-label={label}
             aria-current={active ? "page" : undefined}
             className={`flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
-                active ? "text-blue-400" : "text-slate-500"
+                active ? "text-accent" : "text-ink-faint"
             }`}
         >
             <IconComponent className="icon-lg" />
@@ -50,7 +50,7 @@ export function BottomTabBar({ activeTab, onTabChange, onCreateNew }: Props) {
     return (
         <nav
             aria-label="Tab navigation"
-            className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-slate-900 border-t border-slate-700 flex items-center h-bottom-bar-inset pb-safe-bottom"
+            className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50 bg-canvas border-t border-line flex items-center h-bottom-bar-inset pb-safe-bottom"
         >
             {LEFT_TABS.map(({ tab, label, icon }) => (
                 <TabButton
@@ -67,7 +67,7 @@ export function BottomTabBar({ activeTab, onTabChange, onCreateNew }: Props) {
                 className="flex-1 flex items-center justify-center cursor-pointer"
                 aria-label="Create new timer"
             >
-                <span className="bg-blue-600 text-white text-2xl font-bold w-14 h-14 rounded-full flex items-center justify-center active:scale-95 -translate-y-1/2">
+                <span className="bg-accent text-on-accent text-2xl font-bold w-14 h-14 rounded-full flex items-center justify-center active:scale-95 -translate-y-1/2">
                     +
                 </span>
             </button>

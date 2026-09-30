@@ -5,8 +5,7 @@
 }
 
 body {
-  /* slate-900 */
-  background-color: var(--color-slate-900);
+  background-color: var(--color-canvas);
   overflow-x: hidden;
 }
 

@@ -1,8 +1,16 @@
+import '@testing-library/jest-dom'
+import { useEffect } from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { PullToRefreshIndicator } from '../components/PullToRefreshIndicator'
-import { PullToRefreshProvider } from '../contexts/PullToRefreshContext'
+import { PullToRefreshProvider, usePullDistance } from '../contexts/PullToRefreshContext'
 import { SyncTrigger } from '../lib/syncTrigger'
+
+function PullDistanceSetter({ distance }: { distance: number }) {
+  const { setPullDistance } = usePullDistance()
+  useEffect(() => setPullDistance(distance), [distance, setPullDistance])
+  return null
+}
 
 function renderIndicator(syncTrigger: SyncTrigger | null) {
   return render(
@@ -17,6 +25,18 @@ describe('PullToRefreshIndicator', () => {
     renderIndicator(SyncTrigger.Manual)
 
     expect(screen.getByRole('status', { name: 'Refreshing' })).toBeInTheDocument()
+  })
+
+  it('shows a pull arrow as an svg icon while pulling', () => {
+    const { container } = render(
+      <PullToRefreshProvider>
+        <PullDistanceSetter distance={40} />
+        <PullToRefreshIndicator syncTrigger={null} />
+      </PullToRefreshProvider>,
+    )
+
+    expect(container.querySelector('svg')).toBeInTheDocument()
+    expect(container.textContent).toBe('')
   })
 
   it('shows nothing when idle', () => {

@@ -1,3 +1,4 @@
+import { ArrowDownIcon } from "../icons/ArrowDownIcon";
 import { usePullDistance } from "../contexts/PullToRefreshContext";
 import { SyncTrigger } from "../lib/syncTrigger";
 
@@ -21,11 +22,11 @@ export function PullToRefreshIndicator({ syncTrigger, className = "" }: Props) {
         transition: pullDistance === 0 ? "height 0.15s ease-out" : "none",
       }}
     >
-      <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg">
+      <div className="w-8 h-8 bg-surface-raised rounded-full flex items-center justify-center shadow-lg">
         {syncing ? (
-          <div className="w-5 h-5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-line-strong border-t-ink rounded-full animate-spin" />
         ) : (
-          <span className="text-slate-300 text-sm leading-none">↓</span>
+          <ArrowDownIcon className="icon-sm text-ink-muted" />
         )}
       </div>
     </div>

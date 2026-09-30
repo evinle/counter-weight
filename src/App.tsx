@@ -196,7 +196,7 @@ export function App() {
     if (state === "loading") {
       return (
         <div className="h-full flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-line-strong border-t-ink-muted rounded-full animate-spin" />
         </div>
       );
     }
@@ -265,11 +265,11 @@ export function App() {
   return (
     <PullToRefreshProvider>
     <div
-        className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top"
+        className="relative h-dvh bg-canvas text-ink max-w-lg mx-auto overscroll-none pt-safe-top"
       >
         <ToastContainer />
         {swDebug && (
-          <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+          <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-surface-raised text-ink text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
             {swDebug}
           </div>
         )}
@@ -277,15 +277,15 @@ export function App() {
           activeAction === ActiveAction.None &&
           state === "authenticated" && (
             <div
-              className="fixed left-4 right-4 z-40 bg-slate-800 border border-slate-600 rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
+              className="fixed left-4 right-4 z-40 bg-surface border border-line rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl"
               style={{ bottom: "calc(var(--spacing-bottom-bar-inset) + 1rem)" }}
             >
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-ink-muted">
                 Enable notifications for timer alerts
               </p>
               <button
                 onClick={requestNotifPermission}
-                className="shrink-0 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer"
+                className="shrink-0 bg-accent text-on-accent text-sm font-semibold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer"
               >
                 Enable
               </button>

@@ -3,9 +3,9 @@ import { useToastStore } from "../hooks/useToast";
 import type { Toast } from "../hooks/useToast";
 
 function toastClasses(variant: Toast["variant"]): string {
-  if (variant === "success") return "bg-green-900 border-green-700";
-  if (variant === "error") return "bg-red-900 border-red-700";
-  return "bg-slate-900 border-slate-600";
+  if (variant === "success") return "bg-success-soft border-success";
+  if (variant === "error") return "bg-danger-soft border-danger";
+  return "bg-surface border-line";
 }
 
 function ToastItem({
@@ -19,11 +19,11 @@ function ToastItem({
     <div
       className={`${toastClasses(toast.variant)} border rounded-xl p-4 shadow-xl flex items-center gap-4`}
     >
-      <p className="text-white text-sm flex-1 min-w-0">{toast.message}</p>
+      <p className="text-ink text-sm flex-1 min-w-0">{toast.message}</p>
       <button
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="text-slate-400 min-w-4 min-h-4 flex items-center justify-center active:opacity-60 transition-opacity cursor-pointer"
+        className="text-ink-muted min-w-4 min-h-4 flex items-center justify-center active:opacity-60 transition-opacity cursor-pointer"
       >
         <CloseIcon className="icon-md" />
       </button>
