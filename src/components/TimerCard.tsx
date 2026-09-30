@@ -4,7 +4,7 @@ import { useAnimatedElapsed } from "../hooks/useAnimatedElapsed";
 import { useSwipeToComplete } from "../hooks/useSwipeToComplete";
 import { formatDuration } from "../lib/countdown";
 import { DROP_REVEAL_WIDTH } from "../lib/gestures";
-import { CheckIcon, KebabIcon } from "./CardIcons";
+import { CheckIcon, KebabIcon, PauseIcon, PencilIcon, PlayIcon, TrashIcon } from "./CardIcons";
 import {
   completeTimer,
   cancelTimer,
@@ -38,7 +38,6 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
   const elapsed = useAnimatedElapsed(timer.workSessions);
   const isTask = timer.timerType === TimerType.Task;
   const hasOpenSession = timer.workSessions.some((s) => s.endedAt === null);
-  const hasSessions = timer.workSessions.length > 0;
   const {
     containerRef: swipeRef,
     dragX,
@@ -84,7 +83,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
   });
 
   const menuItemClass =
-    "w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-600 cursor-pointer";
+    "w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm text-white hover:bg-slate-600 cursor-pointer";
 
   return (
     <div className="relative rounded-xl overflow-hidden">
@@ -165,22 +164,8 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
               {menuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-1 z-20 min-w-36 py-1 rounded-xl bg-slate-700 shadow-lg"
+                  className="absolute right-0 top-full mt-1 z-20 min-w-36 p-1 rounded-xl bg-slate-700 shadow-lg"
                 >
-                  {isTask && (
-                    <button
-                      role="menuitem"
-                      className={menuItemClass}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        if (timer.id === undefined) return;
-                        if (hasOpenSession) endWork(timer.id);
-                        else startWork(timer.id);
-                      }}
-                    >
-                      {hasOpenSession ? "Pause work" : "Start work"}
-                    </button>
-                  )}
                   {!isOverdue && (
                     <button
                       role="menuitem"
@@ -190,6 +175,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                         onEdit(timer);
                       }}
                     >
+                      <PencilIcon />
                       Edit
                     </button>
                   )}
@@ -198,6 +184,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
                     className={`${menuItemClass} text-rose-200`}
                     onClick={drop}
                   >
+                    <TrashIcon />
                     Drop
                   </button>
                 </div>
@@ -214,12 +201,28 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
               >
                 {formatDuration(remaining)}
               </span>
-              {isTask && hasSessions && (
+            </div>
+
+            {isTask && (
+              <div data-testid="work-row" className="flex items-center gap-3 min-h-11">
                 <span className="text-lg font-mono tabular-nums tracking-tight text-emerald-400">
                   {formatDuration(elapsed)}
                 </span>
-              )}
-            </div>
+                <button
+                  aria-label={hasOpenSession ? "Pause work" : "Start work"}
+                  onClick={() => {
+                    if (timer.id === undefined) return;
+                    if (hasOpenSession) endWork(timer.id);
+                    else startWork(timer.id);
+                  }}
+                  className={`w-11 h-11 -ml-2 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${
+                    hasOpenSession ? "text-amber-400 hover:text-amber-300" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {hasOpenSession ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
+                </button>
+              </div>
+            )}
 
             <div data-testid="timer-tags" className="flex flex-wrap gap-1 min-h-6">
               {resolvedTags.map((tag) => (
@@ -237,7 +240,7 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
           <button
             aria-label="Complete"
             onClick={complete}
-            className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-slate-600 text-white hover:bg-slate-500 active:scale-95 transition-all cursor-pointer"
+            className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
           >
             <CheckIcon size={22} />
           </button>

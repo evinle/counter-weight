@@ -257,11 +257,18 @@ describe('TimerCard — actions menu', () => {
     await db.timers.clear()
   })
 
-  it('shows only the complete and more-actions buttons by default', () => {
-    render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
+  it('shows only the complete and more-actions buttons by default on a Reminder', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
 
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))
     expect(names).toEqual(['More actions', 'Complete'])
+  })
+
+  it('also shows a Start work button by default on a Task', () => {
+    render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
+
+    const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))
+    expect(names).toEqual(['More actions', 'Start work', 'Complete'])
   })
 
   it('reveals Edit and Drop when the menu is opened', () => {
@@ -305,33 +312,20 @@ describe('TimerCard — actions menu', () => {
     expect(items).toEqual(['Drop'])
   })
 
-  it('lists Start work in the menu for a Task with no open session', () => {
+  it('keeps work controls out of the menu on a Task', () => {
     render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
     openMenu()
 
     const items = screen.getAllByRole('menuitem').map((i) => i.textContent)
-    expect(items).toEqual(['Start work', 'Edit', 'Drop'])
+    expect(items).toEqual(['Edit', 'Drop'])
   })
 
-  it('lists Pause work in the menu for a Task with an open session', () => {
-    const running = { ...TASK, workSessions: [{ startedAt: new Date(), endedAt: null }] }
-    render(<TimerCard timer={running} tagsMap={new Map()} onEdit={() => {}} />)
+  it('starts every menu item with an icon', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
     openMenu()
 
-    const items = screen.getAllByRole('menuitem').map((i) => i.textContent)
-    expect(items).toEqual(['Pause work', 'Edit', 'Drop'])
-  })
-
-  it('starts a work session when Start work is chosen', async () => {
-    const id = await db.timers.add({ ...TASK, id: undefined })
-    render(<TimerCard timer={{ ...TASK, id }} tagsMap={new Map()} onEdit={() => {}} />)
-    openMenu()
-
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Start work' }))
-
-    await waitFor(async () => {
-      expect((await db.timers.get(id))?.workSessions).toHaveLength(1)
-    })
+    const leading = screen.getAllByRole('menuitem').map((item) => item.firstElementChild?.tagName.toLowerCase())
+    expect(leading).toEqual(['svg', 'svg'])
   })
 
   it('closes when Escape is pressed', () => {
@@ -350,6 +344,62 @@ describe('TimerCard — actions menu', () => {
     fireEvent.pointerDown(document.body)
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+})
+
+describe('TimerCard — work timer row', () => {
+  const TASK = { ...BASE_TIMER, timerType: TimerType.Task }
+
+  beforeEach(async () => {
+    await db.timers.clear()
+  })
+
+  it('reserves a work timer row on a Task before any session has started', () => {
+    render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.getByTestId('work-row')).toBeInTheDocument()
+  })
+
+  it('has no work timer row on a Reminder', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.queryByTestId('work-row')).not.toBeInTheDocument()
+  })
+
+  it('puts the play/pause button inside the work timer row', () => {
+    render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(within(screen.getByTestId('work-row')).getByRole('button', { name: 'Start work' })).toBeInTheDocument()
+  })
+
+  it('shows Pause work while a session is open', () => {
+    const running = { ...TASK, workSessions: [{ startedAt: new Date(), endedAt: null }] }
+    render(<TimerCard timer={running} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(within(screen.getByTestId('work-row')).getByRole('button', { name: 'Pause work' })).toBeInTheDocument()
+  })
+
+  it('starts a work session when Start work is tapped', async () => {
+    const id = await db.timers.add({ ...TASK, id: undefined })
+    render(<TimerCard timer={{ ...TASK, id }} tagsMap={new Map()} onEdit={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start work' }))
+
+    await waitFor(async () => {
+      expect((await db.timers.get(id))?.workSessions).toHaveLength(1)
+    })
+  })
+
+  it('closes the open session when Pause work is tapped', async () => {
+    const running = { ...TASK, workSessions: [{ startedAt: new Date(), endedAt: null }] }
+    const id = await db.timers.add({ ...running, id: undefined })
+    render(<TimerCard timer={{ ...running, id }} tagsMap={new Map()} onEdit={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause work' }))
+
+    await waitFor(async () => {
+      expect((await db.timers.get(id))?.workSessions[0].endedAt).not.toBeNull()
+    })
   })
 })
 
