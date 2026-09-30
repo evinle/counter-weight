@@ -84,6 +84,24 @@ describe('TimerCard — swipe right to complete', () => {
     })
   })
 
+  it('completes a Task and closes its open work session when swiped', async () => {
+    const running = {
+      ...BASE_TIMER,
+      timerType: TimerType.Task,
+      workSessions: [{ startedAt: new Date(Date.now() - 60_000), endedAt: null }],
+    }
+    const id = await db.timers.add({ ...running, id: undefined })
+    render(<TimerCard timer={{ ...running, id }} tagsMap={new Map()} onEdit={() => {}} />)
+
+    dragCard(screen.getByTestId('timer-card'), 0, 250)
+
+    await waitFor(async () => {
+      const saved = await db.timers.get(id)
+      expect(saved?.status).toBe('completed')
+      expect(saved?.workSessions[0].endedAt).not.toBeNull()
+    })
+  })
+
   it('completes the timer on a touch drag too', async () => {
     const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
     render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
