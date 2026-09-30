@@ -1,3 +1,5 @@
+import { MoonIcon } from "../icons/MoonIcon";
+import { SunIcon } from "../icons/SunIcon";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { angleToHour, angleToMinute, pointToAngle } from "./clockMath";
 
@@ -144,15 +146,19 @@ export function ClockDial({
 
   const minuteDisplay = String(selectedMinute).padStart(2, "0");
 
-  // In interval mode, the toggle shows text labels instead of emoji.
+  // In interval mode, the toggle shows text labels instead of an icon.
   const toggleLabel =
-    mode === "interval"
-      ? isPm
-        ? "12–23"
-        : "0–11"
-      : isPm
-        ? "🌙"
-        : "☀️";
+    mode === "interval" ? (
+      isPm ? (
+        "12–23"
+      ) : (
+        "0–11"
+      )
+    ) : isPm ? (
+      <MoonIcon className="icon-md" />
+    ) : (
+      <SunIcon className="icon-md" />
+    );
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -244,6 +250,7 @@ export function ClockDial({
             <button
               type="button"
               data-testid="ampm-icon"
+              aria-label={mode === "interval" ? undefined : isPm ? "PM" : "AM"}
               onClick={() => onToggleAmPm()}
               className="text-base"
             >

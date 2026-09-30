@@ -100,14 +100,27 @@ describe('DateTimeInput — clock dial', () => {
     expect(screen.getByTestId('dial-minute')).toHaveTextContent('30')
   })
 
-  it('shows PM indicator when value is in the afternoon', () => {
+  it('shows a PM svg indicator when value is in the afternoon', () => {
     renderPicker(new Date(2026, 5, 29, 14, 0, 0))
-    expect(screen.getByTestId('ampm-icon')).toHaveTextContent('🌙')
+    const toggle = screen.getByTestId('ampm-icon')
+    expect(toggle).toHaveAccessibleName('PM')
+    expect(toggle.querySelector('svg')).toBeInTheDocument()
+    expect(toggle.textContent).toBe('')
   })
 
-  it('shows AM indicator when value is in the morning', () => {
+  it('shows an AM svg indicator when value is in the morning', () => {
     renderPicker(new Date(2026, 5, 29, 9, 0, 0))
-    expect(screen.getByTestId('ampm-icon')).toHaveTextContent('☀️')
+    const toggle = screen.getByTestId('ampm-icon')
+    expect(toggle).toHaveAccessibleName('AM')
+    expect(toggle.querySelector('svg')).toBeInTheDocument()
+    expect(toggle.textContent).toBe('')
+  })
+
+  it('shows the calendar button as an svg icon, not an emoji', () => {
+    renderPicker(NOW)
+    const button = screen.getByRole('button', { name: 'Open calendar' })
+    expect(button.querySelector('svg')).toBeInTheDocument()
+    expect(button.textContent).toBe('')
   })
 
   it('stays on hour phase after confirming hour', () => {
@@ -158,7 +171,7 @@ describe('DateTimeInput — clock dial', () => {
     fireEvent.pointerDown(face, { clientX: 120, clientY: 120 })
     fireEvent.pointerUp(face, { clientX: 180, clientY: 120 })
 
-    expect(screen.getByTestId('ampm-icon')).toHaveTextContent('🌙')
+    expect(screen.getByTestId('ampm-icon')).toHaveAccessibleName('PM')
   })
 
   it('toggling AM/PM emits the updated hour via onChange', () => {

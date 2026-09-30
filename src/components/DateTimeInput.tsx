@@ -1,3 +1,4 @@
+import { CalendarIcon } from "../icons/CalendarIcon";
 import { useState, useRef, useEffect } from "react";
 import { useDatetimeConstraints } from "../hooks/useDatetimeConstraints";
 import type { DateFields } from "../hooks/useDatetimeConstraints";
@@ -155,7 +156,7 @@ export function DateTimeInput({ value, onChange, maxDate }: Props) {
               aria-label="Open calendar"
               className="text-slate-400 hover:text-slate-200"
             >
-              📅
+              <CalendarIcon className="icon-md" />
             </button>
             <input
               type="date"

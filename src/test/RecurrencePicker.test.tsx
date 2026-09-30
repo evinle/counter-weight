@@ -58,10 +58,13 @@ describe('RecurrencePicker — time-of-day dial', () => {
     expect(screen.getByTestId('dial-face')).toBeInTheDocument()
   })
 
-  it('toggle shows ☀️ emoji (not 0–11 text) when in AM', () => {
+  it('toggle shows an AM svg icon (not 0–11 text) when in AM', () => {
     // NOW is 09:00 UTC → AM
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
-    expect(screen.getByTestId('ampm-icon')).toHaveTextContent('☀️')
+    const toggle = screen.getByTestId('ampm-icon')
+    expect(toggle).toHaveAccessibleName('AM')
+    expect(toggle.querySelector('svg')).toBeInTheDocument()
+    expect(toggle.textContent).toBe('')
   })
 })
 
@@ -72,10 +75,11 @@ describe('RecurrencePicker — interval dial (EveryNHoursMinutes)', () => {
     expect(screen.getByTestId('dial-face')).toBeInTheDocument()
   })
 
-  it('interval dial toggle shows "0–11" text, not ☀️ emoji', () => {
+  it('interval dial toggle shows "0–11" text, not an icon', () => {
     render(<RecurrencePicker value={null} onChange={() => {}} now={NOW} />)
     fireEvent.change(scheduleSelect(), { target: { value: 'every-n-hours-minutes' } })
     expect(screen.getByTestId('ampm-icon')).toHaveTextContent('0–11')
+    expect(screen.getByTestId('ampm-icon').querySelector('svg')).not.toBeInTheDocument()
   })
 
   it('only one dial-face is rendered — the time-of-day dial is hidden', () => {
