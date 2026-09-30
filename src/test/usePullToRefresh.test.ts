@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
+import { PullToRefreshProvider, usePullDistance } from '../contexts/PullToRefreshContext'
 
 function fakeTouch(el: Element, y: number): Touch {
   return { identifier: 1, target: el, clientY: y, clientX: 0, pageX: 0, pageY: y, screenX: 0, screenY: y, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 } as Touch
@@ -23,13 +24,27 @@ function makeEl() {
 }
 
 describe('usePullToRefresh', () => {
+  it('shares pullDistance with another context consumer under the same provider', () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(
+      () => ({ ptr: usePullToRefresh({ onRefresh }), external: usePullDistance() }),
+      { wrapper: PullToRefreshProvider },
+    )
+    const el = makeEl()
+    act(() => { result.current.ptr.containerRef(el) })
+    act(() => { fireTouch(el, 'touchstart', 100) })
+    act(() => { fireTouch(el, 'touchmove', 140) })
+
+    expect(result.current.external.pullDistance).toBe(40)
+  })
+
   it('pullDistance is 0 initially', () => {
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh: null }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: null }), { wrapper: PullToRefreshProvider })
     expect(result.current.pullDistance).toBe(0)
   })
 
   it('stays 0 during drag when onRefresh is null', () => {
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh: null }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: null }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     act(() => { result.current.containerRef(el) })
     act(() => { fireTouch(el, 'touchstart', 100) })
@@ -39,7 +54,7 @@ describe('usePullToRefresh', () => {
 
   it('tracks pullDistance when dragging down from scrollTop 0', () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     act(() => { result.current.containerRef(el) })
     act(() => { fireTouch(el, 'touchstart', 100) })
@@ -49,7 +64,7 @@ describe('usePullToRefresh', () => {
 
   it('stays 0 when drag starts at scrollTop > 0', () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     ;(el as unknown as { scrollTop: number }).scrollTop = 50
     act(() => { result.current.containerRef(el) })
@@ -60,7 +75,7 @@ describe('usePullToRefresh', () => {
 
   it('calls onRefresh when released past threshold', async () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     act(() => { result.current.containerRef(el) })
     act(() => { fireTouch(el, 'touchstart', 0) })
@@ -73,7 +88,7 @@ describe('usePullToRefresh', () => {
     let resolveFirst!: () => void
     const firstCall = new Promise<void>((res) => { resolveFirst = res })
     const onRefresh = vi.fn().mockReturnValueOnce(firstCall).mockResolvedValue(undefined)
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     act(() => { result.current.containerRef(el) })
 
@@ -91,7 +106,7 @@ describe('usePullToRefresh', () => {
 
   it('does not call onRefresh when released before threshold', async () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }))
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }), { wrapper: PullToRefreshProvider })
     const el = makeEl()
     act(() => { result.current.containerRef(el) })
     act(() => { fireTouch(el, 'touchstart', 0) })

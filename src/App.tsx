@@ -15,10 +15,8 @@ import { Tab, ActiveAction } from "./lib/navigation";
 import type { Group, Timer } from "./db/schema";
 import { useAuth } from "./hooks/useAuth";
 import { useSyncEngine } from "./hooks/useSyncEngine";
-import { usePullToRefresh } from "./hooks/usePullToRefresh";
+import { PullToRefreshProvider } from "./contexts/PullToRefreshContext";
 import { useSwipeBack } from "./hooks/useSwipeBack";
-import { useTabSwipe } from "./hooks/useTabSwipe";
-import { ALL_TABS } from "./lib/navigation";
 import { useNotifications } from "./hooks/useNotifications";
 import { LoginView } from "./components/LoginView";
 import { UnclaimedTimersModal } from "./components/UnclaimedTimersModal";
@@ -41,23 +39,10 @@ export function App() {
   const { state, user } = useAuth();
   const { syncing, triggerSync } = useSyncEngine({ user });
   const overlayOpen = activeAction !== ActiveAction.None;
-  const pullEnabled = !overlayOpen && tab !== Tab.Settings;
-  const { containerRef: pullRef, pullDistance } = usePullToRefresh({
-    onRefresh: pullEnabled && user ? triggerSync : null,
-  });
-  const { containerRef: tabSwipeRef } = useTabSwipe({
-    tabs: ALL_TABS,
-    activeTab: tab,
-    onTabChange: (t) => setTab(t as Tab),
-  });
   useSwipeBack({
     isOpen: overlayOpen,
     onClose: () => setActiveAction(ActiveAction.None),
   });
-  const containerRef = (el: HTMLElement | null) => {
-    pullRef(el);
-    tabSwipeRef(el);
-  };
 
   const [unclaimedDismissed, setUnclaimedDismissed] = useState(false);
   useEffect(() => {
@@ -248,6 +233,8 @@ export function App() {
       );
     }
 
+    const onRefresh = user ? triggerSync : null;
+
     switch (tab) {
       case Tab.Timers:
         return (
@@ -255,40 +242,24 @@ export function App() {
             onEdit={handleEdit}
             onManageGroups={handleManageGroups}
             userId={user?.userId ?? null}
+            onRefresh={onRefresh}
+            syncing={syncing}
           />
         );
       case Tab.History:
-        return <HistoryView />;
+        return <HistoryView onRefresh={onRefresh} syncing={syncing} />;
       case Tab.Analytics:
-        return <AnalyticsView />;
+        return <AnalyticsView onRefresh={onRefresh} syncing={syncing} />;
       case Tab.Settings:
         return <SettingsView />;
     }
   }
 
   return (
+    <PullToRefreshProvider>
     <div
-        ref={containerRef}
         className="relative h-dvh bg-slate-900 text-white max-w-lg mx-auto overscroll-none pt-safe-top"
       >
-        {(pullDistance > 0 || syncing) && (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 z-50 w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg"
-            style={{
-              top:
-                syncing && pullDistance === 0
-                  ? "calc(env(safe-area-inset-top) + 24px)"
-                  : `${pullDistance - 8}px`,
-              transition: pullDistance === 0 ? "top 0.15s ease-out" : "none",
-            }}
-          >
-            {syncing ? (
-              <div className="w-5 h-5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
-            ) : (
-              <span className="text-slate-300 text-sm leading-none">↓</span>
-            )}
-          </div>
-        )}
         <ToastContainer />
         {swDebug && (
           <div className="fixed top-safe-top left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
@@ -340,5 +311,6 @@ export function App() {
             />
           )}
       </div>
+    </PullToRefreshProvider>
   );
 }
