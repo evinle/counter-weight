@@ -2,12 +2,13 @@ import { useHistoryTimers } from "../hooks/useTimers";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { ScreenTitle } from "./ScreenTitle";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
+import type { SyncTrigger } from "../lib/syncTrigger";
 import { getHistoryAnnotation, HistoryTiming } from "../lib/countdown";
 import { isHistoryStatus, type HistoryStatus } from "../db/schema";
 
 interface Props {
   onRefresh: (() => Promise<void>) | null;
-  syncing: boolean;
+  syncTrigger: SyncTrigger | null;
 }
 
 const STATUS_LABELS: Record<HistoryStatus, string> = {
@@ -39,7 +40,7 @@ function formatAnnotation(text: string, timing: HistoryTiming): string {
   }
 }
 
-export function HistoryView({ onRefresh, syncing }: Props) {
+export function HistoryView({ onRefresh, syncTrigger }: Props) {
   const timers = useHistoryTimers();
   const { containerRef: pullRef } = usePullToRefresh({ onRefresh });
 
@@ -107,8 +108,8 @@ export function HistoryView({ onRefresh, syncing }: Props) {
 
   return (
     <div ref={pullRef} className="flex flex-col h-full overflow-auto">
-      <ScreenTitle title="History" onRefresh={onRefresh} syncing={syncing} />
-      <PullToRefreshIndicator syncing={syncing} />
+      <ScreenTitle title="History" onRefresh={onRefresh} syncTrigger={syncTrigger} />
+      <PullToRefreshIndicator syncTrigger={syncTrigger} />
       {renderTimersHistoryContent()}
     </div>
   );

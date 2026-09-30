@@ -6,6 +6,7 @@ import { FeedView } from '../components/FeedView'
 import { PullToRefreshProvider } from '../contexts/PullToRefreshContext'
 import { completeTimer } from '../hooks/useTimers'
 import { TimerType } from '../db/schema'
+import { SyncTrigger } from '../lib/syncTrigger'
 import type { Timer } from '../db/schema'
 
 const CARD_WIDTH = 300
@@ -31,10 +32,10 @@ const BASE_TIMER = {
   version: null,
 } satisfies Omit<Timer, 'id'>
 
-function renderFeed(onRefresh: (() => Promise<void>) | null = null, syncing = false) {
+function renderFeed(onRefresh: (() => Promise<void>) | null = null, syncTrigger: SyncTrigger | null = null) {
   return render(
     <PullToRefreshProvider>
-      <FeedView onEdit={() => {}} onManageGroups={() => {}} userId={null} onRefresh={onRefresh} syncing={syncing} />
+      <FeedView onEdit={() => {}} onManageGroups={() => {}} userId={null} onRefresh={onRefresh} syncTrigger={syncTrigger} />
     </PullToRefreshProvider>,
   )
 }
@@ -131,9 +132,21 @@ describe('FeedView refresh button', () => {
     expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull()
   })
 
-  it('disables the button while syncing', () => {
-    renderFeed(vi.fn().mockResolvedValue(undefined), true)
+  it('disables the button while a background sync is running', () => {
+    renderFeed(vi.fn().mockResolvedValue(undefined), SyncTrigger.PendingWrite)
 
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled()
+  })
+
+  it('shows the list-top spinner for a manual refresh', () => {
+    renderFeed(vi.fn().mockResolvedValue(undefined), SyncTrigger.Manual)
+
+    expect(screen.getByRole('status', { name: 'Refreshing' })).toBeInTheDocument()
+  })
+
+  it('keeps the list-top spinner hidden for a background sync', () => {
+    renderFeed(vi.fn().mockResolvedValue(undefined), SyncTrigger.PendingWrite)
+
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })

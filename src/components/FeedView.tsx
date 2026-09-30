@@ -9,6 +9,7 @@ import { RefreshButton } from "./RefreshButton";
 import { TimerCard } from "./TimerCard";
 import { GroupSearchPanel } from "./GroupSearchPanel";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
+import type { SyncTrigger } from "../lib/syncTrigger";
 import { SortModes, SortDirections } from "../lib/sort";
 import type { SortMode } from "../lib/sort";
 import type { Timer } from "../db/schema";
@@ -18,7 +19,7 @@ interface Props {
   onManageGroups: () => void;
   userId: string | null;
   onRefresh: (() => Promise<void>) | null;
-  syncing: boolean;
+  syncTrigger: SyncTrigger | null;
 }
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
@@ -36,7 +37,7 @@ export function FeedView({
   onManageGroups,
   userId,
   onRefresh,
-  syncing,
+  syncTrigger,
 }: Props) {
   const { mode, setMode, direction, setDirection } = useSortMode();
   const { timers, hold } = useLingeringTimers(useFilteredFeed(mode, direction));
@@ -85,7 +86,7 @@ export function FeedView({
       <div className="relative z-40 flex items-center gap-2 px-4 pt-4 pb-2">
         <h1 className="text-2xl font-bold tracking-tight text-white">Timers</h1>
         <GroupSearchPanel userId={userId} onManageGroups={onManageGroups} />
-        <RefreshButton onRefresh={onRefresh} syncing={syncing} />
+        <RefreshButton onRefresh={onRefresh} syncTrigger={syncTrigger} />
       </div>
 
       <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
@@ -128,7 +129,7 @@ export function FeedView({
         </div>
       </div>
 
-      <PullToRefreshIndicator syncing={syncing} className="mt-5" />
+      <PullToRefreshIndicator syncTrigger={syncTrigger} className="mt-5" />
 
       {renderTimersContent()}
     </div>

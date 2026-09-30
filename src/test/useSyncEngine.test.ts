@@ -1,11 +1,12 @@
 import "fake-indexeddb/auto";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { db } from "../db";
 import { SyncStatuses, TimerType } from "../db/schema";
 import { useSyncEngine } from "../hooks/useSyncEngine";
 import type { AuthUser } from "../hooks/useAuth";
+import { SyncTrigger } from "../lib/syncTrigger";
 
 // ─── Mock ─────────────────────────────────────────────────────────────────────
 
@@ -529,5 +530,76 @@ describe("live query drain trigger", () => {
       const timer = await db.timers.get(id);
       expect(timer?.syncStatus).toBe("synced");
     });
+  });
+});
+
+// ─── Sync trigger ─────────────────────────────────────────────────────────────
+
+describe("sync trigger", () => {
+  function holdNextSync() {
+    let release!: () => void;
+    mockMutateAsync.mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = () => resolve(EMPTY_RESPONSE);
+      }),
+    );
+    return release;
+  }
+
+  async function mountSettled() {
+    const hook = renderHook(() => useSyncEngine({ user: USER }));
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(hook.result.current.trigger).toBeNull());
+    vi.clearAllMocks();
+    mockMutateAsync.mockResolvedValue(EMPTY_RESPONSE);
+    return hook;
+  }
+
+  it("is Login while the sync started by signing in is running, then null", async () => {
+    const release = holdNextSync();
+    const { result } = renderHook(() => useSyncEngine({ user: USER }));
+
+    await waitFor(() => expect(result.current.trigger).toBe(SyncTrigger.Login));
+    release();
+
+    await waitFor(() => expect(result.current.trigger).toBeNull());
+  });
+
+  it("is Manual while a triggerSync is running", async () => {
+    const { result } = await mountSettled();
+    const release = holdNextSync();
+
+    act(() => { void result.current.triggerSync(); });
+
+    await waitFor(() => expect(result.current.trigger).toBe(SyncTrigger.Manual));
+    release();
+    await waitFor(() => expect(result.current.trigger).toBeNull());
+  });
+
+  it("is PendingWrite while the sync started by a local write is running", async () => {
+    const { result } = await mountSettled();
+    const release = holdNextSync();
+
+    await db.timers.add({ ...BASE_TIMER, serverId: null, syncStatus: "pending" });
+
+    await waitFor(() => expect(result.current.trigger).toBe(SyncTrigger.PendingWrite));
+    release();
+    await waitFor(() => expect(result.current.trigger).toBeNull());
+  });
+
+  it("becomes Manual when triggerSync is called during a background sync", async () => {
+    const release = holdNextSync();
+    const { result, rerender } = renderHook(() => useSyncEngine({ user: USER }));
+    await waitFor(() => expect(result.current.trigger).toBe(SyncTrigger.Login));
+    vi.mocked(trpcReact.sync.full.useMutation).mockReturnValue(
+      fromPartial({ mutateAsync: mockMutateAsync, isPending: true }),
+    );
+    rerender();
+
+    await act(async () => { await result.current.triggerSync(); });
+
+    expect(result.current.trigger).toBe(SyncTrigger.Manual);
+    release();
+    await waitFor(() => expect(result.current.trigger).toBeNull());
   });
 });

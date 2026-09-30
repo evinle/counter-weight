@@ -1,9 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { db } from "../db";
 import { SyncStatuses, TimerStatuses } from "../db/schema";
 import type { Timer } from "../db/schema";
 import { trpcReact } from "../lib/trpc";
+import { SyncTrigger } from "../lib/syncTrigger";
 import { mapServerTag, mapServerGroup, mapServerTimer } from "../lib/syncMappers";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../server/api/index";
@@ -186,12 +187,19 @@ async function applySync(result: SyncOutput, userId: string) {
 export function useSyncEngine({ user }: { user: AuthUser | null }) {
   const mutation = trpcReact.sync.full.useMutation();
 
+  const [trigger, setTrigger] = useState<SyncTrigger | null>(null);
+
   const runSync = useCallback(
-    async (u: AuthUser) => {
+    async (u: AuthUser, why: SyncTrigger) => {
       if (mutation.isPending) return;
       const input = await buildSyncInput(u);
-      const result = await mutation.mutateAsync(input);
-      await applySync(result, u.userId);
+      setTrigger(why);
+      try {
+        const result = await mutation.mutateAsync(input);
+        await applySync(result, u.userId);
+      } finally {
+        setTrigger(null);
+      }
     },
     [mutation],
   );
@@ -211,19 +219,23 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
 
   useEffect(() => {
     if (!user || !pendingTimers.length) return;
-    runSync(user);
+    // setTrigger runs after an await inside runSync, so it is not synchronous in this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    runSync(user, SyncTrigger.PendingWrite);
   }, [pendingTimers, user?.userId]);
 
   useEffect(() => {
     if (!user) return;
 
-    runSync(user);
+    // setTrigger runs after an await inside runSync, so it is not synchronous in this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    runSync(user, SyncTrigger.Login);
 
     function handleOnline() {
-      runSync(user!);
+      runSync(user!, SyncTrigger.Online);
     }
     function handleVisibility() {
-      if (document.visibilityState === "visible") runSync(user!);
+      if (document.visibilityState === "visible") runSync(user!, SyncTrigger.Visible);
     }
 
     window.addEventListener("online", handleOnline);
@@ -236,10 +248,11 @@ export function useSyncEngine({ user }: { user: AuthUser | null }) {
   }, [user?.userId]);
 
   return {
-    syncing: mutation.isPending,
+    trigger,
     triggerSync: async () => {
       if (!user) return;
-      await runSync(user);
+      setTrigger(SyncTrigger.Manual);
+      await runSync(user, SyncTrigger.Manual);
     },
   };
 }

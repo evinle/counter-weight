@@ -1,12 +1,14 @@
 import { usePullDistance } from "../contexts/PullToRefreshContext";
+import { SyncTrigger } from "../lib/syncTrigger";
 
 interface Props {
-  syncing: boolean;
+  syncTrigger: SyncTrigger | null;
   className?: string;
 }
 
-export function PullToRefreshIndicator({ syncing, className = "" }: Props) {
+export function PullToRefreshIndicator({ syncTrigger, className = "" }: Props) {
   const { pullDistance } = usePullDistance();
+  const syncing = syncTrigger === SyncTrigger.Manual;
   if (pullDistance === 0 && !syncing) return null;
 
   return (

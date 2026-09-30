@@ -1,12 +1,14 @@
+import type { SyncTrigger } from "../lib/syncTrigger";
 import { RefreshIcon } from "./CardIcons";
 
 interface Props {
   onRefresh: (() => Promise<void>) | null;
-  syncing: boolean;
+  syncTrigger: SyncTrigger | null;
 }
 
-export function RefreshButton({ onRefresh, syncing }: Props) {
+export function RefreshButton({ onRefresh, syncTrigger }: Props) {
   if (!onRefresh) return null;
+  const syncing = syncTrigger !== null;
 
   return (
     <button

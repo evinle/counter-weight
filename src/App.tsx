@@ -37,7 +37,7 @@ export function App() {
   const [swDebug, setSwDebug] = useState<string | null>(null);
 
   const { state, user } = useAuth();
-  const { syncing, triggerSync } = useSyncEngine({ user });
+  const { trigger, triggerSync } = useSyncEngine({ user });
   const overlayOpen = activeAction !== ActiveAction.None;
   useSwipeBack({
     isOpen: overlayOpen,
@@ -243,13 +243,13 @@ export function App() {
             onManageGroups={handleManageGroups}
             userId={user?.userId ?? null}
             onRefresh={onRefresh}
-            syncing={syncing}
+            syncTrigger={trigger}
           />
         );
       case Tab.History:
-        return <HistoryView onRefresh={onRefresh} syncing={syncing} />;
+        return <HistoryView onRefresh={onRefresh} syncTrigger={trigger} />;
       case Tab.Analytics:
-        return <AnalyticsView onRefresh={onRefresh} syncing={syncing} />;
+        return <AnalyticsView onRefresh={onRefresh} syncTrigger={trigger} />;
       case Tab.Settings:
         return <SettingsView />;
     }
