@@ -58,6 +58,29 @@ describe('useSwipeToComplete threshold', () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 
+  it('keeps the swipe alive through a small vertical wobble at the start', () => {
+    const { onComplete, el } = setup()
+    const init = { pointerId: 1, pointerType: 'touch', button: 0 }
+
+    act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: 0, clientY: 0, bubbles: true })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: 1, clientY: 4 })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: 120, clientY: 8 })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: 230, clientY: 10 })) })
+
+    expect(onComplete).toHaveBeenCalledOnce()
+  })
+
+  it('abandons the swipe once the drag commits to the vertical axis', () => {
+    const { onComplete, el } = setup()
+    const init = { pointerId: 1, pointerType: 'touch', button: 0 }
+
+    act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: 0, clientY: 0, bubbles: true })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: 3, clientY: 40 })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: 250, clientY: 45 })) })
+
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
   it('ignores a non-primary mouse button', () => {
     const { onComplete, el } = setup()
     const init = { pointerId: 1, pointerType: 'mouse', button: 2 }

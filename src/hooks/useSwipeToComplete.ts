@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ARM_TIMEOUT_MS, DROP_ARM_THRESHOLD, SWIPE_COMPLETE_THRESHOLD } from "../lib/gestures";
+import {
+  ARM_TIMEOUT_MS,
+  DROP_ARM_THRESHOLD,
+  SWIPE_AXIS_SLOP_PX,
+  SWIPE_COMPLETE_THRESHOLD,
+} from "../lib/gestures";
 
 interface Options {
   onComplete: () => void;
@@ -51,6 +56,7 @@ export function useSwipeToComplete({
     let width = 0;
     let dragging = false;
     let closeOnly = false;
+    let horizontal = false;
 
     function clampDrag(dx: number) {
       return Math.min(Math.max(dx, -width), width);
@@ -65,6 +71,7 @@ export function useSwipeToComplete({
       startY = e.clientY;
       width = el.getBoundingClientRect().width;
       dragging = true;
+      horizontal = false;
       window.addEventListener("pointermove", onPointerMove);
       window.addEventListener("pointerup", onPointerUp);
       window.addEventListener("pointercancel", stop);
@@ -72,9 +79,15 @@ export function useSwipeToComplete({
 
     function onPointerMove(e: PointerEvent) {
       if (!dragging) return;
-      if (Math.abs(e.clientY - startY) > Math.abs(e.clientX - startX)) {
-        stop();
-        return;
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      if (!horizontal) {
+        if (Math.max(dx, dy) < SWIPE_AXIS_SLOP_PX) return;
+        if (dy > dx) {
+          stop();
+          return;
+        }
+        horizontal = true;
       }
       setDragX(clampDrag(e.clientX - startX));
     }

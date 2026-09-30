@@ -12,3 +12,6 @@ export const ARM_TIMEOUT_MS = 2000
 
 /** How long a completed or dropped card stays on screen, showing its confirmation, after its timer leaves the feed. */
 export const DEPARTURE_LINGER_MS = 1000
+
+/** Distance in px a pointer must travel before the drag commits to the horizontal (swipe) or vertical (scroll) axis. */
+export const SWIPE_AXIS_SLOP_PX = 10
