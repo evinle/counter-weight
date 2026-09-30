@@ -68,3 +68,45 @@ describe('useSwipeToComplete threshold', () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 })
+
+describe('useSwipeToComplete arm threshold', () => {
+  function setupArm(options: { armThreshold?: number } = {}) {
+    const { result } = renderHook(() => useSwipeToComplete({ onComplete: vi.fn(), ...options }))
+    const el = makeEl()
+    act(() => { result.current.containerRef(el) })
+    return { result, el }
+  }
+
+  it('arms at exactly 40% of the width by default', () => {
+    const { result, el } = setupArm()
+
+    drag(el, 200, 80)
+
+    expect(result.current.armed).toBe(true)
+  })
+
+  it('does not arm just under 40% of the width by default', () => {
+    const { result, el } = setupArm()
+
+    drag(el, 200, 81)
+
+    expect(result.current.armed).toBe(false)
+  })
+
+  it('uses the arm threshold passed in as a fraction of width', () => {
+    const { result, el } = setupArm({ armThreshold: 0.2 })
+
+    drag(el, 200, 140)
+
+    expect(result.current.armed).toBe(true)
+  })
+
+  it('lets the drag travel past the old 96px reveal width', () => {
+    const { result, el } = setupArm()
+    const init = { pointerId: 1, pointerType: 'mouse', button: 0 }
+    act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: 250, clientY: 0, bubbles: true })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: 100, clientY: 0 })) })
+
+    expect(result.current.dragX).toBe(-150)
+  })
+})

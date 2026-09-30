@@ -81,9 +81,9 @@ describe('FeedView — departing cards', () => {
     const id = await db.timers.add({ ...BASE_TIMER })
     renderFeed()
     await screen.findByText('Pizza')
-    dragCard(screen.getByTestId('timer-card'), 200, 140)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Drop?' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Drop' }))
     await waitFor(async () => {
       expect((await db.timers.get(id))?.status).toBe('cancelled')
     })

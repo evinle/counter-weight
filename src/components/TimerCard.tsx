@@ -32,9 +32,11 @@ interface Props {
 export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
   const [dropped, setDropped] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [side, setSide] = useState<"complete" | "drop" | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const remaining = useAnimatedCountdown(timer.targetDatetime);
   const isOverdue = remaining <= 0;
+  const countdownText = formatDuration(remaining);
   const elapsed = useAnimatedElapsed(timer.workSessions);
   const isTask = timer.timerType === TimerType.Task;
   const hasOpenSession = timer.workSessions.some((s) => s.endedAt === null);
@@ -52,6 +54,10 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
       else completeTimer(timer.id);
     },
   });
+
+  const direction =
+    completed || dragX > 0 ? "complete" : dropped || armed || dragX < 0 ? "drop" : null;
+  if (direction !== null && direction !== side) setSide(direction);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -87,40 +93,51 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
 
   return (
     <div className="relative rounded-xl overflow-hidden">
-      <div
-        className="absolute inset-0 bg-emerald-900/70 flex items-center pl-6 text-emerald-200 font-medium"
-        aria-hidden="true"
-      >
-        {completed ? (
-          <span
-            data-testid="complete-confirmation"
-            className="w-full text-center text-7xl text-emerald-200"
-          >
-            ✓
-          </span>
-        ) : (
-          "✓ Done"
-        )}
-      </div>
-      {(armed || dragX < 0 || dropped) && (
+      {side === "complete" && (
         <div
-          className="absolute inset-y-0 right-0 bg-rose-900/70 flex items-center justify-center"
-          style={{ width: dropped ? "100%" : DROP_REVEAL_WIDTH }}
+          data-testid="complete-panel"
+          className="absolute inset-0 bg-emerald-900/70 flex items-center pl-6 text-emerald-200 font-medium"
+          aria-hidden="true"
         >
-          {dropped ? (
-            <span data-testid="drop-confirmation" className="text-6xl">
-              🗑
+          {completed ? (
+            <span
+              data-testid="complete-confirmation"
+              className="w-full text-center text-7xl text-emerald-200"
+            >
+              ✓
             </span>
           ) : (
-            <button onClick={drop} className="text-rose-200 font-medium px-2 py-3 cursor-pointer">
-              Drop?
-            </button>
+            "✓ Done"
           )}
         </div>
+      )}
+      {side === "drop" && dropped && (
+        <div className="absolute inset-0 bg-rose-900/70 flex items-center justify-center">
+          <span data-testid="drop-confirmation" className="text-6xl">
+            🗑
+          </span>
+        </div>
+      )}
+      {side === "drop" && !dropped && (
+        <button
+          data-testid="drop-panel"
+          disabled={!armed}
+          onClick={drop}
+          className="absolute inset-0 bg-rose-900/70 flex items-center justify-end text-rose-200 font-medium cursor-pointer disabled:cursor-default"
+        >
+          <span className="flex items-center justify-center gap-1.5" style={{ width: DROP_REVEAL_WIDTH }}>
+            Drop
+            <TrashIcon size={18} />
+          </span>
+        </button>
       )}
       <div
         ref={swipeRef}
         data-testid="timer-card"
+        onTransitionEnd={(e) => {
+          const settled = e.target === e.currentTarget && e.propertyName === "transform";
+          if (settled && dragX === 0 && !armed && !dropped && !completed) setSide(null);
+        }}
         className="relative rounded-xl p-5 min-h-44 bg-slate-800 flex flex-col gap-3 touch-pan-y select-none"
         style={{
           transform: dropped
@@ -193,57 +210,56 @@ export function TimerCard({ timer, tagsMap, onEdit, onDepart }: Props) {
           </div>
         </div>
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-2 min-w-0">
-            <div className="flex flex-col items-baseline gap-1">
-              <span
-                className={`text-4xl font-mono tabular-nums tracking-tight ${isOverdue ? "text-red-400" : "text-white"}`}
-              >
-                {formatDuration(remaining)}
-              </span>
-            </div>
-
-            {isTask && (
-              <div data-testid="work-row" className="flex items-center gap-3 min-h-11">
-                <span className="text-lg font-mono tabular-nums tracking-tight text-emerald-400">
-                  {formatDuration(elapsed)}
-                </span>
-                <button
-                  aria-label={hasOpenSession ? "Pause work" : "Start work"}
-                  onClick={() => {
-                    if (timer.id === undefined) return;
-                    if (hasOpenSession) endWork(timer.id);
-                    else startWork(timer.id);
-                  }}
-                  className={`w-11 h-11 -ml-2 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${
-                    hasOpenSession ? "text-amber-400 hover:text-amber-300" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {hasOpenSession ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
-                </button>
-              </div>
-            )}
-
-            <div data-testid="timer-tags" className="flex flex-wrap gap-1 min-h-6">
-              {resolvedTags.map((tag) => (
-                <span
-                  key={tag.serverId}
-                  className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                  style={{ backgroundColor: tag.color ?? "#6b7280" }}
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
+        <div className="flex-1 flex flex-col justify-center gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className={`font-mono tabular-nums tracking-tight leading-none whitespace-nowrap ${
+                /\d+d /.test(countdownText) ? "text-4xl" : "text-[2.5rem]"
+              } ${isOverdue ? "text-red-400" : "text-white"}`}
+            >
+              {countdownText}
+            </span>
+            <button
+              aria-label="Complete"
+              onClick={complete}
+              className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
+            >
+              <CheckIcon size={22} />
+            </button>
           </div>
 
-          <button
-            aria-label="Complete"
-            onClick={complete}
-            className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-700 text-white hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
-          >
-            <CheckIcon size={22} />
-          </button>
+          {isTask && (
+            <div data-testid="work-row" className="flex items-center gap-3 min-h-11">
+              <span className="text-lg font-mono tabular-nums tracking-tight text-emerald-400">
+                {formatDuration(elapsed)}
+              </span>
+              <button
+                aria-label={hasOpenSession ? "Pause work" : "Start work"}
+                onClick={() => {
+                  if (timer.id === undefined) return;
+                  if (hasOpenSession) endWork(timer.id);
+                  else startWork(timer.id);
+                }}
+                className={`w-11 h-11 -ml-2 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${
+                  hasOpenSession ? "text-amber-400 hover:text-amber-300" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {hasOpenSession ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
+              </button>
+            </div>
+          )}
+
+          <div data-testid="timer-tags" className="flex flex-wrap gap-1">
+            {resolvedTags.map((tag) => (
+              <span
+                key={tag.serverId}
+                className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                style={{ backgroundColor: tag.color ?? "#6b7280" }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

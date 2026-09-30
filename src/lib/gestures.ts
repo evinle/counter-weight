@@ -1,7 +1,10 @@
 /** Fraction of the card's width a right swipe must pass to complete the timer. */
 export const SWIPE_COMPLETE_THRESHOLD = 0.7
 
-/** Width in px of the panel a left swipe reveals; the card stops here and holds open when armed. */
+/** Fraction of the card's width a left swipe must pass for the card to stick open and enable Drop. */
+export const DROP_ARM_THRESHOLD = 0.4
+
+/** Width in px the card rests at once armed, i.e. the width of the Drop button it exposes. */
 export const DROP_REVEAL_WIDTH = 96
 
 /** How long an armed card waits for the Drop? tap before closing itself. */

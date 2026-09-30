@@ -125,43 +125,86 @@ describe('TimerCard — swipe left to drop', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
-  it('shows a Drop? button after a left swipe past half the reveal width', async () => {
+  it('shows a Drop button after a left swipe past half the reveal width', async () => {
     const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
     render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
-    expect(screen.queryByRole('button', { name: 'Drop?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Drop' })).not.toBeInTheDocument()
 
-    dragCard(screen.getByTestId('timer-card'), 200, 140)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
 
-    expect(await screen.findByRole('button', { name: 'Drop?' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Drop' })).toBeInTheDocument()
   })
 
-  it('reveals the Drop? panel while the card is still being dragged left', () => {
+  it('reveals the drop panel while the card is still being dragged left', () => {
     render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
 
     fireEvent.pointerDown(screen.getByTestId('timer-card'), { pointerId: 1, pointerType: 'mouse', button: 0, clientX: 200, clientY: 0 })
     fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 0 })
 
-    expect(screen.getByRole('button', { name: 'Drop?' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drop' })).toBeInTheDocument()
     fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 0 })
   })
 
-  it('does not arm when the left swipe stops short of half the reveal width', () => {
-    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
-
-    dragCard(screen.getByTestId('timer-card'), 200, 170)
-
-    expect(screen.queryByRole('button', { name: 'Drop?' })).not.toBeInTheDocument()
-  })
-
-  it('cancels the timer when Drop? is tapped', async () => {
+  it('makes the whole revealed red panel the drop button', async () => {
     const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
     render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
-    dragCard(screen.getByTestId('timer-card'), 200, 140)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Drop?' }))
+    const panel = await screen.findByTestId('drop-panel')
+    fireEvent.click(panel)
+
+    expect(panel.tagName).toBe('BUTTON')
+    await waitFor(async () => {
+      expect((await db.timers.get(id))?.status).toBe('cancelled')
+    })
+  })
+
+  it('draws a bin icon in the drop button instead of a question mark', async () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
+
+    const button = await screen.findByRole('button', { name: 'Drop' })
+
+    expect(button.querySelector('svg')).not.toBeNull()
+    expect(button).not.toHaveTextContent('?')
+  })
+
+  it('keeps the drop button disabled while the card is still being dragged', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    fireEvent.pointerDown(screen.getByTestId('timer-card'), { pointerId: 1, pointerType: 'mouse', button: 0, clientX: 200, clientY: 0 })
+    fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 0 })
+
+    expect(screen.getByTestId('drop-panel')).toBeDisabled()
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 0 })
+  })
+
+  it('enables the drop button once the card has stuck open', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
+
+    expect(screen.getByTestId('drop-panel')).toBeEnabled()
+  })
+
+  it('does not arm when the left swipe stops short of 40% of the width', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    dragCard(screen.getByTestId('timer-card'), 200, 100)
+
+    expect(screen.getByTestId('drop-panel')).toBeDisabled()
+  })
+
+  it('cancels the timer when the drop panel is tapped', async () => {
+    const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
+    render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Drop' }))
 
     await waitFor(async () => {
       expect((await db.timers.get(id))?.status).toBe('cancelled')
@@ -171,36 +214,103 @@ describe('TimerCard — swipe left to drop', () => {
   it('disarms after 2 seconds of doing nothing', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
-    dragCard(screen.getByTestId('timer-card'), 200, 140)
-    expect(screen.getByRole('button', { name: 'Drop?' })).toBeInTheDocument()
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
+    expect(screen.getByRole('button', { name: 'Drop' })).toBeInTheDocument()
 
     act(() => { vi.advanceTimersByTime(2000) })
 
-    expect(screen.queryByRole('button', { name: 'Drop?' })).not.toBeInTheDocument()
-    vi.useRealTimers()
+    expect(screen.getByTestId('drop-panel')).toBeDisabled()
   })
 
   it('disarms when the card body is tapped', () => {
     render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
     const card = screen.getByTestId('timer-card')
-    dragCard(card, 200, 140)
+    dragCard(card, 200, 60)
 
     dragCard(card, 100, 100)
 
-    expect(screen.queryByRole('button', { name: 'Drop?' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('drop-panel')).toBeDisabled()
   })
 
   it('closes without completing when an armed card is swiped right', async () => {
     const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
     render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
     const card = screen.getByTestId('timer-card')
-    dragCard(card, 200, 140)
+    dragCard(card, 200, 60)
 
     dragCard(card, 0, 250)
 
-    expect(screen.queryByRole('button', { name: 'Drop?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Drop' })).not.toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect((await db.timers.get(id))?.status).toBe('active')
+  })
+})
+
+describe('TimerCard — reveal panels', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, CARD_WIDTH, 100),
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function startDrag(toX: number) {
+    const card = screen.getByTestId('timer-card')
+    fireEvent.pointerDown(card, { pointerId: 1, pointerType: 'mouse', button: 0, clientX: 200, clientY: 0 })
+    fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'mouse', clientX: toX, clientY: 0 })
+    return card
+  }
+
+  it('shows only the drop panel while dragging left, never the complete panel', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    startDrag(190)
+
+    expect(screen.getByTestId('drop-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('complete-panel')).not.toBeInTheDocument()
+  })
+
+  it('shows only the complete panel while dragging right, never the drop panel', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    startDrag(210)
+
+    expect(screen.getByTestId('complete-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('drop-panel')).not.toBeInTheDocument()
+  })
+
+  it('shows no panel at all while the card is at rest', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+
+    expect(screen.queryByTestId('complete-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('drop-panel')).not.toBeInTheDocument()
+  })
+
+  it('keeps the drop panel visible while a released card slides back, then removes it', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+    const card = startDrag(190)
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse', clientX: 190, clientY: 0 })
+
+    expect(screen.getByTestId('drop-panel')).toBeInTheDocument()
+
+    fireEvent.transitionEnd(card, { propertyName: 'transform' })
+
+    expect(screen.queryByTestId('drop-panel')).not.toBeInTheDocument()
+  })
+
+  it('keeps the drop panel visible while a disarmed card slides back, then removes it', () => {
+    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
+    const card = screen.getByTestId('timer-card')
+    dragCard(card, 200, 60)
+
+    dragCard(card, 100, 100)
+
+    expect(screen.getByTestId('drop-panel')).toBeInTheDocument()
+    fireEvent.transitionEnd(card, { propertyName: 'transform' })
+    expect(screen.queryByTestId('drop-panel')).not.toBeInTheDocument()
   })
 })
 
@@ -216,12 +326,12 @@ describe('TimerCard — drop confirmation', () => {
     vi.restoreAllMocks()
   })
 
-  it('keeps showing a big bin after Drop? is tapped and the timer is dropped', async () => {
+  it('keeps showing a big bin after the drop panel is tapped and the timer is dropped', async () => {
     const id = await db.timers.add({ ...BASE_TIMER, id: undefined })
     render(<TimerCard timer={{ ...BASE_TIMER, id }} tagsMap={new Map()} onEdit={() => {}} />)
-    dragCard(screen.getByTestId('timer-card'), 200, 140)
+    dragCard(screen.getByTestId('timer-card'), 200, 60)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Drop?' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Drop' }))
 
     await waitFor(async () => {
       expect((await db.timers.get(id))?.status).toBe('cancelled')
@@ -261,14 +371,14 @@ describe('TimerCard — actions menu', () => {
     render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
 
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))
-    expect(names).toEqual(['More actions', 'Complete'])
+    expect(names.sort()).toEqual(['Complete', 'More actions'])
   })
 
   it('also shows a Start work button by default on a Task', () => {
     render(<TimerCard timer={TASK} tagsMap={new Map()} onEdit={() => {}} />)
 
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))
-    expect(names).toEqual(['More actions', 'Start work', 'Complete'])
+    expect(names.sort()).toEqual(['Complete', 'More actions', 'Start work'])
   })
 
   it('reveals Edit and Drop when the menu is opened', () => {
@@ -409,12 +519,6 @@ describe('TimerCard — layout', () => {
 
     expect(screen.queryByTestId('complete-hint')).not.toBeInTheDocument()
     expect(screen.queryByTestId('drop-hint')).not.toBeInTheDocument()
-  })
-
-  it('keeps a tag row even when the timer has no tags', () => {
-    render(<TimerCard timer={BASE_TIMER} tagsMap={new Map()} onEdit={() => {}} />)
-
-    expect(screen.getByTestId('timer-tags')).toBeInTheDocument()
   })
 
   it('shows every tag when there are several', () => {

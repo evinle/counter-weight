@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ARM_TIMEOUT_MS, DROP_REVEAL_WIDTH, SWIPE_COMPLETE_THRESHOLD } from "../lib/gestures";
+import { ARM_TIMEOUT_MS, DROP_ARM_THRESHOLD, SWIPE_COMPLETE_THRESHOLD } from "../lib/gestures";
 
 interface Options {
   onComplete: () => void;
   threshold?: number;
+  armThreshold?: number;
 }
 
 export function useSwipeToComplete({
   onComplete,
   threshold = SWIPE_COMPLETE_THRESHOLD,
+  armThreshold = DROP_ARM_THRESHOLD,
 }: Options) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const containerRef = useCallback((el: HTMLElement | null) => setContainer(el), []);
@@ -19,11 +21,13 @@ export function useSwipeToComplete({
   const onCompleteRef = useRef(onComplete);
   const armedRef = useRef(armed);
   const thresholdRef = useRef(threshold);
+  const armThresholdRef = useRef(armThreshold);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
     armedRef.current = armed;
     thresholdRef.current = threshold;
+    armThresholdRef.current = armThreshold;
   });
 
   const complete = useCallback(() => {
@@ -49,7 +53,7 @@ export function useSwipeToComplete({
     let closeOnly = false;
 
     function clampDrag(dx: number) {
-      return Math.min(Math.max(dx, -DROP_REVEAL_WIDTH), width);
+      return Math.min(Math.max(dx, -width), width);
     }
 
     function onPointerDown(e: PointerEvent) {
@@ -80,7 +84,7 @@ export function useSwipeToComplete({
       stop();
       if (closeOnly) return;
       if (dist < 0) {
-        if (-dist >= DROP_REVEAL_WIDTH / 2) setArmed(true);
+        if (-dist >= armThresholdRef.current * width) setArmed(true);
       } else if (width > 0 && dist >= thresholdRef.current * width) {
         complete();
       }
