@@ -92,6 +92,57 @@ describe('useSwipeToComplete threshold', () => {
   })
 })
 
+describe('useSwipeToComplete scroll locking', () => {
+  const init = { pointerId: 1, pointerType: 'touch', button: 0 }
+
+  function touchMove(el: Element) {
+    const event = new TouchEvent('touchmove', { bubbles: true, cancelable: true })
+    act(() => { el.dispatchEvent(event) })
+    return event
+  }
+
+  function start(el: Element, x: number, y: number) {
+    act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: x, clientY: y, bubbles: true })) })
+  }
+
+  function move(x: number, y: number) {
+    act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: x, clientY: y })) })
+  }
+
+  it('blocks vertical scrolling once the drag has committed to horizontal', () => {
+    const { el } = setup()
+    start(el, 0, 0)
+    move(30, 2)
+
+    expect(touchMove(el).defaultPrevented).toBe(true)
+  })
+
+  it('leaves scrolling alone before the drag has committed to an axis', () => {
+    const { el } = setup()
+    start(el, 0, 0)
+    move(3, 1)
+
+    expect(touchMove(el).defaultPrevented).toBe(false)
+  })
+
+  it('leaves scrolling alone when the drag is vertical', () => {
+    const { el } = setup()
+    start(el, 0, 0)
+    move(2, 40)
+
+    expect(touchMove(el).defaultPrevented).toBe(false)
+  })
+
+  it('leaves scrolling alone once the swipe has ended', () => {
+    const { el } = setup()
+    start(el, 0, 0)
+    move(30, 0)
+    act(() => { window.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: 30, clientY: 0 })) })
+
+    expect(touchMove(el).defaultPrevented).toBe(false)
+  })
+})
+
 describe('useSwipeToComplete arm threshold', () => {
   function setupArm(options: { armThreshold?: number } = {}) {
     const { result } = renderHook(() => useSwipeToComplete({ onComplete: vi.fn(), ...options }))

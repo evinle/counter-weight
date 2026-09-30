@@ -103,6 +103,10 @@ export function useSwipeToComplete({
       }
     }
 
+    function onTouchMove(e: TouchEvent) {
+      if (dragging && horizontal && e.cancelable) e.preventDefault();
+    }
+
     function stop() {
       dragging = false;
       setDragX(0);
@@ -112,8 +116,10 @@ export function useSwipeToComplete({
     }
 
     el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
       el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", stop);
