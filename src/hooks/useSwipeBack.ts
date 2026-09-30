@@ -9,6 +9,11 @@ export function useSwipeBack({ isOpen, onClose }: Options) {
   const prevOpen = useRef(false);
   const pushedState = useRef(false);
   const closedViaPopstate = useRef(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const opened = isOpen && !prevOpen.current;
@@ -33,7 +38,7 @@ export function useSwipeBack({ isOpen, onClose }: Options) {
     function onPopState() {
       closedViaPopstate.current = true;
       pushedState.current = false;
-      onClose();
+      onCloseRef.current();
     }
 
     window.addEventListener("popstate", onPopState);
@@ -44,5 +49,5 @@ export function useSwipeBack({ isOpen, onClose }: Options) {
         pushedState.current = false;
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 }

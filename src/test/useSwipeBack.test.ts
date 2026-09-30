@@ -64,4 +64,34 @@ describe('useSwipeBack', () => {
     unmount()
     expect(back).toHaveBeenCalledOnce()
   })
+
+  describe("when the parent re-renders with a new onClose while open", () => {
+    type Props = { isOpen: boolean; onClose: () => void }
+    const setup = () =>
+      renderHook(({ isOpen, onClose }: Props) => useSwipeBack({ isOpen, onClose }), {
+        initialProps: { isOpen: false, onClose: vi.fn() } as Props,
+      })
+
+    it("does not navigate back", () => {
+      const { rerender } = setup()
+      rerender({ isOpen: true, onClose: vi.fn() })
+
+      rerender({ isOpen: true, onClose: vi.fn() })
+
+      expect(back).not.toHaveBeenCalled()
+    })
+
+    it("calls the latest onClose on popstate", () => {
+      const stale = vi.fn()
+      const latest = vi.fn()
+      const { rerender } = setup()
+      rerender({ isOpen: true, onClose: stale })
+      rerender({ isOpen: true, onClose: latest })
+
+      act(() => { window.dispatchEvent(new PopStateEvent("popstate")) })
+
+      expect(latest).toHaveBeenCalledOnce()
+      expect(stale).not.toHaveBeenCalled()
+    })
+  })
 })
