@@ -112,6 +112,20 @@ describe('usePullToRefresh', () => {
     expect(move.defaultPrevented).toBe(false)
   })
 
+  it('does not pull when a child has already claimed the touch move', () => {
+    const { result } = renderHook(() => usePullToRefresh({ onRefresh: vi.fn().mockResolvedValue(undefined) }), { wrapper: PullToRefreshProvider })
+    const el = makeEl()
+    const child = document.createElement('div')
+    el.appendChild(child)
+    child.addEventListener('touchmove', (e) => e.preventDefault())
+    act(() => { result.current.containerRef(el) })
+    act(() => { fireTouch(child, 'touchstart', 100) })
+
+    act(() => { fireTouch(child, 'touchmove', 140) })
+
+    expect(result.current.pullDistance).toBe(0)
+  })
+
   it('calls onRefresh when released past threshold', async () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined)
     const { result } = renderHook(() => usePullToRefresh({ onRefresh, threshold: 70 }), { wrapper: PullToRefreshProvider })
