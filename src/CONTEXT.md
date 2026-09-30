@@ -43,3 +43,9 @@ A discriminator on a Timer (`source: 'manual' | 'google_calendar'`) indicating w
 
 ### Work Session
 A `{ startedAt: Date, endedAt: Date | null }` record stored in `timer.workSessions[]`. A null `endedAt` means the session is currently open (work is in progress). At most one open session exists at a time. `startWork` appends a new open session; `endWork` closes the last open one by setting `endedAt`.
+
+### Drop
+The user action of abandoning an active timer without completing it. Persisted as status `cancelled`; the timer moves to History and its notification schedules are removed. It is not a deletion — the record is kept. The user-facing word is "Drop" (confirm button: "Drop?") because "Cancel" reads as backing out of the action itself. "Cancel", "remove" and "delete" are not used in the UI for this action; `cancelled` remains the stored status name.
+
+### Complete
+The user action of marking an active timer as done. Sets status to `completed`, moves the timer to History and, for a Recurring Timer, spawns the next Occurrence. For a Task Timer it also closes any open Work Session.

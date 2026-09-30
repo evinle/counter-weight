@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useScrollEdges } from "../hooks/useScrollEdges";
 import { useFilteredFeed } from "../hooks/useFilteredFeed";
 import { useTagsMap } from "../hooks/useTags";
+import { useLingeringTimers } from "../hooks/useLingeringTimers";
 import { useSortMode } from "../hooks/useSortMode";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { TimerCard } from "./TimerCard";
@@ -31,7 +32,7 @@ const ALL_SORT_MODES = Object.values(SortModes) as SortMode[];
 
 export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }: Props) {
   const { mode, setMode, direction, setDirection } = useSortMode();
-  const timers = useFilteredFeed(mode, direction);
+  const { timers, hold } = useLingeringTimers(useFilteredFeed(mode, direction));
   const tagsMap = useTagsMap();
   const activePillRef = useRef<HTMLButtonElement>(null);
   const { scrollRef, showLeft, showRight } = useScrollEdges();
@@ -53,7 +54,7 @@ export function FeedView({ onEdit, onManageGroups, userId, onRefresh, syncing }:
     ) : (
       <div className="flex flex-col gap-3 p-4 box-border">
         {timers.map((timer) => (
-          <TimerCard key={timer.id} timer={timer} tagsMap={tagsMap} onEdit={onEdit} />
+          <TimerCard key={timer.id} timer={timer} tagsMap={tagsMap} onEdit={onEdit} onDepart={hold} />
         ))}
       </div>
     );

@@ -2,78 +2,69 @@ import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
 import { useSwipeToComplete } from '../hooks/useSwipeToComplete'
 
+const WIDTH = 300
+
 function makeEl() {
-  return document.createElement('div')
+  const el = document.createElement('div')
+  el.getBoundingClientRect = () => new DOMRect(0, 0, WIDTH, 100)
+  return el
 }
 
-function fakeTouch(el: Element, x: number, y: number): Touch {
-  return { identifier: 1, target: el, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 } as Touch
+function drag(el: Element, fromX: number, toX: number, toY = 0) {
+  const init = { pointerId: 1, pointerType: 'mouse', button: 0 }
+  act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: fromX, clientY: 0, bubbles: true })) })
+  act(() => { window.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: toX, clientY: toY })) })
+  act(() => { window.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: toX, clientY: toY })) })
 }
 
-function fireTouch(el: Element, type: string, x: number, y: number) {
-  const touch = fakeTouch(el, x, y)
-  el.dispatchEvent(new TouchEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    touches: type === 'touchend' ? [] : [touch],
-    changedTouches: [touch],
-  }))
+function setup(options: { threshold?: number } = {}) {
+  const onComplete = vi.fn()
+  const { result } = renderHook(() => useSwipeToComplete({ onComplete, ...options }))
+  const el = makeEl()
+  act(() => { result.current.containerRef(el) })
+  return { onComplete, el }
 }
 
-describe('useSwipeToComplete', () => {
-  it('tracks dragX when dragging right', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useSwipeToComplete({ onComplete, threshold: 96 }))
-    const el = makeEl()
-    act(() => { result.current.containerRef(el) })
-    act(() => { fireTouch(el, 'touchstart', 0, 0) })
-    act(() => { fireTouch(el, 'touchmove', 40, 0) })
-    expect(result.current.dragX).toBe(40)
+describe('useSwipeToComplete threshold', () => {
+  it('completes at exactly 70% of the width by default', () => {
+    const { onComplete, el } = setup()
+
+    drag(el, 0, 210)
+
+    expect(onComplete).toHaveBeenCalledOnce()
   })
 
-  it('stays 0 when dragging left', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useSwipeToComplete({ onComplete, threshold: 96 }))
-    const el = makeEl()
-    act(() => { result.current.containerRef(el) })
-    act(() => { fireTouch(el, 'touchstart', 100, 0) })
-    act(() => { fireTouch(el, 'touchmove', 40, 0) })
-    expect(result.current.dragX).toBe(0)
-  })
+  it('does not complete just under 70% of the width by default', () => {
+    const { onComplete, el } = setup()
 
-  it('calls onComplete and resets dragX when released past threshold', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useSwipeToComplete({ onComplete, threshold: 96 }))
-    const el = makeEl()
-    act(() => { result.current.containerRef(el) })
-    act(() => { fireTouch(el, 'touchstart', 0, 0) })
-    act(() => { fireTouch(el, 'touchmove', 120, 0) })
-    act(() => { fireTouch(el, 'touchend', 120, 0) })
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    expect(result.current.dragX).toBe(0)
-  })
+    drag(el, 0, 209)
 
-  it('does not call onComplete and snaps back when released below threshold', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useSwipeToComplete({ onComplete, threshold: 96 }))
-    const el = makeEl()
-    act(() => { result.current.containerRef(el) })
-    act(() => { fireTouch(el, 'touchstart', 0, 0) })
-    act(() => { fireTouch(el, 'touchmove', 50, 0) })
-    act(() => { fireTouch(el, 'touchend', 50, 0) })
     expect(onComplete).not.toHaveBeenCalled()
-    expect(result.current.dragX).toBe(0)
   })
 
-  it('cancels tracking when the drag is mostly vertical', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useSwipeToComplete({ onComplete, threshold: 96 }))
-    const el = makeEl()
-    act(() => { result.current.containerRef(el) })
-    act(() => { fireTouch(el, 'touchstart', 0, 0) })
-    act(() => { fireTouch(el, 'touchmove', 50, 200) }) // 50px right, 200px down — vertical wins
-    expect(result.current.dragX).toBe(0)
-    act(() => { fireTouch(el, 'touchend', 50, 200) })
+  it('uses the threshold passed in as a fraction of width', () => {
+    const { onComplete, el } = setup({ threshold: 0.3 })
+
+    drag(el, 0, 90)
+
+    expect(onComplete).toHaveBeenCalledOnce()
+  })
+
+  it('does not complete on a mostly vertical drag', () => {
+    const { onComplete, el } = setup()
+
+    drag(el, 0, 250, 400)
+
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('ignores a non-primary mouse button', () => {
+    const { onComplete, el } = setup()
+    const init = { pointerId: 1, pointerType: 'mouse', button: 2 }
+
+    act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: 0, clientY: 0, bubbles: true })) })
+    act(() => { window.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: 250, clientY: 0 })) })
+
     expect(onComplete).not.toHaveBeenCalled()
   })
 })
