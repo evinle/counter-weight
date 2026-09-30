@@ -39,6 +39,9 @@ export function App() {
   const { state, user } = useAuth();
   const { trigger, triggerSync } = useSyncEngine({ user });
   const overlayOpen = activeAction !== ActiveAction.None;
+  const showTabBar =
+    activeAction === ActiveAction.None &&
+    (state === "authenticated" || state === "guest");
   useSwipeBack({
     isOpen: overlayOpen,
     onClose: () => setActiveAction(ActiveAction.None),
@@ -285,7 +288,9 @@ export function App() {
             </div>
           )}
 
-        <main className="h-full box-border pb-tab-bar">{renderContent()}</main>
+        <main
+          className={`h-full box-border ${showTabBar ? "pb-tab-bar" : "pb-safe-bottom"}`}
+        >{renderContent()}</main>
 
         {showUnclaimedModal && (
           <UnclaimedTimersModal
@@ -302,14 +307,13 @@ export function App() {
           />
         )}
 
-        {activeAction === ActiveAction.None &&
-          (state === "authenticated" || state === "guest") && (
-            <BottomTabBar
-              activeTab={tab}
-              onTabChange={setTab}
-              onCreateNew={handleCreateNew}
-            />
-          )}
+        {showTabBar && (
+          <BottomTabBar
+            activeTab={tab}
+            onTabChange={setTab}
+            onCreateNew={handleCreateNew}
+          />
+        )}
       </div>
     </PullToRefreshProvider>
   );
