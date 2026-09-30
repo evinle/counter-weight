@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "workspaces": ["packages/*", "server", "infra"],
+  "workspaces": [
+    "packages/*",
+    "server",
+    "infra"
+  ],
   "scripts": {
     "dev": "vite --host --port 5174",
     "dev:local": "API_TARGET=http://localhost:3000 vite --host --port 5174",
@@ -12,7 +16,8 @@
     "lint": "eslint .",
     "preview": "vite preview --host --port 5174",
     "test": "vitest",
-    "deploy": "npm run build:frontend && wrangler deploy"
+    "deploy": "npm run build:frontend && wrangler deploy",
+    "gen:icons": "tsx scripts/gen-icons.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.10",
@@ -46,7 +51,9 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.5.0",
     "jsdom": "^29.1.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
