@@ -17,3 +17,24 @@ describe('theme tokens', () => {
     expect(source.match(PALETTE_CLASS) ?? []).toEqual([])
   })
 })
+
+// Colour literals (`#3b82f6`, `rgb(…)`) bypass the theme just like palette classes do.
+// These files hold colours that no theme token can stand in for.
+const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/g
+const LITERAL_ALLOWED: Record<string, string> = {
+  'LoginView.tsx': 'Google logo brand colours',
+  'GroupCreateEditView.tsx': 'user-selectable group colour swatches',
+  'TagPicker.tsx': 'user-selectable tag colour swatches and chip fallback',
+  'TimerCard.tsx': 'tag chip fallback colour',
+}
+
+describe('theme tokens: colour literals', () => {
+  it.each(componentFiles.filter((f) => !(f in LITERAL_ALLOWED)))(
+    '%s has no hardcoded colour literals',
+    (file) => {
+      const source = readFileSync(`${COMPONENTS_DIR}/${file}`, 'utf8')
+
+      expect(source.match(COLOUR_LITERAL) ?? []).toEqual([])
+    },
+  )
+})

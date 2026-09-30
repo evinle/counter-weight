@@ -210,11 +210,11 @@ export function ClockDial({
           y1={CY}
           x2={handX}
           y2={handY}
-          stroke="#3b82f6"
+          className="stroke-accent"
           strokeWidth={2}
         />
-        <circle cx={handX} cy={handY} r={10} fill="#2563eb" />
-        <circle cx={CX} cy={CY} r={4} fill="#3b82f6" />
+        <circle cx={handX} cy={handY} r={10} className="fill-accent" />
+        <circle cx={CX} cy={CY} r={4} className="fill-accent" />
 
         {/* Center display — pointer events bubble up to SVG for swipe/drag handling.
             type="button" on every button is critical: without it, buttons inside a
