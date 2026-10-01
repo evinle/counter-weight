@@ -217,6 +217,29 @@ describe('handleDeadline', () => {
     ])
   })
 
+  it('schedules nothing when the timer is cancelled', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
+
+    // Assert
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('schedules nothing when the deadline is further back than the last rung of the ladder', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    const eightDaysLater = new Date('2026-06-09T12:00:00Z')
+
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps(eightDaysLater))
+
+    // Assert
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
   it('still writes the fired timer_event when a subscription is gone (410)', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({

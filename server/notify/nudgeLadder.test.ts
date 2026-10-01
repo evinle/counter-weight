@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nextRung } from './nudgeLadder.js'
+import { nextRung, formatOverdueBy } from './nudgeLadder.js'
 
 const TARGET = new Date('2026-06-01T12:00:00Z')
 
@@ -57,5 +57,35 @@ describe('nextRung', () => {
 
     // Assert
     expect(rung).toBeNull()
+  })
+})
+
+describe('formatOverdueBy', () => {
+  it('formats a duration under an hour in minutes', () => {
+    // Arrange
+    const overdueMs = 15 * 60_000
+
+    // Act
+    const text = formatOverdueBy(overdueMs)
+
+    // Assert
+    expect(text).toBe('15m')
+  })
+})
+
+describe('formatOverdueBy (more durations)', () => {
+  it.each([
+    [60 * 60_000, '1h'],
+    [80 * 60_000, '1h 20m'],
+    [24 * 60 * 60_000, '1d'],
+    [25 * 60 * 60_000, '1d 1h'],
+    [7 * 24 * 60 * 60_000, '7d'],
+    [15 * 60_000 + 59_000, '15m'],
+  ])('formats %d ms as %s', (overdueMs, expected) => {
+    // Act
+    const text = formatOverdueBy(overdueMs)
+
+    // Assert
+    expect(text).toBe(expected)
   })
 })
