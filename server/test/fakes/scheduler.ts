@@ -16,7 +16,9 @@ export function createFakeScheduler(): FakeScheduler {
   return {
     schedules,
 
+    // Like EventBridge Scheduler, creating a name that already exists is a conflict.
     async createSchedule(name, targetDatetime, payload) {
+      if (schedules.has(name)) throw new Error(`ConflictException: schedule ${name} already exists`)
       schedules.set(name, { name, targetDatetime, payload })
     },
 

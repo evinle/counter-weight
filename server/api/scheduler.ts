@@ -73,8 +73,12 @@ export type Scheduler = {
   deleteSchedule(name: string): Promise<void>;
 };
 
+// Schedules fire this long before their target time so the durable Notify Lambda can
+// wake up and sleep until the exact moment.
+export const SCHEDULER_EARLY_FIRE_MS = 60_000;
+
 function toExpression(targetDatetime: Date): string {
-  const fireAt = new Date(targetDatetime.getTime() - 60_000);
+  const fireAt = new Date(targetDatetime.getTime() - SCHEDULER_EARLY_FIRE_MS);
   return `at(${fireAt.toISOString().slice(0, 19)})`;
 }
 

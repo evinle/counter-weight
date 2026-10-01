@@ -39,4 +39,56 @@ describe('createNotificationScheduler', () => {
       },
     ])
   })
+
+  it('scheduling the same nudge twice (a replayed firing) leaves one schedule', async () => {
+    // Arrange
+    const scheduler = createFakeScheduler()
+    const notifications = createNotificationScheduler(scheduler, () => NOW)
+
+    // Act
+    await notifications.schedule(overdueEvent)
+    await notifications.schedule(overdueEvent)
+
+    // Assert
+    expect(scheduler.schedules.size).toBe(1)
+  })
+
+  it('does not schedule a nudge whose time has already passed', async () => {
+    // Arrange
+    const scheduler = createFakeScheduler()
+    const afterNudge = new Date('2026-06-01T12:20:00Z')
+    const notifications = createNotificationScheduler(scheduler, () => afterNudge)
+
+    // Act
+    await notifications.schedule(overdueEvent)
+
+    // Assert
+    expect(scheduler.schedules.size).toBe(0)
+  })
+
+  it('does not schedule a nudge inside the scheduler early-fire window', async () => {
+    // Arrange
+    const scheduler = createFakeScheduler()
+    const thirtySecondsBefore = new Date('2026-06-01T12:14:30Z')
+    const notifications = createNotificationScheduler(scheduler, () => thirtySecondsBefore)
+
+    // Act
+    await notifications.schedule(overdueEvent)
+
+    // Assert
+    expect(scheduler.schedules.size).toBe(0)
+  })
+
+  it('schedules a nudge that is just outside the early-fire window', async () => {
+    // Arrange
+    const scheduler = createFakeScheduler()
+    const justOutside = new Date('2026-06-01T12:13:59Z') // nudge at 12:15:00, early fire at 12:14:00
+    const notifications = createNotificationScheduler(scheduler, () => justOutside)
+
+    // Act
+    await notifications.schedule(overdueEvent)
+
+    // Assert
+    expect(scheduler.schedules.size).toBe(1)
+  })
 })
