@@ -9,6 +9,7 @@ import { NavigationRoute, registerRoute } from "workbox-routing";
 import type { PrecacheEntry } from "workbox-precaching";
 import { createNotifyTimer } from "./sw.notify";
 import { createScheduler } from "./sw.scheduler";
+import { parsePushPayload, pushNotificationBody } from "./sw.push";
 import type { SyncTimerEntry } from "./sw.scheduler";
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -25,12 +26,6 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html")));
 const notifyTimer = createNotifyTimer({ registration: self.registration });
 const scheduler = createScheduler({ notify: notifyTimer });
 
-type PushPayload = {
-  serverId: string;
-  title: string;
-  emoji: string;
-};
-
 function parseSyncTimers(data: unknown): SyncTimerEntry[] | null {
   if (!data || typeof data !== "object") return null;
   if (!("type" in data) || (data as { type: unknown }).type !== "SYNC_TIMERS")
@@ -38,18 +33,6 @@ function parseSyncTimers(data: unknown): SyncTimerEntry[] | null {
   const timers = (data as { timers?: unknown }).timers;
   if (!Array.isArray(timers)) return null;
   return timers as SyncTimerEntry[];
-}
-
-function parsePushPayload(data: unknown): PushPayload | null {
-  if (!data || typeof data !== "object") return null;
-  const d = data as Record<string, unknown>;
-  if (
-    typeof d.serverId !== "string" ||
-    typeof d.title !== "string" ||
-    typeof d.emoji !== "string"
-  )
-    return null;
-  return { serverId: d.serverId, title: d.title, emoji: d.emoji };
 }
 
 const firedServerIds = new Set<string>();
@@ -86,9 +69,7 @@ self.addEventListener("push", (event) => {
       }
 
       return self.registration.showNotification(title, {
-        body: title.toLocaleLowerCase().includes("reminder")
-          ? "Time's almost up"
-          : "Time's up",
+        body: pushNotificationBody(payload),
         icon: "/icon-192.png",
         tag: payload.serverId,
       });
