@@ -12,17 +12,25 @@ export type OverdueEvent = {
 
 export type TimerEvent = LeadEvent | DeadlineEvent | OverdueEvent
 
+function parseDate(field: string, value: string): Date {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date in schedule payload field "${field}": ${JSON.stringify(value)}`)
+  }
+  return date
+}
+
 export function parseSchedulePayload(wire: SchedulePayload): TimerEvent {
   if (wire.kind === 'overdue') {
     return {
       kind: 'overdue',
       serverId: wire.serverId,
       userId: wire.userId,
-      nudgeAt: new Date(wire.nudgeAt),
-      deadline: new Date(wire.deadline),
+      nudgeAt: parseDate('nudgeAt', wire.nudgeAt),
+      deadline: parseDate('deadline', wire.deadline),
     }
   }
-  const firesAt = new Date(wire.targetDatetime)
+  const firesAt = parseDate('targetDatetime', wire.targetDatetime)
   if (wire.kind === 'lead') {
     return { kind: 'lead', serverId: wire.serverId, userId: wire.userId, leadAt: firesAt }
   }

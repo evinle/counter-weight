@@ -71,6 +71,39 @@ describe('parseSchedulePayload', () => {
     })
   })
 
+  it('rejects a payload whose targetDatetime is not a valid date, naming the field', () => {
+    // Arrange
+    const wire = {
+      serverId: SERVER_ID,
+      userId: USER_ID,
+      targetDatetime: 'not-a-date',
+      kind: 'deadline',
+    } satisfies SchedulePayload
+
+    // Act
+    const parse = () => parseSchedulePayload(wire)
+
+    // Assert
+    expect(parse).toThrow(/targetDatetime/)
+  })
+
+  it('rejects an overdue payload whose deadline is not a valid date, naming the field', () => {
+    // Arrange
+    const wire = {
+      serverId: SERVER_ID,
+      userId: USER_ID,
+      kind: 'overdue',
+      nudgeAt: '2026-06-01T12:15:00Z',
+      deadline: 'not-a-date',
+    } satisfies SchedulePayload
+
+    // Act
+    const parse = () => parseSchedulePayload(wire)
+
+    // Assert
+    expect(parse).toThrow(/deadline/)
+  })
+
   it('treats a payload with no kind as a deadline (schedules created before kind existed)', () => {
     // Arrange
     const wire = {
