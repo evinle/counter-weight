@@ -10,9 +10,9 @@ import { getNotifyEnv } from '../env.js'
 import { handleLead, handleDeadline } from './handler.js'
 import { createPushFanout } from './pushFanout.js'
 import { createNotifyDb } from './notifyDb.js'
+import { parseSchedulePayload, firesAt } from './events.js'
 import type { NotifyDb, SendNotification } from './handler.js'
-
-type EventPayload = { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' }
+import type { SchedulePayload } from '../api/scheduler.js'
 
 const sm = new SecretsManagerClient({})
 
@@ -55,8 +55,9 @@ export function buildHandler(
   getNotifyDb: () => Promise<NotifyDb>,
   getSendNotification: () => Promise<SendNotification>,
 ) {
-  return async (event: EventPayload, context: DurableContext) => {
-    const waitMs = new Date(event.targetDatetime).getTime() - Date.now()
+  return async (payload: SchedulePayload, context: DurableContext) => {
+    const event = parseSchedulePayload(payload)
+    const waitMs = firesAt(event).getTime() - Date.now()
     if (waitMs > 0) await context.wait('fire-at', { seconds: Math.ceil(waitMs / 1000) })
 
     const [db, sendNotification] = await Promise.all([getNotifyDb(), getSendNotification()])
@@ -66,12 +67,13 @@ export function buildHandler(
         await handleLead(event, deps)
         break
       case 'deadline':
-      case undefined: // schedules created before `kind` existed
         await handleDeadline(event, deps)
         break
+      case 'overdue':
+        throw new Error('Overdue nudges are not implemented yet')
       default: {
-        const unhandled: never = event.kind
-        throw new Error(`Unhandled schedule kind: ${unhandled}`)
+        const unhandled: never = event
+        throw new Error(`Unhandled event kind: ${JSON.stringify(unhandled)}`)
       }
     }
   }

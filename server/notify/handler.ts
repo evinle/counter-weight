@@ -1,5 +1,6 @@
 import { TimerStatus, EventType } from "../db/schema.js";
 import type { PushFanout } from "./pushFanout.js";
+import type { LeadEvent, DeadlineEvent } from "./events.js";
 
 export type { SendNotification } from "./pushFanout.js";
 
@@ -33,8 +34,6 @@ export type NotifyDeps = {
   push: PushFanout;
 };
 
-type FiredPayload = { serverId: string; userId: string; targetDatetime: string };
-
 async function getActiveTimer(db: NotifyDb, serverId: string) {
   const timer = await db.getTimerByServerId(serverId);
   if (!timer) {
@@ -48,22 +47,22 @@ async function getActiveTimer(db: NotifyDb, serverId: string) {
   return timer;
 }
 
-export async function handleLead(payload: FiredPayload, deps: NotifyDeps): Promise<void> {
-  const timer = await getActiveTimer(deps.db, payload.serverId);
+export async function handleLead(event: LeadEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
   if (!timer) return;
 
-  await deps.push.send(payload.userId, {
+  await deps.push.send(event.userId, {
     serverId: timer.id,
     title: `Reminder: ${timer.title}`,
     emoji: timer.emoji ?? "",
   });
 }
 
-export async function handleDeadline(payload: FiredPayload, deps: NotifyDeps): Promise<void> {
-  const timer = await getActiveTimer(deps.db, payload.serverId);
+export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
   if (!timer) return;
 
-  const { attempted } = await deps.push.send(payload.userId, {
+  const { attempted } = await deps.push.send(event.userId, {
     serverId: timer.id,
     title: timer.title,
     emoji: timer.emoji ?? "",
@@ -72,7 +71,7 @@ export async function handleDeadline(payload: FiredPayload, deps: NotifyDeps): P
   if (attempted > 0) {
     await deps.db.insertTimerEvent({
       timerId: timer.id,
-      userId: payload.userId,
+      userId: event.userId,
       eventType: EventType.Fired,
     });
   }

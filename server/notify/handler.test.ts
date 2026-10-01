@@ -5,6 +5,7 @@ import { TimerStatus, EventType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import type { LeadEvent, DeadlineEvent } from './events.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Shared fixtures --------------------------------------------------
@@ -44,7 +45,19 @@ const subscription2 = {
   subscription: { p256dh: 'key2', auth: 'auth2', deviceHint: 'Safari/iPhone' },
 } satisfies FakePushSubscription
 
-const PAYLOAD = { serverId: TIMER_ID, userId: USER_ID, targetDatetime: '2026-06-01T12:00:00Z' }
+const LEAD_EVENT = {
+  kind: 'lead',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  leadAt: new Date('2026-06-01T11:00:00Z'),
+} satisfies LeadEvent
+
+const DEADLINE_EVENT = {
+  kind: 'deadline',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  deadline: new Date('2026-06-01T12:00:00Z'),
+} satisfies DeadlineEvent
 
 // ---- Tests ------------------------------------------------------------
 
@@ -66,7 +79,7 @@ describe('handleLead', () => {
     fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleLead(PAYLOAD, makeDeps())
+    await handleLead(LEAD_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).not.toHaveBeenCalled()
@@ -78,7 +91,7 @@ describe('handleLead', () => {
     fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
 
     // Act
-    await handleLead(PAYLOAD, makeDeps())
+    await handleLead(LEAD_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).not.toHaveBeenCalled()
@@ -89,7 +102,7 @@ describe('handleLead', () => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleLead(PAYLOAD, makeDeps())
+    await handleLead(LEAD_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).toHaveBeenCalledWith(
@@ -103,7 +116,7 @@ describe('handleLead', () => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleLead(PAYLOAD, makeDeps())
+    await handleLead(LEAD_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(0)
@@ -119,7 +132,7 @@ describe('handleDeadline', () => {
     })
 
     // Act
-    await handleDeadline(PAYLOAD, makeDeps())
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(0)
@@ -131,7 +144,7 @@ describe('handleDeadline', () => {
     fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
 
     // Act
-    await handleDeadline(PAYLOAD, makeDeps())
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(0)
@@ -146,7 +159,7 @@ describe('handleDeadline', () => {
     })
 
     // Act
-    await handleDeadline(PAYLOAD, makeDeps())
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert: one fired event recorded
     expect(fakeDb.timerEvents).toHaveLength(1)
@@ -165,7 +178,7 @@ describe('handleDeadline', () => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleDeadline(PAYLOAD, makeDeps())
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).toHaveBeenCalledWith(
@@ -186,7 +199,7 @@ describe('handleDeadline', () => {
       .mockResolvedValueOnce({ statusCode: 201 })) // sub-2 → ok
 
     // Act
-    await handleDeadline(PAYLOAD, makeDeps())
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(1)
