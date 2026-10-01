@@ -52,11 +52,13 @@ afterAll(async () => {
 describe('notify handler (index)', () => {
   let fakeDb: FakeNotifyDb
   let fakeScheduler: FakeScheduler
+  let schedulerTargets: string[]
   let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
   beforeEach(() => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
     fakeScheduler = createFakeScheduler()
+    schedulerTargets = []
     sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
   })
 
@@ -64,7 +66,7 @@ describe('notify handler (index)', () => {
     const handler = withDurableExecution(buildHandler(
       async () => fakeDb,
       async () => sendNotification,
-      async () => fakeScheduler,
+      async (selfArn) => { schedulerTargets.push(selfArn); return fakeScheduler },
     ))
     return new LocalDurableTestRunner({ handlerFunction: handler })
   }
@@ -114,6 +116,18 @@ describe('notify handler (index)', () => {
     expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
       new Date('2099-01-01T00:15:00Z'),
     ])
+  })
+
+  it('builds its scheduler to target the function ARN it was invoked as, so nudges invoke the same alias', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: EVENT })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(schedulerTargets).toHaveLength(1)
+    expect(schedulerTargets[0]).toMatch(/^arn:aws:lambda:/)
   })
 
   it('sends an overdue nudge after the durable wait for an overdue payload', async () => {

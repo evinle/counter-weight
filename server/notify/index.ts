@@ -55,22 +55,23 @@ async function realGetSendNotification(): Promise<SendNotification> {
   return _sendNotificationPromise
 }
 
-let _schedulerPromise: Promise<Scheduler> | null = null
+let _scheduler: Scheduler | null = null
 
-async function realGetScheduler(): Promise<Scheduler> {
-  if (!_schedulerPromise) {
+// Nudges invoke this same function again, so the schedule target is the alias ARN it was
+// invoked as. Reading it from the invocation avoids a CloudFormation cycle (a function
+// cannot reference its own alias ARN in its environment).
+async function realGetScheduler(selfArn: string): Promise<Scheduler> {
+  if (!_scheduler) {
     const env = getNotifyEnv()
-    _schedulerPromise = Promise.resolve(
-      new AwsScheduler(new SchedulerClient({}), env.NOTIFY_LAMBDA_ARN, env.SCHEDULER_ROLE_ARN),
-    )
+    _scheduler = new AwsScheduler(new SchedulerClient({}), selfArn, env.SCHEDULER_ROLE_ARN)
   }
-  return _schedulerPromise
+  return _scheduler
 }
 
 export function buildHandler(
   getNotifyDb: () => Promise<NotifyDb>,
   getSendNotification: () => Promise<SendNotification>,
-  getScheduler: () => Promise<Scheduler>,
+  getScheduler: (selfArn: string) => Promise<Scheduler>,
 ) {
   return async (payload: SchedulePayload, context: DurableContext) => {
     const event = parseSchedulePayload(payload)
@@ -80,7 +81,7 @@ export function buildHandler(
     const [db, sendNotification, scheduler] = await Promise.all([
       getNotifyDb(),
       getSendNotification(),
-      getScheduler(),
+      getScheduler(context.lambdaContext.invokedFunctionArn),
     ])
     const now = () => new Date()
     const deps = {
