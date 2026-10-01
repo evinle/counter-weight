@@ -1,9 +1,11 @@
-import { TimerStatus, EventType } from "../db/schema.js";
+import { TimerStatus, TimerType, EventType } from "../db/schema.js";
+import type { WorkSessionJson } from "../api/routers/timers.js";
+import type { PushFanout } from "./pushFanout.js";
+import type { LeadEvent, DeadlineEvent, OverdueEvent } from "./events.js";
+import type { NotificationScheduler } from "./notificationScheduler.js";
+import { nextRung, formatOverdueBy } from "./nudgeLadder.js";
 
-export type SendNotification = (
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { serverId: string; title: string; emoji: string },
-) => Promise<{ statusCode: number }>;
+export type { SendNotification } from "./pushFanout.js";
 
 export type NotifyDb = {
   getTimerByServerId(serverId: string): Promise<{
@@ -13,6 +15,8 @@ export type NotifyDb = {
     targetDatetime: Date;
     title: string;
     emoji: string | null;
+    timerType: TimerType;
+    workSessions: WorkSessionJson[];
   } | null>;
   getSubscriptionsForUser(userId: string): Promise<
     Array<{
@@ -30,75 +34,105 @@ export type NotifyDb = {
   }): Promise<void>;
 };
 
-function isGoneError(e: unknown): e is { statusCode: number } {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    "statusCode" in e &&
-    typeof e.statusCode === "number"
-  );
-}
+export type NotifyDeps = {
+  db: NotifyDb;
+  push: PushFanout;
+  notifications: NotificationScheduler;
+  now: () => Date;
+};
 
-export async function handleTimerFired(
-  payload: { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' },
-  db: NotifyDb,
-  sendNotification: SendNotification,
-): Promise<void> {
-  const timer = await db.getTimerByServerId(payload.serverId);
+async function getActiveTimer(db: NotifyDb, serverId: string) {
+  const timer = await db.getTimerByServerId(serverId);
   if (!timer) {
-    console.error(`[notify] timer not found: ${payload.serverId}`);
-    return;
+    console.error(`[notify] timer not found: ${serverId}`);
+    return null;
   }
   if (timer.status !== TimerStatus.Active) {
-    console.log(`[notify] skipping timer ${payload.serverId}, status=${timer.status}`);
-    return;
+    console.log(`[notify] skipping timer ${serverId}, status=${timer.status}`);
+    return null;
   }
+  return timer;
+}
 
-  const subscriptions = await db.getSubscriptionsForUser(payload.userId);
-  if (subscriptions.length === 0) {
-    console.log(`[notify] no subscriptions found for user ${payload.userId}`);
-    return;
-  }
+export async function handleLead(event: LeadEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
+  if (!timer) return;
 
-  console.log(`[notify] sending to ${subscriptions.length} subscription(s) for user ${payload.userId}`);
+  await deps.push.send(event.userId, {
+    serverId: timer.id,
+    title: `Reminder: ${timer.title}`,
+    emoji: timer.emoji ?? "",
+    kind: "lead",
+  });
+}
 
-  const results = await Promise.allSettled(
-    subscriptions.map((sub) =>
-      sendNotification(
-        {
-          endpoint: sub.endpoint,
-          p256dh: sub.subscription.p256dh,
-          auth: sub.subscription.auth,
-        },
-        {
-          serverId: timer.id,
-          title: payload.kind === 'lead' ? `Reminder: ${timer.title}` : timer.title,
-          emoji: timer.emoji ?? "",
-        },
-      ),
-    ),
-  );
+export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
+  if (!timer) return;
 
-  await Promise.all(
-    results.map((result, i) => {
-      const hint = subscriptions[i].subscription.deviceHint;
-      if (result.status === "fulfilled") {
-        console.log(`[notify] sent ok to ${hint} (${subscriptions[i].endpoint}) status=${result.value.statusCode}`);
-      } else if (isGoneError(result.reason) && result.reason.statusCode === 410) {
-        console.log(`[notify] subscription gone (410) for ${hint} (${subscriptions[i].endpoint}), deleting`);
-        return db.deleteSubscription(subscriptions[i].id);
-      } else {
-        console.error(`[notify] failed to send to ${hint} (${subscriptions[i].endpoint}):`, result.reason);
-      }
-      return Promise.resolve();
-    }),
-  );
+  await scheduleNextNudge(event.serverId, event.userId, event.deadline, deps);
 
-  if (payload.kind !== 'lead') {
-    await db.insertTimerEvent({
+  const { attempted } = await deps.push.send(event.userId, {
+    serverId: timer.id,
+    title: timer.title,
+    emoji: timer.emoji ?? "",
+    kind: "deadline",
+  });
+
+  if (attempted > 0) {
+    await deps.db.insertTimerEvent({
       timerId: timer.id,
-      userId: payload.userId,
+      userId: event.userId,
       eventType: EventType.Fired,
+    });
+  }
+}
+
+export async function handleOverdueNudge(event: OverdueEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
+  if (!timer) return;
+
+  // The deadline was edited after this nudge was scheduled. The edit rescheduled the
+  // timer from its new deadline, so this chain is stale: drop it.
+  if (timer.targetDatetime.getTime() !== event.deadline.getTime()) {
+    console.log(`[notify] dropping stale overdue nudge for ${event.serverId}: deadline changed`);
+    return;
+  }
+
+  await scheduleNextNudge(event.serverId, event.userId, event.deadline, deps);
+
+  // The user is actively working on it: skip the push, but the chain above keeps
+  // running so a later nudge fires if they stop without completing.
+  if (timer.timerType === TimerType.Task && timer.workSessions.some((s) => s.endedAt === null)) {
+    console.log(`[notify] suppressing overdue nudge for ${event.serverId}: work session open`);
+    return;
+  }
+
+  await deps.push.send(event.userId, {
+    serverId: timer.id,
+    title: timer.title,
+    emoji: timer.emoji ?? "",
+    kind: "overdue",
+    overdueBy: formatOverdueBy(deps.now().getTime() - event.deadline.getTime()),
+  });
+}
+
+// Schedule before sending: a crash after this leaves the chain alive, and the
+// deterministic schedule name makes a retried firing idempotent.
+async function scheduleNextNudge(
+  serverId: string,
+  userId: string,
+  deadline: Date,
+  deps: NotifyDeps,
+): Promise<void> {
+  const rung = nextRung(deps.now(), deadline);
+  if (rung) {
+    await deps.notifications.schedule({
+      kind: "overdue",
+      serverId,
+      userId,
+      nudgeAt: rung.at,
+      deadline,
     });
   }
 }

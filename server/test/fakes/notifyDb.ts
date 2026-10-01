@@ -1,4 +1,6 @@
 import { TimerStatus, EventType } from '../../db/schema.js'
+import type { TimerType } from '../../db/schema.js'
+import type { WorkSessionJson } from '../../api/routers/timers.js'
 import type { NotifyDb } from '../../notify/handler.js'
 
 // ---- Row shapes -------------------------------------------------------
@@ -10,6 +12,8 @@ export type FakeTimer = {
   targetDatetime: Date
   title: string
   emoji: string | null
+  timerType: TimerType
+  workSessions: WorkSessionJson[]
 }
 
 export type FakePushSubscription = {

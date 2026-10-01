@@ -7,11 +7,16 @@ import { withDurableExecution } from '@aws/durable-execution-sdk-js'
 import type { DurableContext } from '@aws/durable-execution-sdk-js'
 import { createDb } from '../db/index.js'
 import { getNotifyEnv } from '../env.js'
-import { handleTimerFired } from './handler.js'
+import { handleLead, handleDeadline, handleOverdueNudge } from './handler.js'
+import { SchedulerClient } from '@aws-sdk/client-scheduler'
+import { createPushFanout } from './pushFanout.js'
+import { createNotificationScheduler } from './notificationScheduler.js'
+import { AwsScheduler } from '../api/scheduler.js'
+import type { Scheduler } from '../api/scheduler.js'
 import { createNotifyDb } from './notifyDb.js'
+import { parseSchedulePayload, firesAt } from './events.js'
 import type { NotifyDb, SendNotification } from './handler.js'
-
-type EventPayload = { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' }
+import type { SchedulePayload } from '../api/scheduler.js'
 
 const sm = new SecretsManagerClient({})
 
@@ -50,17 +55,59 @@ async function realGetSendNotification(): Promise<SendNotification> {
   return _sendNotificationPromise
 }
 
+let _scheduler: Scheduler | null = null
+
+// Nudges invoke this same function again, so the schedule target is the alias ARN it was
+// invoked as. Reading it from the invocation avoids a CloudFormation cycle (a function
+// cannot reference its own alias ARN in its environment).
+async function realGetScheduler(selfArn: string): Promise<Scheduler> {
+  if (!_scheduler) {
+    const env = getNotifyEnv()
+    _scheduler = new AwsScheduler(new SchedulerClient({}), selfArn, env.SCHEDULER_ROLE_ARN)
+  }
+  return _scheduler
+}
+
 export function buildHandler(
   getNotifyDb: () => Promise<NotifyDb>,
   getSendNotification: () => Promise<SendNotification>,
+  getScheduler: (selfArn: string) => Promise<Scheduler>,
 ) {
-  return async (event: EventPayload, context: DurableContext) => {
-    const waitMs = new Date(event.targetDatetime).getTime() - Date.now()
+  return async (payload: SchedulePayload, context: DurableContext) => {
+    const event = parseSchedulePayload(payload)
+    const waitMs = firesAt(event).getTime() - Date.now()
     if (waitMs > 0) await context.wait('fire-at', { seconds: Math.ceil(waitMs / 1000) })
 
-    const [db, sendNotification] = await Promise.all([getNotifyDb(), getSendNotification()])
-    await handleTimerFired(event, db, sendNotification)
+    const [db, sendNotification, scheduler] = await Promise.all([
+      getNotifyDb(),
+      getSendNotification(),
+      getScheduler(context.lambdaContext.invokedFunctionArn),
+    ])
+    const now = () => new Date()
+    const deps = {
+      db,
+      push: createPushFanout(db, sendNotification),
+      notifications: createNotificationScheduler(scheduler, now),
+      now,
+    }
+    switch (event.kind) {
+      case 'lead':
+        await handleLead(event, deps)
+        break
+      case 'deadline':
+        await handleDeadline(event, deps)
+        break
+      case 'overdue':
+        await handleOverdueNudge(event, deps)
+        break
+      default: {
+        const unhandled: never = event
+        throw new Error(`Unhandled event kind: ${JSON.stringify(unhandled)}`)
+      }
+    }
   }
 }
 
-export const handler = withDurableExecution(buildHandler(realGetNotifyDb, realGetSendNotification))
+export const handler = withDurableExecution(
+  buildHandler(realGetNotifyDb, realGetSendNotification, realGetScheduler),
+)

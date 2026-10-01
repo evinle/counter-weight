@@ -3,9 +3,12 @@ import { LocalDurableTestRunner, ExecutionStatus } from '@aws/durable-execution-
 import { withDurableExecution } from '@aws/durable-execution-sdk-js'
 import { buildHandler } from './index.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
-import { TimerStatus, EventType } from '../db/schema.js'
+import { createFakeScheduler } from '../test/fakes/scheduler.js'
+import type { FakeScheduler } from '../test/fakes/scheduler.js'
+import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import type { SchedulePayload } from '../api/scheduler.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Fixtures ---------------------------------------------------------
@@ -21,6 +24,8 @@ const activeTimer = {
   targetDatetime: new Date(FUTURE_DATETIME),
   title: 'Test timer',
   emoji: '⏰',
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const subscription1 = {
@@ -46,10 +51,14 @@ afterAll(async () => {
 
 describe('notify handler (index)', () => {
   let fakeDb: FakeNotifyDb
+  let fakeScheduler: FakeScheduler
+  let schedulerTargets: string[]
   let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
   beforeEach(() => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    fakeScheduler = createFakeScheduler()
+    schedulerTargets = []
     sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
   })
 
@@ -57,6 +66,7 @@ describe('notify handler (index)', () => {
     const handler = withDurableExecution(buildHandler(
       async () => fakeDb,
       async () => sendNotification,
+      async (selfArn) => { schedulerTargets.push(selfArn); return fakeScheduler },
     ))
     return new LocalDurableTestRunner({ handlerFunction: handler })
   }
@@ -91,5 +101,68 @@ describe('notify handler (index)', () => {
     // Assert
     expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
     expect(fakeDb.timerEvents).toHaveLength(1)
+  })
+
+  // --- Dispatch by kind ---
+
+  it('starts the nudge ladder after a deadline firing, 15 minutes after the deadline', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: EVENT })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2099-01-01T00:15:00Z'),
+    ])
+  })
+
+  it('builds its scheduler to target the function ARN it was invoked as, so nudges invoke the same alias', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: EVENT })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(schedulerTargets).toHaveLength(1)
+    expect(schedulerTargets[0]).toMatch(/^arn:aws:lambda:/)
+  })
+
+  it('sends an overdue nudge after the durable wait for an overdue payload', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME as its deadline, seeded in beforeEach
+    const overduePayload = {
+      serverId: TIMER_ID,
+      userId: USER_ID,
+      kind: 'overdue',
+      nudgeAt: '2099-01-01T00:15:00Z',
+      deadline: FUTURE_DATETIME,
+    } satisfies SchedulePayload
+
+    // Act
+    const result = await makeRunner().run({ payload: overduePayload })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'overdue' }),
+    )
+  })
+
+  it('sends the lead reminder and writes no timer_event for kind=lead', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: { ...EVENT, kind: 'lead' } })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Reminder: Test timer' }),
+    )
+    expect(fakeDb.timerEvents).toHaveLength(0)
   })
 })

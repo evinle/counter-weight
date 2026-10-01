@@ -32,13 +32,21 @@ The mapping from a Google Calendar event to a Timer on initial fetch and subsequ
 An opaque string returned by Google's `events.list()` API after each fetch, stored in `google_calendar_connections`. Passed on the next `events.list()` call to receive only events changed since the last fetch (delta sync). On first connect, a full `events.list()` seeds the timer data and stores the initial sync token. If a sync token is invalidated by Google (HTTP 410), a full re-fetch is required and a new token is stored.
 
 ### Schedule Kind
-A discriminator on `SchedulePayload` (`kind: 'lead' | 'deadline'`) that tells the Notify Lambda which type of push notification to send. `'deadline'` means the timer's target time has arrived; `'lead'` means a heads-up is firing before the deadline. `kind` is optional in the payload for backward compatibility — absent `kind` defaults to `'deadline'`.
+A discriminator on `SchedulePayload` (`kind: 'lead' | 'deadline' | 'overdue'`) that tells the Notify Lambda which type of push notification to send. `'deadline'` means the timer's target time has arrived; `'lead'` means a heads-up is firing before the deadline; `'overdue'` means an Overdue Nudge for a timer still uncompleted after its deadline. `kind` is optional in the payload for backward compatibility — absent `kind` defaults to `'deadline'`.
 
 ### Lead Notification
 A push notification that fires at `targetDatetime - leadTimeMs`, before the timer's deadline. Sends `"Reminder: {title}"` copy. Does not write a `timer_event` row — only the deadline firing records `EventType.Fired`.
 
 ### Deadline Notification
 A push notification that fires at `targetDatetime`. Sends `"{title}"` copy and writes `EventType.Fired`.
+
+### Overdue Nudge
+A push notification that repeats, at widening intervals, for a timer that has passed its deadline and is still active. Each nudge is a step on the Nudge Ladder. Steps are chained rather than created up front: each firing re-checks the timer, and if it is still active, schedules the next step before sending its own push. Completing or dropping the timer therefore ends the chain with no cleanup of future steps.
+
+A nudge is suppressed (no push) while the timer is a Task Timer with an open Work Session — the user is actively working on it — but the next step is still scheduled, so the chain resumes if work stops without completion.
+
+### Nudge Ladder
+The fixed list of offsets from `targetDatetime` at which Overdue Nudges fire: +15 minutes, +1 hour, +4 hours, +24 hours, +1 week. After the last step the chain ends and the timer is never nudged again. Offsets are measured from the deadline, not from the previous nudge, so they do not drift with delivery latency.
 
 ### Schedule Key
 An opaque branded string (`ScheduleKey`) that identifies an EventBridge schedule. Constructed only via `timerScheduleKeys(serverId)`, which returns a `{ deadline: ScheduleKey, lead: ScheduleKey }` pair. Not interchangeable with `serverId`.

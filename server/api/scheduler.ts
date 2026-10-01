@@ -23,6 +23,12 @@ export function timerScheduleKeys(serverId: string): { deadline: ScheduleKey; le
   };
 }
 
+// One key per nudge, named by its fire time (epoch seconds) so replaying the same firing
+// maps to the same schedule. Stays within EventBridge's 64-character limit.
+export function overdueScheduleKey(serverId: string, nudgeAt: Date): ScheduleKey {
+  return scheduleKey(`timer-overdue-${serverId}-${Math.floor(nudgeAt.getTime() / 1000)}`);
+}
+
 // After isScheduleKey returns true, TypeScript narrows s to ScheduleKey — no `as` cast needed.
 function scheduleKey(s: string): ScheduleKey {
   if (!isScheduleKey(s)) throw new Error(`Invalid ScheduleKey: "${s}"`);
@@ -33,12 +39,25 @@ export function isScheduleKey(s: string): s is ScheduleKey {
   return /^timer(-lead)?-/.test(s);
 }
 
-export type SchedulePayload = {
+// Lead and deadline keep the original wire shape so schedules already in EventBridge
+// keep working: `targetDatetime` is when the schedule should fire (the lead time for
+// `lead`, the deadline for `deadline`), and an absent `kind` means `deadline`.
+type LegacySchedulePayload = {
   serverId: string;
   userId: string;
   targetDatetime: string;
   kind?: 'lead' | 'deadline';
 };
+
+type OverdueSchedulePayload = {
+  serverId: string;
+  userId: string;
+  kind: 'overdue';
+  nudgeAt: string;
+  deadline: string;
+};
+
+export type SchedulePayload = LegacySchedulePayload | OverdueSchedulePayload;
 
 export type Scheduler = {
   createSchedule(
@@ -54,8 +73,12 @@ export type Scheduler = {
   deleteSchedule(name: string): Promise<void>;
 };
 
+// Schedules fire this long before their target time so the durable Notify Lambda can
+// wake up and sleep until the exact moment.
+const SCHEDULER_EARLY_FIRE_MS = 60_000;
+
 function toExpression(targetDatetime: Date): string {
-  const fireAt = new Date(targetDatetime.getTime() - 60_000);
+  const fireAt = new Date(targetDatetime.getTime() - SCHEDULER_EARLY_FIRE_MS);
   return `at(${fireAt.toISOString().slice(0, 19)})`;
 }
 

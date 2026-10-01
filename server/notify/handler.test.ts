@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { handleTimerFired } from './handler.js'
-import { TimerStatus, EventType } from '../db/schema.js'
+import { handleLead, handleDeadline, handleOverdueNudge } from './handler.js'
+import { createPushFanout } from './pushFanout.js'
+import { createNotificationScheduler } from './notificationScheduler.js'
+import { createFakeScheduler } from '../test/fakes/scheduler.js'
+import type { FakeScheduler } from '../test/fakes/scheduler.js'
+import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import type { LeadEvent, DeadlineEvent, OverdueEvent } from './events.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Shared fixtures --------------------------------------------------
@@ -18,6 +23,8 @@ const activeTimer = {
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
   title: 'Test timer',
   emoji: '⏰',
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const cancelledTimer = {
@@ -27,6 +34,8 @@ const cancelledTimer = {
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
   title: 'Test timer',
   emoji: null,
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const subscription1 = {
@@ -43,21 +52,115 @@ const subscription2 = {
   subscription: { p256dh: 'key2', auth: 'auth2', deviceHint: 'Safari/iPhone' },
 } satisfies FakePushSubscription
 
-const PAYLOAD = { serverId: TIMER_ID, userId: USER_ID, targetDatetime: '2026-06-01T12:00:00Z' }
+const LEAD_EVENT = {
+  kind: 'lead',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  leadAt: new Date('2026-06-01T11:00:00Z'),
+} satisfies LeadEvent
+
+const DEADLINE_EVENT = {
+  kind: 'deadline',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  deadline: new Date('2026-06-01T12:00:00Z'),
+} satisfies DeadlineEvent
+
+const OVERDUE_EVENT = {
+  kind: 'overdue',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  nudgeAt: new Date('2026-06-01T12:15:00Z'),
+  deadline: new Date('2026-06-01T12:00:00Z'),
+} satisfies OverdueEvent
 
 // ---- Tests ------------------------------------------------------------
 
 let fakeDb: FakeNotifyDb
+let fakeScheduler: FakeScheduler
 let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
 beforeEach(() => {
   fakeDb = createFakeNotifyDb()
+  fakeScheduler = createFakeScheduler()
   sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
 })
 
-describe('handleTimerFired', () => {
-  // --- Cycle 1 ---
+// Lambdas wake at the moment they fire, so `now` defaults to the deadline.
+function makeDeps(now = new Date('2026-06-01T12:00:00Z')) {
+  return {
+    db: fakeDb,
+    push: createPushFanout(fakeDb, sendNotification),
+    notifications: createNotificationScheduler(fakeScheduler, () => now),
+    now: () => now,
+  }
+}
 
+describe('handleLead', () => {
+  it('guard exits without sending when timer is cancelled', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeDb.subscriptions).toHaveLength(1) // unchanged
+  })
+
+  it('guard exits without sending when timer is not found', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+  })
+
+  it('sends "Reminder: {title}"', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Reminder: Test timer' }),
+    )
+  })
+
+  it('tags the push as kind lead so the client can pick the right copy', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'lead' }),
+    )
+  })
+
+  it('does not write a Fired event', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(fakeDb.timerEvents).toHaveLength(0)
+  })
+})
+
+describe('handleDeadline', () => {
   it('guard exits without fan-out or event write when timer is cancelled', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({
@@ -66,7 +169,7 @@ describe('handleTimerFired', () => {
     })
 
     // Act
-    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(0)
@@ -78,14 +181,12 @@ describe('handleTimerFired', () => {
     fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
 
     // Act
-    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(0)
     expect(fakeDb.subscriptions).toHaveLength(1) // unchanged
   })
-
-  // --- Cycle 2 ---
 
   it('fans out sendNotification to each subscription and writes a fired timer_event', async () => {
     // Arrange
@@ -95,7 +196,7 @@ describe('handleTimerFired', () => {
     })
 
     // Act
-    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert: one fired event recorded
     expect(fakeDb.timerEvents).toHaveLength(1)
@@ -109,28 +210,12 @@ describe('handleTimerFired', () => {
     expect(fakeDb.subscriptions).toHaveLength(2)
   })
 
-  // --- Cycle 4 ---
-
-  it('sends "Reminder: {title}" for kind=lead', async () => {
+  it('sends "{title}"', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleTimerFired({ ...PAYLOAD, kind: 'lead' }, fakeDb, sendNotification)
-
-    // Assert
-    expect(sendNotification).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ title: 'Reminder: Test timer' }),
-    )
-  })
-
-  it('sends "{title}" for kind=deadline', async () => {
-    // Arrange
-    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
-
-    // Act
-    await handleTimerFired({ ...PAYLOAD, kind: 'deadline' }, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).toHaveBeenCalledWith(
@@ -139,34 +224,63 @@ describe('handleTimerFired', () => {
     )
   })
 
-  it('does not write a Fired event for kind=lead', async () => {
+  it('starts the nudge ladder by scheduling the +15 minute overdue nudge', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleTimerFired({ ...PAYLOAD, kind: 'lead' }, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
-    expect(fakeDb.timerEvents).toHaveLength(0)
+    expect([...fakeScheduler.schedules.values()].map((s) => s.payload)).toEqual([
+      {
+        serverId: TIMER_ID,
+        userId: USER_ID,
+        kind: 'overdue',
+        nudgeAt: '2026-06-01T12:15:00.000Z',
+        deadline: '2026-06-01T12:00:00.000Z',
+      },
+    ])
   })
 
-  it('defaults to deadline text when kind is absent (backward compat)', async () => {
+  it('tags the push as kind deadline so the client can pick the right copy', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
 
     // Act
-    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
     // Assert
     expect(sendNotification).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ title: 'Test timer' }),
+      expect.objectContaining({ kind: 'deadline' }),
     )
   })
 
-  // --- Cycle 3 ---
+  it('schedules nothing when the timer is cancelled', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
 
-  it('deletes a push_subscription row when sendNotification rejects with statusCode 410', async () => {
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
+
+    // Assert
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('schedules nothing when the deadline is further back than the last rung of the ladder', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    const eightDaysLater = new Date('2026-06-09T12:00:00Z')
+
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps(eightDaysLater))
+
+    // Assert
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('still writes the fired timer_event when a subscription is gone (410)', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({
       timers: [activeTimer],
@@ -178,11 +292,131 @@ describe('handleTimerFired', () => {
       .mockResolvedValueOnce({ statusCode: 201 })) // sub-2 → ok
 
     // Act
-    await handleTimerFired(PAYLOAD, fakeDb, sendNotification)
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
 
-    // Assert: sub-1 removed, sub-2 kept
-    expect(fakeDb.subscriptions.map((s) => s.id)).toEqual(['sub-2'])
-    // Event still written
+    // Assert
     expect(fakeDb.timerEvents).toHaveLength(1)
+  })
+})
+
+describe('handleOverdueNudge', () => {
+  // The Lambda wakes at the nudge time, with a few seconds of delivery latency.
+  const NUDGE_TIME = new Date('2026-06-01T12:15:03Z')
+
+  it('sends an overdue push saying how long the timer has been overdue, and schedules the next rung', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Test timer', kind: 'overdue', overdueBy: '15m' }),
+    )
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2026-06-01T13:00:00Z'),
+    ])
+  })
+
+  it('drops the nudge and ends the chain when the deadline was edited after it was scheduled', async () => {
+    // Arrange
+    const editedTimer = { ...activeTimer, targetDatetime: new Date('2026-06-01T12:30:00Z') }
+    fakeDb = createFakeNotifyDb({ timers: [editedTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does nothing when the timer has been completed or dropped', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does nothing when the timer no longer exists', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('sends the final rung but schedules nothing after it', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    const finalNudge = { ...OVERDUE_EVENT, nudgeAt: new Date('2026-06-08T12:00:00Z') }
+    const oneWeekLater = new Date('2026-06-08T12:00:02Z')
+
+    // Act
+    await handleOverdueNudge(finalNudge, makeDeps(oneWeekLater))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'overdue', overdueBy: '7d' }),
+    )
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does not write a timer_event', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(fakeDb.timerEvents).toHaveLength(0)
+  })
+
+  it('still sends when a Task Timer has only closed work sessions', async () => {
+    // Arrange
+    const taskIdle = {
+      ...activeTimer,
+      timerType: TimerType.Task,
+      workSessions: [{ startedAt: '2026-06-01T11:00:00Z', endedAt: '2026-06-01T11:30:00Z' }],
+    }
+    fakeDb = createFakeNotifyDb({ timers: [taskIdle], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalled()
+  })
+
+  it('suppresses the push but still schedules the next rung while a Task Timer has an open work session', async () => {
+    // Arrange
+    const taskInProgress = {
+      ...activeTimer,
+      timerType: TimerType.Task,
+      workSessions: [{ startedAt: '2026-06-01T11:30:00Z', endedAt: null }],
+    }
+    fakeDb = createFakeNotifyDb({ timers: [taskInProgress], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2026-06-01T13:00:00Z'),
+    ])
   })
 })
