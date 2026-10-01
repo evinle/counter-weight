@@ -117,6 +117,26 @@ export class AppStack extends cdk.Stack {
     apiLambda.addEnvironment("NOTIFY_LAMBDA_ARN", notifyAlias.functionArn);
     apiLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
 
+    // Notify Lambda schedules its own overdue nudges (each firing creates the next one), so it
+    // needs the scheduler role plus permission to create schedules and hand that role to them.
+    // Its own alias ARN is not set here: a function cannot reference its own alias in its
+    // environment (CloudFormation cycle), so it reads the ARN it was invoked as at runtime.
+    notifyLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
+    notifyLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["scheduler:CreateSchedule", "scheduler:UpdateSchedule"],
+        resources: [
+          `arn:aws:scheduler:${this.region}:${this.account}:schedule/default/timer-overdue-*`,
+        ],
+      }),
+    );
+    notifyLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["iam:PassRole"],
+        resources: [schedulerRole.roleArn],
+      }),
+    );
+
     apiLambda.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
