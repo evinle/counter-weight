@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseSchedulePayload } from './events.js'
+import { parseSchedulePayload, firesAt } from './events.js'
+import type { TimerEvent } from './events.js'
 import type { SchedulePayload } from '../api/scheduler.js'
 
 const SERVER_ID = '00000000-0000-0000-0000-000000000001'
@@ -122,5 +123,56 @@ describe('parseSchedulePayload', () => {
       userId: USER_ID,
       deadline: new Date('2026-06-01T12:00:00Z'),
     })
+  })
+})
+
+describe('firesAt', () => {
+  it('returns leadAt for a lead event', () => {
+    // Arrange
+    const event = {
+      kind: 'lead',
+      serverId: SERVER_ID,
+      userId: USER_ID,
+      leadAt: new Date('2026-06-01T11:00:00Z'),
+    } satisfies TimerEvent
+
+    // Act
+    const at = firesAt(event)
+
+    // Assert
+    expect(at).toEqual(new Date('2026-06-01T11:00:00Z'))
+  })
+
+  it('returns the deadline for a deadline event', () => {
+    // Arrange
+    const event = {
+      kind: 'deadline',
+      serverId: SERVER_ID,
+      userId: USER_ID,
+      deadline: new Date('2026-06-01T12:00:00Z'),
+    } satisfies TimerEvent
+
+    // Act
+    const at = firesAt(event)
+
+    // Assert
+    expect(at).toEqual(new Date('2026-06-01T12:00:00Z'))
+  })
+
+  it('returns nudgeAt, not the deadline, for an overdue event', () => {
+    // Arrange
+    const event = {
+      kind: 'overdue',
+      serverId: SERVER_ID,
+      userId: USER_ID,
+      nudgeAt: new Date('2026-06-01T12:15:00Z'),
+      deadline: new Date('2026-06-01T12:00:00Z'),
+    } satisfies TimerEvent
+
+    // Act
+    const at = firesAt(event)
+
+    // Assert
+    expect(at).toEqual(new Date('2026-06-01T12:15:00Z'))
   })
 })

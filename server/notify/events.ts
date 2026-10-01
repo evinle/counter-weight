@@ -12,6 +12,21 @@ export type OverdueEvent = {
 
 export type TimerEvent = LeadEvent | DeadlineEvent | OverdueEvent
 
+export function firesAt(event: TimerEvent): Date {
+  switch (event.kind) {
+    case 'lead':
+      return event.leadAt
+    case 'deadline':
+      return event.deadline
+    case 'overdue':
+      return event.nudgeAt
+    default: {
+      const unhandled: never = event
+      throw new Error(`Unhandled event kind: ${JSON.stringify(unhandled)}`)
+    }
+  }
+}
+
 function parseDate(field: string, value: string): Date {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
