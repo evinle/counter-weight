@@ -7,7 +7,7 @@ import { withDurableExecution } from '@aws/durable-execution-sdk-js'
 import type { DurableContext } from '@aws/durable-execution-sdk-js'
 import { createDb } from '../db/index.js'
 import { getNotifyEnv } from '../env.js'
-import { handleLead, handleDeadline } from './handler.js'
+import { handleLead, handleDeadline, handleOverdueNudge } from './handler.js'
 import { SchedulerClient } from '@aws-sdk/client-scheduler'
 import { createPushFanout } from './pushFanout.js'
 import { createNotificationScheduler } from './notificationScheduler.js'
@@ -97,7 +97,8 @@ export function buildHandler(
         await handleDeadline(event, deps)
         break
       case 'overdue':
-        throw new Error('Overdue nudges are not implemented yet')
+        await handleOverdueNudge(event, deps)
+        break
       default: {
         const unhandled: never = event
         throw new Error(`Unhandled event kind: ${JSON.stringify(unhandled)}`)

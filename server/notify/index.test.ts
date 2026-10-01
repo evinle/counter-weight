@@ -8,6 +8,7 @@ import type { FakeScheduler } from '../test/fakes/scheduler.js'
 import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
+import type { SchedulePayload } from '../api/scheduler.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Fixtures ---------------------------------------------------------
@@ -113,6 +114,27 @@ describe('notify handler (index)', () => {
     expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
       new Date('2099-01-01T00:15:00Z'),
     ])
+  })
+
+  it('sends an overdue nudge after the durable wait for an overdue payload', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME as its deadline, seeded in beforeEach
+    const overduePayload = {
+      serverId: TIMER_ID,
+      userId: USER_ID,
+      kind: 'overdue',
+      nudgeAt: '2099-01-01T00:15:00Z',
+      deadline: FUTURE_DATETIME,
+    } satisfies SchedulePayload
+
+    // Act
+    const result = await makeRunner().run({ payload: overduePayload })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'overdue' }),
+    )
   })
 
   it('sends the lead reminder and writes no timer_event for kind=lead', async () => {
