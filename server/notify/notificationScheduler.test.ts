@@ -66,11 +66,10 @@ describe('createNotificationScheduler', () => {
     expect(scheduler.schedules.size).toBe(0)
   })
 
-  it('does not schedule a nudge inside the scheduler early-fire window', async () => {
+  it('does not schedule a nudge due exactly now', async () => {
     // Arrange
     const scheduler = createFakeScheduler()
-    const thirtySecondsBefore = new Date('2026-06-01T12:14:30Z')
-    const notifications = createNotificationScheduler(scheduler, () => thirtySecondsBefore)
+    const notifications = createNotificationScheduler(scheduler, () => new Date('2026-06-01T12:15:00Z'))
 
     // Act
     await notifications.schedule(overdueEvent)
@@ -79,11 +78,11 @@ describe('createNotificationScheduler', () => {
     expect(scheduler.schedules.size).toBe(0)
   })
 
-  it('schedules a nudge that is just outside the early-fire window', async () => {
+  it('still schedules a nudge less than a minute away (the Lambda waits out the remainder)', async () => {
     // Arrange
     const scheduler = createFakeScheduler()
-    const justOutside = new Date('2026-06-01T12:13:59Z') // nudge at 12:15:00, early fire at 12:14:00
-    const notifications = createNotificationScheduler(scheduler, () => justOutside)
+    const thirtySecondsBefore = new Date('2026-06-01T12:14:30Z')
+    const notifications = createNotificationScheduler(scheduler, () => thirtySecondsBefore)
 
     // Act
     await notifications.schedule(overdueEvent)

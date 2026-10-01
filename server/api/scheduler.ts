@@ -75,7 +75,7 @@ export type Scheduler = {
 
 // Schedules fire this long before their target time so the durable Notify Lambda can
 // wake up and sleep until the exact moment.
-export const SCHEDULER_EARLY_FIRE_MS = 60_000;
+const SCHEDULER_EARLY_FIRE_MS = 60_000;
 
 function toExpression(targetDatetime: Date): string {
   const fireAt = new Date(targetDatetime.getTime() - SCHEDULER_EARLY_FIRE_MS);
