@@ -33,12 +33,25 @@ export function isScheduleKey(s: string): s is ScheduleKey {
   return /^timer(-lead)?-/.test(s);
 }
 
-export type SchedulePayload = {
+// Lead and deadline keep the original wire shape so schedules already in EventBridge
+// keep working: `targetDatetime` is when the schedule should fire (the lead time for
+// `lead`, the deadline for `deadline`), and an absent `kind` means `deadline`.
+type LegacySchedulePayload = {
   serverId: string;
   userId: string;
   targetDatetime: string;
   kind?: 'lead' | 'deadline';
 };
+
+type OverdueSchedulePayload = {
+  serverId: string;
+  userId: string;
+  kind: 'overdue';
+  nudgeAt: string;
+  deadline: string;
+};
+
+export type SchedulePayload = LegacySchedulePayload | OverdueSchedulePayload;
 
 export type Scheduler = {
   createSchedule(
