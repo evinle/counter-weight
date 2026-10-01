@@ -1,9 +1,7 @@
 import { TimerStatus, EventType } from "../db/schema.js";
+import type { PushFanout } from "./pushFanout.js";
 
-export type SendNotification = (
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { serverId: string; title: string; emoji: string },
-) => Promise<{ statusCode: number }>;
+export type { SendNotification } from "./pushFanout.js";
 
 export type NotifyDb = {
   getTimerByServerId(serverId: string): Promise<{
@@ -30,72 +28,49 @@ export type NotifyDb = {
   }): Promise<void>;
 };
 
-function isGoneError(e: unknown): e is { statusCode: number } {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    "statusCode" in e &&
-    typeof e.statusCode === "number"
-  );
-}
+export type NotifyDeps = {
+  db: NotifyDb;
+  push: PushFanout;
+};
 
-export async function handleTimerFired(
-  payload: { serverId: string; userId: string; targetDatetime: string; kind?: 'lead' | 'deadline' },
-  db: NotifyDb,
-  sendNotification: SendNotification,
-): Promise<void> {
-  const timer = await db.getTimerByServerId(payload.serverId);
+type FiredPayload = { serverId: string; userId: string; targetDatetime: string };
+
+async function getActiveTimer(db: NotifyDb, serverId: string) {
+  const timer = await db.getTimerByServerId(serverId);
   if (!timer) {
-    console.error(`[notify] timer not found: ${payload.serverId}`);
-    return;
+    console.error(`[notify] timer not found: ${serverId}`);
+    return null;
   }
   if (timer.status !== TimerStatus.Active) {
-    console.log(`[notify] skipping timer ${payload.serverId}, status=${timer.status}`);
-    return;
+    console.log(`[notify] skipping timer ${serverId}, status=${timer.status}`);
+    return null;
   }
+  return timer;
+}
 
-  const subscriptions = await db.getSubscriptionsForUser(payload.userId);
-  if (subscriptions.length === 0) {
-    console.log(`[notify] no subscriptions found for user ${payload.userId}`);
-    return;
-  }
+export async function handleLead(payload: FiredPayload, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, payload.serverId);
+  if (!timer) return;
 
-  console.log(`[notify] sending to ${subscriptions.length} subscription(s) for user ${payload.userId}`);
+  await deps.push.send(payload.userId, {
+    serverId: timer.id,
+    title: `Reminder: ${timer.title}`,
+    emoji: timer.emoji ?? "",
+  });
+}
 
-  const results = await Promise.allSettled(
-    subscriptions.map((sub) =>
-      sendNotification(
-        {
-          endpoint: sub.endpoint,
-          p256dh: sub.subscription.p256dh,
-          auth: sub.subscription.auth,
-        },
-        {
-          serverId: timer.id,
-          title: payload.kind === 'lead' ? `Reminder: ${timer.title}` : timer.title,
-          emoji: timer.emoji ?? "",
-        },
-      ),
-    ),
-  );
+export async function handleDeadline(payload: FiredPayload, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, payload.serverId);
+  if (!timer) return;
 
-  await Promise.all(
-    results.map((result, i) => {
-      const hint = subscriptions[i].subscription.deviceHint;
-      if (result.status === "fulfilled") {
-        console.log(`[notify] sent ok to ${hint} (${subscriptions[i].endpoint}) status=${result.value.statusCode}`);
-      } else if (isGoneError(result.reason) && result.reason.statusCode === 410) {
-        console.log(`[notify] subscription gone (410) for ${hint} (${subscriptions[i].endpoint}), deleting`);
-        return db.deleteSubscription(subscriptions[i].id);
-      } else {
-        console.error(`[notify] failed to send to ${hint} (${subscriptions[i].endpoint}):`, result.reason);
-      }
-      return Promise.resolve();
-    }),
-  );
+  const { attempted } = await deps.push.send(payload.userId, {
+    serverId: timer.id,
+    title: timer.title,
+    emoji: timer.emoji ?? "",
+  });
 
-  if (payload.kind !== 'lead') {
-    await db.insertTimerEvent({
+  if (attempted > 0) {
+    await deps.db.insertTimerEvent({
       timerId: timer.id,
       userId: payload.userId,
       eventType: EventType.Fired,

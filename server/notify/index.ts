@@ -7,7 +7,8 @@ import { withDurableExecution } from '@aws/durable-execution-sdk-js'
 import type { DurableContext } from '@aws/durable-execution-sdk-js'
 import { createDb } from '../db/index.js'
 import { getNotifyEnv } from '../env.js'
-import { handleTimerFired } from './handler.js'
+import { handleLead, handleDeadline } from './handler.js'
+import { createPushFanout } from './pushFanout.js'
 import { createNotifyDb } from './notifyDb.js'
 import type { NotifyDb, SendNotification } from './handler.js'
 
@@ -59,7 +60,20 @@ export function buildHandler(
     if (waitMs > 0) await context.wait('fire-at', { seconds: Math.ceil(waitMs / 1000) })
 
     const [db, sendNotification] = await Promise.all([getNotifyDb(), getSendNotification()])
-    await handleTimerFired(event, db, sendNotification)
+    const deps = { db, push: createPushFanout(db, sendNotification) }
+    switch (event.kind) {
+      case 'lead':
+        await handleLead(event, deps)
+        break
+      case 'deadline':
+      case undefined: // schedules created before `kind` existed
+        await handleDeadline(event, deps)
+        break
+      default: {
+        const unhandled: never = event.kind
+        throw new Error(`Unhandled schedule kind: ${unhandled}`)
+      }
+    }
   }
 }
 

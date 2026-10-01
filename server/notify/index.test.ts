@@ -92,4 +92,21 @@ describe('notify handler (index)', () => {
     expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
     expect(fakeDb.timerEvents).toHaveLength(1)
   })
+
+  // --- Dispatch by kind ---
+
+  it('sends the lead reminder and writes no timer_event for kind=lead', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: { ...EVENT, kind: 'lead' } })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Reminder: Test timer' }),
+    )
+    expect(fakeDb.timerEvents).toHaveLength(0)
+  })
 })
