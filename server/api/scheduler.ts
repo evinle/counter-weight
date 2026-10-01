@@ -23,6 +23,12 @@ export function timerScheduleKeys(serverId: string): { deadline: ScheduleKey; le
   };
 }
 
+// One key per nudge, named by its fire time (epoch seconds) so replaying the same firing
+// maps to the same schedule. Stays within EventBridge's 64-character limit.
+export function overdueScheduleKey(serverId: string, nudgeAt: Date): ScheduleKey {
+  return scheduleKey(`timer-overdue-${serverId}-${Math.floor(nudgeAt.getTime() / 1000)}`);
+}
+
 // After isScheduleKey returns true, TypeScript narrows s to ScheduleKey — no `as` cast needed.
 function scheduleKey(s: string): ScheduleKey {
   if (!isScheduleKey(s)) throw new Error(`Invalid ScheduleKey: "${s}"`);
