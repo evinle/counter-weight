@@ -1,10 +1,9 @@
-import { TimerStatus, EventType } from "../db/schema.js";
-import type { TimerType } from "../db/schema.js";
+import { TimerStatus, TimerType, EventType } from "../db/schema.js";
 import type { WorkSessionJson } from "../api/routers/timers.js";
 import type { PushFanout } from "./pushFanout.js";
-import type { LeadEvent, DeadlineEvent } from "./events.js";
+import type { LeadEvent, DeadlineEvent, OverdueEvent } from "./events.js";
 import type { NotificationScheduler } from "./notificationScheduler.js";
-import { nextRung } from "./nudgeLadder.js";
+import { nextRung, formatOverdueBy } from "./nudgeLadder.js";
 
 export type { SendNotification } from "./pushFanout.js";
 
@@ -71,18 +70,7 @@ export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Pr
   const timer = await getActiveTimer(deps.db, event.serverId);
   if (!timer) return;
 
-  // Schedule before sending: a crash after this leaves the chain alive, and the
-  // deterministic schedule name makes a retried firing idempotent.
-  const rung = nextRung(deps.now(), event.deadline);
-  if (rung) {
-    await deps.notifications.schedule({
-      kind: "overdue",
-      serverId: event.serverId,
-      userId: event.userId,
-      nudgeAt: rung.at,
-      deadline: event.deadline,
-    });
-  }
+  await scheduleNextNudge(event.serverId, event.userId, event.deadline, deps);
 
   const { attempted } = await deps.push.send(event.userId, {
     serverId: timer.id,
@@ -96,6 +84,55 @@ export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Pr
       timerId: timer.id,
       userId: event.userId,
       eventType: EventType.Fired,
+    });
+  }
+}
+
+export async function handleOverdueNudge(event: OverdueEvent, deps: NotifyDeps): Promise<void> {
+  const timer = await getActiveTimer(deps.db, event.serverId);
+  if (!timer) return;
+
+  // The deadline was edited after this nudge was scheduled. The edit rescheduled the
+  // timer from its new deadline, so this chain is stale: drop it.
+  if (timer.targetDatetime.getTime() !== event.deadline.getTime()) {
+    console.log(`[notify] dropping stale overdue nudge for ${event.serverId}: deadline changed`);
+    return;
+  }
+
+  await scheduleNextNudge(event.serverId, event.userId, event.deadline, deps);
+
+  // The user is actively working on it: skip the push, but the chain above keeps
+  // running so a later nudge fires if they stop without completing.
+  if (timer.timerType === TimerType.Task && timer.workSessions.some((s) => s.endedAt === null)) {
+    console.log(`[notify] suppressing overdue nudge for ${event.serverId}: work session open`);
+    return;
+  }
+
+  await deps.push.send(event.userId, {
+    serverId: timer.id,
+    title: timer.title,
+    emoji: timer.emoji ?? "",
+    kind: "overdue",
+    overdueBy: formatOverdueBy(deps.now().getTime() - event.deadline.getTime()),
+  });
+}
+
+// Schedule before sending: a crash after this leaves the chain alive, and the
+// deterministic schedule name makes a retried firing idempotent.
+async function scheduleNextNudge(
+  serverId: string,
+  userId: string,
+  deadline: Date,
+  deps: NotifyDeps,
+): Promise<void> {
+  const rung = nextRung(deps.now(), deadline);
+  if (rung) {
+    await deps.notifications.schedule({
+      kind: "overdue",
+      serverId,
+      userId,
+      nudgeAt: rung.at,
+      deadline,
     });
   }
 }

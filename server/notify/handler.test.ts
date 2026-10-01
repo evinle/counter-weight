@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { handleLead, handleDeadline } from './handler.js'
+import { handleLead, handleDeadline, handleOverdueNudge } from './handler.js'
 import { createPushFanout } from './pushFanout.js'
 import { createNotificationScheduler } from './notificationScheduler.js'
 import { createFakeScheduler } from '../test/fakes/scheduler.js'
@@ -8,7 +8,7 @@ import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
-import type { LeadEvent, DeadlineEvent } from './events.js'
+import type { LeadEvent, DeadlineEvent, OverdueEvent } from './events.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 // ---- Shared fixtures --------------------------------------------------
@@ -65,6 +65,14 @@ const DEADLINE_EVENT = {
   userId: USER_ID,
   deadline: new Date('2026-06-01T12:00:00Z'),
 } satisfies DeadlineEvent
+
+const OVERDUE_EVENT = {
+  kind: 'overdue',
+  serverId: TIMER_ID,
+  userId: USER_ID,
+  nudgeAt: new Date('2026-06-01T12:15:00Z'),
+  deadline: new Date('2026-06-01T12:00:00Z'),
+} satisfies OverdueEvent
 
 // ---- Tests ------------------------------------------------------------
 
@@ -288,5 +296,127 @@ describe('handleDeadline', () => {
 
     // Assert
     expect(fakeDb.timerEvents).toHaveLength(1)
+  })
+})
+
+describe('handleOverdueNudge', () => {
+  // The Lambda wakes at the nudge time, with a few seconds of delivery latency.
+  const NUDGE_TIME = new Date('2026-06-01T12:15:03Z')
+
+  it('sends an overdue push saying how long the timer has been overdue, and schedules the next rung', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Test timer', kind: 'overdue', overdueBy: '15m' }),
+    )
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2026-06-01T13:00:00Z'),
+    ])
+  })
+
+  it('drops the nudge and ends the chain when the deadline was edited after it was scheduled', async () => {
+    // Arrange
+    const editedTimer = { ...activeTimer, targetDatetime: new Date('2026-06-01T12:30:00Z') }
+    fakeDb = createFakeNotifyDb({ timers: [editedTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does nothing when the timer has been completed or dropped', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [cancelledTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does nothing when the timer no longer exists', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('sends the final rung but schedules nothing after it', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    const finalNudge = { ...OVERDUE_EVENT, nudgeAt: new Date('2026-06-08T12:00:00Z') }
+    const oneWeekLater = new Date('2026-06-08T12:00:02Z')
+
+    // Act
+    await handleOverdueNudge(finalNudge, makeDeps(oneWeekLater))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'overdue', overdueBy: '7d' }),
+    )
+    expect(fakeScheduler.schedules.size).toBe(0)
+  })
+
+  it('does not write a timer_event', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(fakeDb.timerEvents).toHaveLength(0)
+  })
+
+  it('still sends when a Task Timer has only closed work sessions', async () => {
+    // Arrange
+    const taskIdle = {
+      ...activeTimer,
+      timerType: TimerType.Task,
+      workSessions: [{ startedAt: '2026-06-01T11:00:00Z', endedAt: '2026-06-01T11:30:00Z' }],
+    }
+    fakeDb = createFakeNotifyDb({ timers: [taskIdle], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalled()
+  })
+
+  it('suppresses the push but still schedules the next rung while a Task Timer has an open work session', async () => {
+    // Arrange
+    const taskInProgress = {
+      ...activeTimer,
+      timerType: TimerType.Task,
+      workSessions: [{ startedAt: '2026-06-01T11:30:00Z', endedAt: null }],
+    }
+    fakeDb = createFakeNotifyDb({ timers: [taskInProgress], subscriptions: [subscription1] })
+
+    // Act
+    await handleOverdueNudge(OVERDUE_EVENT, makeDeps(NUDGE_TIME))
+
+    // Assert
+    expect(sendNotification).not.toHaveBeenCalled()
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2026-06-01T13:00:00Z'),
+    ])
   })
 })
