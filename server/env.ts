@@ -21,6 +21,9 @@ const notifyEnvSchema = z.object({
   NEON_SECRET_ARN: z.string().startsWith('arn:'),
   VAPID_PUBLIC_KEY: z.string().min(1),
   VAPID_SECRET_ARN: z.string().startsWith('arn:'),
+  // The Notify Lambda schedules its own overdue nudges, so it is both caller and target.
+  NOTIFY_LAMBDA_ARN: z.string().startsWith('arn:'),
+  SCHEDULER_ROLE_ARN: z.string().startsWith('arn:'),
 })
 
 export type AuthEnv = z.infer<typeof authEnvSchema>

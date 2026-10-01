@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { handleLead, handleDeadline } from './handler.js'
 import { createPushFanout } from './pushFanout.js'
+import { createNotificationScheduler } from './notificationScheduler.js'
+import { createFakeScheduler } from '../test/fakes/scheduler.js'
+import type { FakeScheduler } from '../test/fakes/scheduler.js'
 import { TimerStatus, EventType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
@@ -62,15 +65,23 @@ const DEADLINE_EVENT = {
 // ---- Tests ------------------------------------------------------------
 
 let fakeDb: FakeNotifyDb
+let fakeScheduler: FakeScheduler
 let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
 beforeEach(() => {
   fakeDb = createFakeNotifyDb()
+  fakeScheduler = createFakeScheduler()
   sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
 })
 
-function makeDeps() {
-  return { db: fakeDb, push: createPushFanout(fakeDb, sendNotification) }
+// Lambdas wake at the moment they fire, so `now` defaults to the deadline.
+function makeDeps(now = new Date('2026-06-01T12:00:00Z')) {
+  return {
+    db: fakeDb,
+    push: createPushFanout(fakeDb, sendNotification),
+    notifications: createNotificationScheduler(fakeScheduler, () => now),
+    now: () => now,
+  }
 }
 
 describe('handleLead', () => {
@@ -185,6 +196,25 @@ describe('handleDeadline', () => {
       expect.anything(),
       expect.objectContaining({ title: 'Test timer' }),
     )
+  })
+
+  it('starts the nudge ladder by scheduling the +15 minute overdue nudge', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
+
+    // Assert
+    expect([...fakeScheduler.schedules.values()].map((s) => s.payload)).toEqual([
+      {
+        serverId: TIMER_ID,
+        userId: USER_ID,
+        kind: 'overdue',
+        nudgeAt: '2026-06-01T12:15:00.000Z',
+        deadline: '2026-06-01T12:00:00.000Z',
+      },
+    ])
   })
 
   it('still writes the fired timer_event when a subscription is gone (410)', async () => {

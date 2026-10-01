@@ -8,7 +8,11 @@ import type { DurableContext } from '@aws/durable-execution-sdk-js'
 import { createDb } from '../db/index.js'
 import { getNotifyEnv } from '../env.js'
 import { handleLead, handleDeadline } from './handler.js'
+import { SchedulerClient } from '@aws-sdk/client-scheduler'
 import { createPushFanout } from './pushFanout.js'
+import { createNotificationScheduler } from './notificationScheduler.js'
+import { AwsScheduler } from '../api/scheduler.js'
+import type { Scheduler } from '../api/scheduler.js'
 import { createNotifyDb } from './notifyDb.js'
 import { parseSchedulePayload, firesAt } from './events.js'
 import type { NotifyDb, SendNotification } from './handler.js'
@@ -51,17 +55,40 @@ async function realGetSendNotification(): Promise<SendNotification> {
   return _sendNotificationPromise
 }
 
+let _schedulerPromise: Promise<Scheduler> | null = null
+
+async function realGetScheduler(): Promise<Scheduler> {
+  if (!_schedulerPromise) {
+    const env = getNotifyEnv()
+    _schedulerPromise = Promise.resolve(
+      new AwsScheduler(new SchedulerClient({}), env.NOTIFY_LAMBDA_ARN, env.SCHEDULER_ROLE_ARN),
+    )
+  }
+  return _schedulerPromise
+}
+
 export function buildHandler(
   getNotifyDb: () => Promise<NotifyDb>,
   getSendNotification: () => Promise<SendNotification>,
+  getScheduler: () => Promise<Scheduler>,
 ) {
   return async (payload: SchedulePayload, context: DurableContext) => {
     const event = parseSchedulePayload(payload)
     const waitMs = firesAt(event).getTime() - Date.now()
     if (waitMs > 0) await context.wait('fire-at', { seconds: Math.ceil(waitMs / 1000) })
 
-    const [db, sendNotification] = await Promise.all([getNotifyDb(), getSendNotification()])
-    const deps = { db, push: createPushFanout(db, sendNotification) }
+    const [db, sendNotification, scheduler] = await Promise.all([
+      getNotifyDb(),
+      getSendNotification(),
+      getScheduler(),
+    ])
+    const now = () => new Date()
+    const deps = {
+      db,
+      push: createPushFanout(db, sendNotification),
+      notifications: createNotificationScheduler(scheduler, now),
+      now,
+    }
     switch (event.kind) {
       case 'lead':
         await handleLead(event, deps)
@@ -79,4 +106,6 @@ export function buildHandler(
   }
 }
 
-export const handler = withDurableExecution(buildHandler(realGetNotifyDb, realGetSendNotification))
+export const handler = withDurableExecution(
+  buildHandler(realGetNotifyDb, realGetSendNotification, realGetScheduler),
+)

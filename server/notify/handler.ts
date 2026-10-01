@@ -1,6 +1,8 @@
 import { TimerStatus, EventType } from "../db/schema.js";
 import type { PushFanout } from "./pushFanout.js";
 import type { LeadEvent, DeadlineEvent } from "./events.js";
+import type { NotificationScheduler } from "./notificationScheduler.js";
+import { nextRung } from "./nudgeLadder.js";
 
 export type { SendNotification } from "./pushFanout.js";
 
@@ -32,6 +34,8 @@ export type NotifyDb = {
 export type NotifyDeps = {
   db: NotifyDb;
   push: PushFanout;
+  notifications: NotificationScheduler;
+  now: () => Date;
 };
 
 async function getActiveTimer(db: NotifyDb, serverId: string) {
@@ -61,6 +65,19 @@ export async function handleLead(event: LeadEvent, deps: NotifyDeps): Promise<vo
 export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Promise<void> {
   const timer = await getActiveTimer(deps.db, event.serverId);
   if (!timer) return;
+
+  // Schedule before sending: a crash after this leaves the chain alive, and the
+  // deterministic schedule name makes a retried firing idempotent.
+  const rung = nextRung(deps.now(), event.deadline);
+  if (rung) {
+    await deps.notifications.schedule({
+      kind: "overdue",
+      serverId: event.serverId,
+      userId: event.userId,
+      nudgeAt: rung.at,
+      deadline: event.deadline,
+    });
+  }
 
   const { attempted } = await deps.push.send(event.userId, {
     serverId: timer.id,

@@ -3,6 +3,8 @@ import { LocalDurableTestRunner, ExecutionStatus } from '@aws/durable-execution-
 import { withDurableExecution } from '@aws/durable-execution-sdk-js'
 import { buildHandler } from './index.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
+import { createFakeScheduler } from '../test/fakes/scheduler.js'
+import type { FakeScheduler } from '../test/fakes/scheduler.js'
 import { TimerStatus, EventType } from '../db/schema.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
@@ -46,10 +48,12 @@ afterAll(async () => {
 
 describe('notify handler (index)', () => {
   let fakeDb: FakeNotifyDb
+  let fakeScheduler: FakeScheduler
   let sendNotification: ReturnType<typeof vi.fn> & SendNotification
 
   beforeEach(() => {
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+    fakeScheduler = createFakeScheduler()
     sendNotification = fromAny(vi.fn().mockResolvedValue({ statusCode: 201 }))
   })
 
@@ -57,6 +61,7 @@ describe('notify handler (index)', () => {
     const handler = withDurableExecution(buildHandler(
       async () => fakeDb,
       async () => sendNotification,
+      async () => fakeScheduler,
     ))
     return new LocalDurableTestRunner({ handlerFunction: handler })
   }
@@ -94,6 +99,19 @@ describe('notify handler (index)', () => {
   })
 
   // --- Dispatch by kind ---
+
+  it('starts the nudge ladder after a deadline firing, 15 minutes after the deadline', async () => {
+    // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
+
+    // Act
+    const result = await makeRunner().run({ payload: EVENT })
+
+    // Assert
+    expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
+    expect([...fakeScheduler.schedules.values()].map((s) => s.targetDatetime)).toEqual([
+      new Date('2099-01-01T00:15:00Z'),
+    ])
+  })
 
   it('sends the lead reminder and writes no timer_event for kind=lead', async () => {
     // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
