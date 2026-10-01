@@ -122,6 +122,20 @@ describe('handleLead', () => {
     )
   })
 
+  it('tags the push as kind lead so the client can pick the right copy', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleLead(LEAD_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'lead' }),
+    )
+  })
+
   it('does not write a Fired event', async () => {
     // Arrange
     fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
@@ -215,6 +229,20 @@ describe('handleDeadline', () => {
         deadline: '2026-06-01T12:00:00.000Z',
       },
     ])
+  })
+
+  it('tags the push as kind deadline so the client can pick the right copy', async () => {
+    // Arrange
+    fakeDb = createFakeNotifyDb({ timers: [activeTimer], subscriptions: [subscription1] })
+
+    // Act
+    await handleDeadline(DEADLINE_EVENT, makeDeps())
+
+    // Assert
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'deadline' }),
+    )
   })
 
   it('schedules nothing when the timer is cancelled', async () => {

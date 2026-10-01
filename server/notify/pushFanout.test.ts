@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPushFanout } from './pushFanout.js'
-import type { SendNotification } from './pushFanout.js'
+import type { PushPayload, SendNotification } from './pushFanout.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import { fromAny } from '@total-typescript/shoehorn'
 
 const USER_ID = 'user-abc'
-const PAYLOAD = { serverId: 'timer-1', title: 'Test timer', emoji: '⏰' }
+const PAYLOAD = { serverId: 'timer-1', title: 'Test timer', emoji: '⏰', kind: 'deadline' } satisfies PushPayload
 
 const subscription1 = {
   id: 'sub-1',

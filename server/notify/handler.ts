@@ -59,6 +59,7 @@ export async function handleLead(event: LeadEvent, deps: NotifyDeps): Promise<vo
     serverId: timer.id,
     title: `Reminder: ${timer.title}`,
     emoji: timer.emoji ?? "",
+    kind: "lead",
   });
 }
 
@@ -83,6 +84,7 @@ export async function handleDeadline(event: DeadlineEvent, deps: NotifyDeps): Pr
     serverId: timer.id,
     title: timer.title,
     emoji: timer.emoji ?? "",
+    kind: "deadline",
   });
 
   if (attempted > 0) {

@@ -1,6 +1,16 @@
+// What the service worker receives. `kind` picks the notification copy client-side;
+// `overdueBy` (e.g. "1h 20m") is only present for overdue nudges.
+export type PushPayload = {
+  serverId: string;
+  title: string;
+  emoji: string;
+  kind: "lead" | "deadline" | "overdue";
+  overdueBy?: string;
+};
+
 export type SendNotification = (
   subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { serverId: string; title: string; emoji: string },
+  payload: PushPayload,
 ) => Promise<{ statusCode: number }>;
 
 export type PushSubscriptionStore = {
@@ -15,10 +25,7 @@ export type PushSubscriptionStore = {
 };
 
 export type PushFanout = {
-  send(
-    userId: string,
-    payload: { serverId: string; title: string; emoji: string },
-  ): Promise<{ attempted: number }>;
+  send(userId: string, payload: PushPayload): Promise<{ attempted: number }>;
 };
 
 function isGoneError(e: unknown): e is { statusCode: number } {
