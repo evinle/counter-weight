@@ -4,7 +4,7 @@ import { createPushFanout } from './pushFanout.js'
 import { createNotificationScheduler } from './notificationScheduler.js'
 import { createFakeScheduler } from '../test/fakes/scheduler.js'
 import type { FakeScheduler } from '../test/fakes/scheduler.js'
-import { TimerStatus, EventType } from '../db/schema.js'
+import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
@@ -23,6 +23,8 @@ const activeTimer = {
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
   title: 'Test timer',
   emoji: '⏰',
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const cancelledTimer = {
@@ -32,6 +34,8 @@ const cancelledTimer = {
   targetDatetime: new Date('2026-06-01T12:00:00Z'),
   title: 'Test timer',
   emoji: null,
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const subscription1 = {

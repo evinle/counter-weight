@@ -1,4 +1,6 @@
 import { TimerStatus, EventType } from "../db/schema.js";
+import type { TimerType } from "../db/schema.js";
+import type { WorkSessionJson } from "../api/routers/timers.js";
 import type { PushFanout } from "./pushFanout.js";
 import type { LeadEvent, DeadlineEvent } from "./events.js";
 import type { NotificationScheduler } from "./notificationScheduler.js";
@@ -14,6 +16,8 @@ export type NotifyDb = {
     targetDatetime: Date;
     title: string;
     emoji: string | null;
+    timerType: TimerType;
+    workSessions: WorkSessionJson[];
   } | null>;
   getSubscriptionsForUser(userId: string): Promise<
     Array<{

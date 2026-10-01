@@ -5,7 +5,7 @@ import { buildHandler } from './index.js'
 import { createFakeNotifyDb } from '../test/fakes/notifyDb.js'
 import { createFakeScheduler } from '../test/fakes/scheduler.js'
 import type { FakeScheduler } from '../test/fakes/scheduler.js'
-import { TimerStatus, EventType } from '../db/schema.js'
+import { TimerStatus, EventType, TimerType } from '../db/schema.js'
 import type { FakeNotifyDb, FakeTimer, FakePushSubscription } from '../test/fakes/notifyDb.js'
 import type { SendNotification } from './handler.js'
 import { fromAny } from '@total-typescript/shoehorn'
@@ -23,6 +23,8 @@ const activeTimer = {
   targetDatetime: new Date(FUTURE_DATETIME),
   title: 'Test timer',
   emoji: '⏰',
+  timerType: TimerType.Reminder,
+  workSessions: [],
 } satisfies FakeTimer
 
 const subscription1 = {
