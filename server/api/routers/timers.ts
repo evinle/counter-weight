@@ -4,7 +4,7 @@ import { router, protectedProcedure } from "../router.js";
 import { EventType, TimerStatus } from "../../db/schema.js";
 import type { Priority, RecurrenceRule, TimerType } from "../../db/schema.js";
 import { nextOccurrence } from "@cw/recurrence";
-import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules } from "../timerScheduling.js";
+import { createTimerSchedules, updateTimerSchedules, deleteTimerSchedules, deleteOverdueSchedule } from "../timerScheduling.js";
 import type { SchedulingCtx } from "../timerScheduling.js";
 
 export type WorkSessionJson = { startedAt: string; endedAt: string | null }
@@ -149,9 +149,7 @@ export async function terminateTimer(
   },
   ctx: SpawnCtx,
 ): Promise<'ok' | 'conflict'> {
-  const timer = input.status === TimerStatus.Completed
-    ? await ctx.timersDb.getTimer(input.serverId, ctx.userId)
-    : null
+  const timer = await ctx.timersDb.getTimer(input.serverId, ctx.userId)
 
   const updated = await ctx.timersDb.setStatus(
     { id: input.serverId, userId: ctx.userId, version: input.version },
@@ -166,8 +164,9 @@ export async function terminateTimer(
   })
 
   await deleteTimerSchedules(input.serverId, ctx.scheduler)
+  if (timer) await deleteOverdueSchedule(input.serverId, timer.targetDatetime, ctx.now, ctx.scheduler)
 
-  if (timer?.recurrenceRule) {
+  if (input.status === TimerStatus.Completed && timer?.recurrenceRule) {
     await spawnNextOccurrence(timer, timer.recurrenceRule, input.serverId, ctx)
   }
 

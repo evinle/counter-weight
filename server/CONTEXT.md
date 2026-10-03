@@ -41,7 +41,7 @@ A push notification that fires at `targetDatetime - leadTimeMs`, before the time
 A push notification that fires at `targetDatetime`. Sends `"{title}"` copy and writes `EventType.Fired`.
 
 ### Overdue Nudge
-A push notification that repeats, at widening intervals, for a timer that has passed its deadline and is still active. Each nudge is a step on the Nudge Ladder. Steps are chained rather than created up front: each firing re-checks the timer, and if it is still active, schedules the next step before sending its own push. Completing or dropping the timer therefore ends the chain with no cleanup of future steps.
+A push notification that repeats, at widening intervals, for a timer that has passed its deadline and is still active. Each nudge is a step on the Nudge Ladder. Steps are chained rather than created up front: each firing re-checks the timer, and if it is still active, schedules the next step before sending its own push. A nudge that finds the timer no longer active ends the chain, so the chain stops even if nothing cleans up after it. Completing or cancelling a timer also deletes the one pending step (best-effort, as a courtesy); a failed deletion never blocks the completion or cancellation.
 
 A nudge is suppressed (no push) while the timer is a Task Timer with an open Work Session — the user is actively working on it — but the next step is still scheduled, so the chain resumes if work stops without completion.
 
