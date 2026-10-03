@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { terminateTimer } from './timers.js'
 import { TimerStatus, EventType } from '../../db/schema.js'
 import { createFakeTimersDb } from '../../test/fakes/timersDb.js'
 import { createFakeScheduler } from '../../test/fakes/scheduler.js'
-import { timerScheduleKeys } from '../scheduler.js'
+import { timerScheduleKeys, overdueScheduleKey } from '../scheduler.js'
 import type { FakeTimersDb } from '../../test/fakes/timersDb.js'
 import type { FakeScheduler } from '../../test/fakes/scheduler.js'
 import type { SpawnCtx, TimerRecord } from './timers.js'
@@ -39,6 +39,10 @@ let fakeScheduler: FakeScheduler
 function makeCtx(now = new Date('2026-06-01T12:01:00Z')): SpawnCtx {
   return { userId: USER_ID, now, scheduler: fakeScheduler, timersDb: fakeTimersDb }
 }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 beforeEach(() => {
   mockEnv()
@@ -135,5 +139,68 @@ describe('terminateTimer — cancel', () => {
 
     expect(fakeTimersDb.timers).toHaveLength(1)
     expect(fakeTimersDb.timers[0].status).toBe('cancelled')
+  })
+})
+
+describe('terminateTimer — overdue nudge', () => {
+  const DEADLINE = BASE_TIMER.targetDatetime
+  const FIRST_RUNG = new Date('2026-06-01T12:15:00Z')
+
+  function seedNudge(nudgeAt: Date): string {
+    const name = overdueScheduleKey(TIMER_ID, nudgeAt)
+    fakeScheduler.schedules.set(name, {
+      name,
+      targetDatetime: nudgeAt,
+      payload: { serverId: TIMER_ID, userId: USER_ID, kind: 'overdue', nudgeAt: nudgeAt.toISOString(), deadline: DEADLINE.toISOString() },
+    })
+    return name
+  }
+
+  it('completing an overdue timer removes its pending nudge', async () => {
+    const nudge = seedNudge(FIRST_RUNG)
+
+    await terminateTimer(
+      { serverId: TIMER_ID, version: 1, status: TimerStatus.Completed, eventType: EventType.Completed },
+      makeCtx(new Date('2026-06-01T12:05:00Z')),
+    )
+
+    expect(fakeScheduler.schedules.has(nudge)).toBe(false)
+  })
+
+  it('cancelling an overdue timer removes its pending nudge', async () => {
+    const nudge = seedNudge(FIRST_RUNG)
+
+    await terminateTimer(
+      { serverId: TIMER_ID, version: 1, status: TimerStatus.Cancelled, eventType: EventType.Cancelled },
+      makeCtx(new Date('2026-06-01T12:05:00Z')),
+    )
+
+    expect(fakeScheduler.schedules.has(nudge)).toBe(false)
+  })
+
+  it('a failing nudge deletion does not fail the completion or block the next occurrence', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    fakeScheduler = createFakeScheduler({ failDeleteWhen: (name) => name.startsWith('timer-overdue-') })
+    fakeTimersDb = createFakeTimersDb({ timers: [{ ...BASE_TIMER, recurrenceRule: { cron: '0 9 * * *', tz: 'UTC' } }] })
+    seedNudge(FIRST_RUNG)
+
+    const result = await terminateTimer(
+      { serverId: TIMER_ID, version: 1, status: TimerStatus.Completed, eventType: EventType.Completed },
+      makeCtx(new Date('2026-06-01T12:05:00Z')),
+    )
+
+    expect(result).toBe('ok')
+    expect(fakeTimersDb.timers).toHaveLength(2)
+  })
+
+  it('a version conflict leaves the pending nudge in place', async () => {
+    const nudge = seedNudge(FIRST_RUNG)
+
+    await terminateTimer(
+      { serverId: TIMER_ID, version: 99, status: TimerStatus.Completed, eventType: EventType.Completed },
+      makeCtx(new Date('2026-06-01T12:05:00Z')),
+    )
+
+    expect(fakeScheduler.schedules.has(nudge)).toBe(true)
   })
 })

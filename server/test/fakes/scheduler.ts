@@ -10,7 +10,7 @@ export type FakeScheduler = Scheduler & {
   schedules: Map<string, FakeScheduleRecord>
 }
 
-export function createFakeScheduler(): FakeScheduler {
+export function createFakeScheduler(opts: { failDeleteWhen?: (name: string) => boolean } = {}): FakeScheduler {
   const schedules = new Map<string, FakeScheduleRecord>()
 
   return {
@@ -27,6 +27,7 @@ export function createFakeScheduler(): FakeScheduler {
     },
 
     async deleteSchedule(name) {
+      if (opts.failDeleteWhen?.(name)) throw new Error(`ThrottlingException: could not delete ${name}`)
       schedules.delete(name)
     },
   }
