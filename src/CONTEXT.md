@@ -49,3 +49,6 @@ The user action of abandoning an active timer without completing it. Persisted a
 
 ### Complete
 The user action of marking an active timer as done, by swiping the card right, or by the Complete button. Sets status to `completed`, moves the timer to History and, for a Recurring Timer, spawns the next Occurrence. For a Task Timer it also closes any open Work Session. Takes effect immediately; the card then lingers briefly on screen showing a confirmation before leaving the feed.
+
+### Notification Slot
+The single place in the device's notification tray that a timer owns. Every push notification about a timer (lead, deadline, overdue nudge) takes the timer's slot, replacing whatever was there, and still alerts the user as if it were new. A timer never has more than one visible notification. Completing, cancelling or deleting the timer, or editing its deadline, vacates its slot, including any notification the local scheduler produced for it. Vacating happens when the user acts in the app, not through a push, so a change made on another device clears this device's slot only once it next syncs.

@@ -1,4 +1,4 @@
-import { NotifyKind } from "./sw.scheduler";
+import { localNotificationTag, NotifyKind } from "./sw.scheduler";
 import type { SyncTimerEntry, NotifyKind as NotifyKindT } from "./sw.scheduler";
 
 type NotifyTimerDeps = {
@@ -15,7 +15,7 @@ export function createNotifyTimer({ registration }: NotifyTimerDeps) {
     registration.showNotification(notifTitle, {
       body,
       icon: "/icon-192.png",
-      tag: `${id}-${kind}`,
+      tag: localNotificationTag(id, kind),
     });
   };
 }
