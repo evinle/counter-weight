@@ -102,8 +102,9 @@ export class AppStack extends cdk.Stack {
     vapidPrivateKeySecret?.grantRead(notifyLambda);
 
     // Durable execution requires a qualified ARN — alias gives a stable qualified ARN across deploys
+    const notifyAliasName = "live";
     const notifyAlias = new lambda.Alias(this, "NotifyLambdaLive", {
-      aliasName: "live",
+      aliasName: notifyAliasName,
       version: notifyLambda.currentVersion,
     });
 
@@ -120,8 +121,11 @@ export class AppStack extends cdk.Stack {
     // Notify Lambda schedules its own overdue nudges (each firing creates the next one), so it
     // needs the scheduler role plus permission to create schedules and hand that role to them.
     // Its own alias ARN is not set here: a function cannot reference its own alias in its
-    // environment (CloudFormation cycle), so it reads the ARN it was invoked as at runtime.
+    // environment (CloudFormation cycle). It gets the alias *name* (a plain string) instead and
+    // builds the ARN from its invocation. Nudges must target the alias, never the version a
+    // durable execution reports: the scheduler role can only invoke the alias.
     notifyLambda.addEnvironment("SCHEDULER_ROLE_ARN", schedulerRole.roleArn);
+    notifyLambda.addEnvironment("NOTIFY_ALIAS_NAME", notifyAliasName);
     notifyLambda.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["scheduler:CreateSchedule", "scheduler:UpdateSchedule"],

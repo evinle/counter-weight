@@ -15,6 +15,7 @@ import { AwsScheduler } from '../api/scheduler.js'
 import type { Scheduler } from '../api/scheduler.js'
 import { createNotifyDb } from './notifyDb.js'
 import { parseSchedulePayload, firesAt } from './events.js'
+import { aliasTargetArn } from './nudgeTarget.js'
 import type { NotifyDb, SendNotification } from './handler.js'
 import type { SchedulePayload } from '../api/scheduler.js'
 
@@ -57,13 +58,12 @@ async function realGetSendNotification(): Promise<SendNotification> {
 
 let _scheduler: Scheduler | null = null
 
-// Nudges invoke this same function again, so the schedule target is the alias ARN it was
-// invoked as. Reading it from the invocation avoids a CloudFormation cycle (a function
-// cannot reference its own alias ARN in its environment).
-async function realGetScheduler(selfArn: string): Promise<Scheduler> {
+// Nudges invoke this same function again, so the schedule target is its alias. The target
+// is the same for every invocation, so it is safe to build the scheduler once.
+async function realGetScheduler(target: string): Promise<Scheduler> {
   if (!_scheduler) {
     const env = getNotifyEnv()
-    _scheduler = new AwsScheduler(new SchedulerClient({}), selfArn, env.SCHEDULER_ROLE_ARN)
+    _scheduler = new AwsScheduler(new SchedulerClient({}), target, env.SCHEDULER_ROLE_ARN)
   }
   return _scheduler
 }
@@ -71,7 +71,8 @@ async function realGetScheduler(selfArn: string): Promise<Scheduler> {
 export function buildHandler(
   getNotifyDb: () => Promise<NotifyDb>,
   getSendNotification: () => Promise<SendNotification>,
-  getScheduler: (selfArn: string) => Promise<Scheduler>,
+  getScheduler: (target: string) => Promise<Scheduler>,
+  getAliasName: () => string,
 ) {
   return async (payload: SchedulePayload, context: DurableContext) => {
     const event = parseSchedulePayload(payload)
@@ -81,7 +82,7 @@ export function buildHandler(
     const [db, sendNotification, scheduler] = await Promise.all([
       getNotifyDb(),
       getSendNotification(),
-      getScheduler(context.lambdaContext.invokedFunctionArn),
+      getScheduler(aliasTargetArn(context.lambdaContext.invokedFunctionArn, getAliasName())),
     ])
     const now = () => new Date()
     const deps = {
@@ -109,5 +110,5 @@ export function buildHandler(
 }
 
 export const handler = withDurableExecution(
-  buildHandler(realGetNotifyDb, realGetSendNotification, realGetScheduler),
+  buildHandler(realGetNotifyDb, realGetSendNotification, realGetScheduler, () => getNotifyEnv().NOTIFY_ALIAS_NAME),
 )
