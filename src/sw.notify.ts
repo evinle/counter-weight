@@ -1,21 +1,19 @@
-import { localNotificationTag, NotifyKind } from "./sw.scheduler";
-import type { SyncTimerEntry, NotifyKind as NotifyKindT } from "./sw.scheduler";
+import { notificationSlot, replaceInSlot } from "./sw.notificationSlot";
+import type { NotificationRegistration } from "./sw.notificationSlot";
+import { pushNotificationBody, pushNotificationTitle } from "./sw.push";
+import type { NotifyKind, SyncTimerEntry } from "./sw.scheduler";
 
 type NotifyTimerDeps = {
-  registration: Pick<ServiceWorkerRegistration, "showNotification">;
+  registration: NotificationRegistration;
 };
 
 export function createNotifyTimer({ registration }: NotifyTimerDeps) {
-  return function notifyTimer(
-    { id, title, emoji }: SyncTimerEntry,
-    kind: NotifyKindT,
-  ): void {
-    const notifTitle = emoji ? `${emoji} ${title}` : title;
-    const body = kind === NotifyKind.Lead ? "Time's almost up" : "Time's up";
-    registration.showNotification(notifTitle, {
-      body,
-      icon: "/icon-192.png",
-      tag: localNotificationTag(id, kind),
+  return async function notifyTimer(timer: SyncTimerEntry, kind: NotifyKind): Promise<void> {
+    await replaceInSlot(registration, {
+      slot: notificationSlot(timer),
+      kind,
+      title: pushNotificationTitle({ title: timer.title, emoji: timer.emoji ?? "" }),
+      body: pushNotificationBody({ kind }),
     });
   };
 }

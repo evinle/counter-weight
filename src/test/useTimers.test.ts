@@ -354,11 +354,10 @@ describe('notification slot', () => {
     await vi.waitFor(() => expect(tray.open).toEqual([]))
   })
 
-  it('completing a timer closes the notifications its local scheduler produced', async () => {
+  it('completing a timer closes the notification it showed before it was synced', async () => {
     // Arrange
     const id = await createSyncedTimer('srv-1')
-    await tray.registration.showNotification('Test', { tag: `${id}-lead` })
-    await tray.registration.showNotification('Test', { tag: `${id}-deadline` })
+    tray.seed({ title: 'Test', tag: `local-${id}` })
 
     // Act
     await completeTimer(id)

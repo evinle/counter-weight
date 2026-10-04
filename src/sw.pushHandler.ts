@@ -1,5 +1,5 @@
 import { parsePushPayload, pushNotificationBody, pushNotificationTitle } from "./sw.push";
-import { closeNotifications, showInSlot } from "./sw.notificationSlot";
+import { replaceInSlot } from "./sw.notificationSlot";
 import type { NotificationRegistration } from "./sw.notificationSlot";
 
 type PushHandlerDeps = {
@@ -13,20 +13,11 @@ export function createPushHandler({ registration, hasVisibleClient }: PushHandle
     if (!payload) return;
     if (await hasVisibleClient()) return;
 
-    // Housekeeping only: failing to read the tray must never stop the new notification.
-    const earlier = await registration
-      .getNotifications({ tag: payload.serverId })
-      .catch((error: unknown) => {
-        console.error(`[sw] could not read notifications for ${payload.serverId}`, error);
-        return [];
-      });
-
-    await showInSlot(registration, {
+    await replaceInSlot(registration, {
       slot: payload.serverId,
+      kind: payload.kind,
       title: pushNotificationTitle(payload),
       body: pushNotificationBody(payload),
     });
-
-    closeNotifications(earlier);
   };
 }

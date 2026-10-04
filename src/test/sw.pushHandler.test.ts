@@ -27,7 +27,13 @@ describe("createPushHandler", () => {
 
     // Assert
     expect(tray.open).toEqual([
-      { title: "⏰ Standup", body: "Time's up", tag: "timer-1", renotify: true },
+      {
+        title: "⏰ Standup",
+        body: "Time's up",
+        tag: "timer-1",
+        renotify: true,
+        data: { kind: "deadline" },
+      },
     ]);
   });
 
@@ -40,7 +46,13 @@ describe("createPushHandler", () => {
 
     // Assert
     expect(tray.open).toEqual([
-      { title: "Standup", body: "Overdue by 15m", tag: "timer-1", renotify: true },
+      {
+        title: "Standup",
+        body: "Overdue by 15m",
+        tag: "timer-1",
+        renotify: true,
+        data: { kind: "overdue" },
+      },
     ]);
   });
 });
@@ -126,5 +138,76 @@ describe("createPushHandler (guards and failures)", () => {
     // Assert
     await expect(result).rejects.toThrow("show failed");
     expect(tray.open.map((entry) => entry.body)).toEqual(["Time's almost up"]);
+  });
+});
+
+describe("createPushHandler (the event is already in the slot)", () => {
+  it("does not show a deadline again when the slot already holds one", async () => {
+    // Arrange
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's up", data: { kind: "deadline" } });
+
+    // Act
+    await handlePush(deadlinePush());
+
+    // Assert
+    expect(tray.open).toEqual([
+      {
+        title: "Standup",
+        body: "Time's up",
+        tag: "timer-1",
+        renotify: undefined,
+        data: { kind: "deadline" },
+      },
+    ]);
+  });
+});
+
+describe("createPushHandler (which events replace what)", () => {
+  it("does not show a lead again when the slot already holds one", async () => {
+    // Arrange
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's almost up", data: { kind: "lead" } });
+
+    // Act
+    await handlePush({ ...deadlinePush(), kind: "lead" });
+
+    // Assert
+    expect(tray.open.map((entry) => entry.renotify)).toEqual([undefined]);
+  });
+
+  it("shows the deadline over a lead that is already in the slot", async () => {
+    // Arrange
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's almost up", data: { kind: "lead" } });
+
+    // Act
+    await handlePush(deadlinePush());
+
+    // Assert
+    expect(tray.open.map((entry) => entry.body)).toEqual(["Time's up"]);
+  });
+
+  it("shows every overdue nudge, replacing the previous one", async () => {
+    // Arrange
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Overdue by 15m", data: { kind: "overdue" } });
+
+    // Act
+    await handlePush({ ...deadlinePush(), kind: "overdue", overdueBy: "1h" });
+
+    // Assert
+    expect(tray.open.map((entry) => entry.body)).toEqual(["Overdue by 1h"]);
+  });
+
+  it.each([
+    ["no stored data", undefined],
+    ["a stored kind it does not recognise", { kind: "snooze" }],
+    ["stored data that is not an object", "deadline"],
+  ])("shows the deadline when the notification in the slot has %s", async (_label, data) => {
+    // Arrange
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's up", data });
+
+    // Act
+    await handlePush(deadlinePush());
+
+    // Assert
+    expect(tray.open.map((entry) => entry.renotify)).toEqual([true]);
   });
 });

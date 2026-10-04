@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createScheduler, localNotificationTag, NotifyKind } from '../sw.scheduler'
+import { createScheduler, NotifyKind } from '../sw.scheduler'
 import type { SyncTimerEntry } from '../sw.scheduler'
 
 const NOW = new Date('2026-06-19T12:00:00.000Z')
@@ -83,9 +83,29 @@ describe('deadline scheduling', () => {
   })
 })
 
-describe('localNotificationTag', () => {
-  it('names a local notification after its timer and kind', () => {
-    expect(localNotificationTag(12, NotifyKind.Lead)).toBe('12-lead')
-    expect(localNotificationTag(12, NotifyKind.Deadline)).toBe('12-deadline')
+
+describe('a notifier that fails', () => {
+  it('does not leave an unhandled rejection behind', async () => {
+    // Arrange
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    const scheduler = createScheduler({
+      notify: async () => {
+        throw new Error('show failed')
+      },
+    })
+
+    // Act
+    scheduler.sync([BASE])
+    await vi.advanceTimersByTimeAsync(60_000)
+    vi.useRealTimers()
+    await new Promise((resolve) => setTimeout(resolve, 0)) // let Node raise any rejection
+    process.off('unhandledRejection', onUnhandled)
+
+    // Assert
+    expect(unhandled).toEqual([])
   })
 })
