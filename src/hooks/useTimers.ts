@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
+import { vacateNotificationSlot } from '../lib/vacateNotificationSlot'
 import { HISTORY_STATUSES, SyncStatuses } from '../db/schema'
 import type { Priority, Timer, TimerType } from '../db/schema'
 
@@ -79,6 +80,12 @@ export async function completeTimer(id: number): Promise<void> {
     updatedAt: new Date(),
     syncStatus: SyncStatuses.Pending,
   })
+  await vacateSlotOf(id)
+}
+
+async function vacateSlotOf(id: number): Promise<void> {
+  const timer = await db.timers.get(id)
+  if (timer) vacateNotificationSlot({ id, serverId: timer.serverId })
 }
 
 export async function cancelTimer(id: number): Promise<void> {
@@ -87,6 +94,7 @@ export async function cancelTimer(id: number): Promise<void> {
     updatedAt: new Date(),
     syncStatus: SyncStatuses.Pending,
   })
+  await vacateSlotOf(id)
 }
 
 export async function editTimer(
@@ -119,6 +127,10 @@ export async function editTimer(
   if (recurrenceRule !== undefined) updates.recurrenceRule = recurrenceRule
 
   await db.timers.update(id, updates)
+
+  if (targetDatetime !== undefined && targetDatetime.getTime() !== current.targetDatetime.getTime()) {
+    vacateNotificationSlot({ id, serverId: current.serverId })
+  }
 }
 
 async function getUnclaimedIds(): Promise<number[]> {

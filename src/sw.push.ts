@@ -44,6 +44,10 @@ export function parsePushPayload(data: unknown): PushPayload | null {
   return { serverId, title, emoji, kind };
 }
 
+export function pushNotificationTitle(payload: PushPayload): string {
+  return payload.emoji ? `${payload.emoji} ${payload.title}` : payload.title;
+}
+
 export function pushNotificationBody(payload: PushPayload): string {
   switch (payload.kind) {
     case PushKind.Lead:

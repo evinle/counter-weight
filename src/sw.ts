@@ -9,7 +9,7 @@ import { NavigationRoute, registerRoute } from "workbox-routing";
 import type { PrecacheEntry } from "workbox-precaching";
 import { createNotifyTimer } from "./sw.notify";
 import { createScheduler } from "./sw.scheduler";
-import { parsePushPayload, pushNotificationBody } from "./sw.push";
+import { createPushHandler } from "./sw.pushHandler";
 import type { SyncTimerEntry } from "./sw.scheduler";
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -35,45 +35,23 @@ function parseSyncTimers(data: unknown): SyncTimerEntry[] | null {
   return timers as SyncTimerEntry[];
 }
 
-const firedServerIds = new Set<string>();
-
 self.addEventListener("message", (event) => {
   const timers = parseSyncTimers(event.data);
   if (!timers) return;
   scheduler.sync(timers);
 });
 
-self.addEventListener("push", (event) => {
-  const payload = parsePushPayload(event.data?.json());
-  if (!payload) return;
-
-  const promise = self.clients
-    .matchAll({ type: "window", includeUncontrolled: true })
-    .then((clients) => {
-      const hasVisibleClient = clients.some(
-        (c) => c.visibilityState === "visible",
-      );
-
-      const title = payload.emoji
-        ? `${payload.emoji} ${payload.title}`
-        : payload.title;
-
-      if (firedServerIds.has(payload.serverId)) {
-        console.log(`[sw] already fired, skipping ${payload.serverId}`);
-        return;
-      }
-
-      if (hasVisibleClient) {
-        console.log(`[sw] has visible client, skipping ${payload.serverId}`);
-        return;
-      }
-
-      return self.registration.showNotification(title, {
-        body: pushNotificationBody(payload),
-        icon: "/icon-192.png",
-        tag: payload.serverId,
-      });
+const handlePush = createPushHandler({
+  registration: self.registration,
+  hasVisibleClient: async () => {
+    const clients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
     });
+    return clients.some((c) => c.visibilityState === "visible");
+  },
+});
 
-  event.waitUntil(promise);
+self.addEventListener("push", (event) => {
+  event.waitUntil(handlePush(event.data?.json()));
 });
