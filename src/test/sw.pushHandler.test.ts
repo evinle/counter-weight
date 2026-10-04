@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createPushHandler } from "../sw.pushHandler";
+import { createNotifyTimer } from "../sw.notify";
+import { NotifyKind } from "../sw.scheduler";
+import type { SyncTimerEntry } from "../sw.scheduler";
 import { createFakeNotificationTray } from "./fakes/notificationTray";
 
 let tray: ReturnType<typeof createFakeNotificationTray>;
@@ -209,5 +212,84 @@ describe("createPushHandler (which events replace what)", () => {
 
     // Assert
     expect(tray.open.map((entry) => entry.renotify)).toEqual([true]);
+  });
+});
+
+describe("createPushHandler (events in flight together)", () => {
+  it("leaves one notification when a push and the on-device deadline land together", async () => {
+    // Arrange
+    const notifyTimer = createNotifyTimer({ registration: tray.registration });
+    const timer = {
+      id: 1,
+      serverId: "timer-1",
+      title: "Standup",
+      emoji: undefined,
+      targetDatetime: "2026-06-07T09:00:00.000Z",
+      leadTimeMs: null,
+    } satisfies SyncTimerEntry;
+
+    // Act
+    await Promise.all([handlePush(deadlinePush()), notifyTimer(timer, NotifyKind.Deadline)]);
+
+    // Assert
+    expect(tray.open.map((entry) => entry.tag)).toEqual(["timer-1"]);
+  });
+});
+
+describe("createPushHandler (the per-slot queue)", () => {
+  it("leaves one notification when the same push arrives twice together", async () => {
+    // Act
+    await Promise.all([handlePush(deadlinePush()), handlePush(deadlinePush())]);
+
+    // Assert
+    expect(tray.open.map((entry) => entry.tag)).toEqual(["timer-1"]);
+  });
+
+  it("still handles the next push after one failed to show", async () => {
+    // Arrange
+    let failNext = true;
+    const handle = createPushHandler({
+      registration: {
+        ...tray.registration,
+        showNotification: async (title, options) => {
+          if (failNext) {
+            failNext = false;
+            throw new Error("show failed");
+          }
+          await tray.registration.showNotification(title, options);
+        },
+      },
+      hasVisibleClient: async () => false,
+    });
+    const failed = handle(deadlinePush()).catch(() => "failed");
+
+    // Act
+    await handle({ ...deadlinePush(), kind: "overdue", overdueBy: "15m" });
+
+    // Assert
+    expect(await failed).toBe("failed");
+    expect(tray.open.map((entry) => entry.body)).toEqual(["Overdue by 15m"]);
+  });
+
+  it("does not make one timer's notification wait for another's", async () => {
+    // Arrange
+    const handle = createPushHandler({
+      registration: {
+        ...tray.registration,
+        showNotification: (title, options) =>
+          options?.tag === "stuck-slot"
+            ? new Promise<void>(() => {}) // never settles
+            : tray.registration.showNotification(title, options),
+      },
+      hasVisibleClient: async () => false,
+    });
+    // Own slot names: the stuck call never settles, so its queue entry stays behind.
+    void handle(deadlinePush("stuck-slot", "Stuck"));
+
+    // Act
+    await handle(deadlinePush("free-slot", "Laundry"));
+
+    // Assert
+    expect(tray.open.map((entry) => entry.tag)).toEqual(["free-slot"]);
   });
 });

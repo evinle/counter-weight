@@ -59,7 +59,7 @@ function storedKind(data: unknown): PushKind | null {
   return isPushKind(kind) ? kind : null;
 }
 
-export async function replaceInSlot(
+async function takeSlot(
   registration: NotificationRegistration,
   content: SlotContent,
 ): Promise<void> {
@@ -80,4 +80,25 @@ export async function replaceInSlot(
   await showInSlot(registration, content);
 
   closeNotifications(earlier);
+}
+
+// The sequence above spans several awaits, so two calls for one slot in flight together (a
+// push landing as an overdue on-device timer fires) would both read an empty slot and both
+// show. Calls for the same slot therefore run one at a time, and the second sees what the
+// first showed. Different slots do not wait on each other.
+const slotTails = new Map<string, Promise<void>>();
+
+export function replaceInSlot(
+  registration: NotificationRegistration,
+  content: SlotContent,
+): Promise<void> {
+  const previous = slotTails.get(content.slot) ?? Promise.resolve();
+  const run = previous.then(() => takeSlot(registration, content));
+  // A failed call must not block the ones queued behind it.
+  const tail = run.catch(() => undefined);
+  slotTails.set(content.slot, tail);
+  void tail.then(() => {
+    if (slotTails.get(content.slot) === tail) slotTails.delete(content.slot);
+  });
+  return run;
 }
