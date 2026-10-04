@@ -5,6 +5,7 @@ export type FakeTrayEntry = {
   body: string | undefined;
   tag: string | undefined;
   renotify: boolean | undefined;
+  data: unknown;
 };
 
 // Models an iOS-like tray: showing never collapses a same-tag notification, so only
@@ -21,6 +22,7 @@ export function createFakeNotificationTray() {
         body: options?.body,
         tag: options?.tag,
         renotify: options?.renotify,
+        data: options?.data,
       });
     },
     async getNotifications(filter) {
@@ -28,6 +30,7 @@ export function createFakeNotificationTray() {
       return open
         .filter((entry) => entry.tag === filter.tag)
         .map((entry) => ({
+          data: entry.data,
           close() {
             if (unclosableTitles.has(entry.title)) throw new Error("close failed");
             open.splice(open.indexOf(entry), 1);
@@ -40,8 +43,14 @@ export function createFakeNotificationTray() {
     registration,
     open,
     // Puts a notification in the tray without going through the code under test.
-    seed(entry: { title: string; tag: string; body?: string }) {
-      open.push({ title: entry.title, body: entry.body, tag: entry.tag, renotify: undefined });
+    seed(entry: { title: string; tag: string; body?: string; data?: unknown }) {
+      open.push({
+        title: entry.title,
+        body: entry.body,
+        tag: entry.tag,
+        renotify: undefined,
+        data: entry.data,
+      });
     },
     failReads() {
       readsFail = true;

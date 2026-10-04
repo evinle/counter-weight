@@ -44,11 +44,12 @@ export function parsePushPayload(data: unknown): PushPayload | null {
   return { serverId, title, emoji, kind };
 }
 
-export function pushNotificationTitle(payload: PushPayload): string {
+// Shared by the server-push and on-device paths so both show identical copy.
+export function pushNotificationTitle(payload: Pick<PushPayload, "title" | "emoji">): string {
   return payload.emoji ? `${payload.emoji} ${payload.title}` : payload.title;
 }
 
-export function pushNotificationBody(payload: PushPayload): string {
+export function pushNotificationBody(payload: Pick<PushPayload, "kind" | "overdueBy">): string {
   switch (payload.kind) {
     case PushKind.Lead:
       return "Time's almost up";

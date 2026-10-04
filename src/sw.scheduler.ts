@@ -5,12 +5,6 @@ export const NotifyKind = {
 
 export type NotifyKind = (typeof NotifyKind)[keyof typeof NotifyKind]
 
-// The tray tag for a notification the on-device scheduler shows. Server pushes use the
-// timer's serverId instead.
-export function localNotificationTag(id: number, kind: NotifyKind): string {
-  return `${id}-${kind}`
-}
-
 export type SyncTimerEntry = {
   id: number
   serverId: string | null
@@ -20,9 +14,17 @@ export type SyncTimerEntry = {
   leadTimeMs: number | null
 }
 
-type NotifyFn = (entry: SyncTimerEntry, kind: NotifyKind) => void
+type NotifyFn = (entry: SyncTimerEntry, kind: NotifyKind) => void | Promise<void>
 
 export function createScheduler({ notify }: { notify: NotifyFn }) {
+  // A timer callback has nobody to report a failure to, so log it instead of leaving an
+  // unhandled rejection in the worker.
+  function fire(timer: SyncTimerEntry, kind: NotifyKind): void {
+    void (async () => notify(timer, kind))().catch((error: unknown) => {
+      console.error(`[sw] could not notify ${kind} for timer ${timer.id}`, error)
+    })
+  }
+
   const leadHandles = new Map<number, ReturnType<typeof setTimeout>>()
   const deadlineHandles = new Map<number, ReturnType<typeof setTimeout>>()
 
@@ -42,7 +44,7 @@ export function createScheduler({ notify }: { notify: NotifyFn }) {
           if (leadDelay > 0) {
             const h = setTimeout(() => {
               leadHandles.delete(timer.id)
-              notify(timer, NotifyKind.Lead)
+              fire(timer, NotifyKind.Lead)
             }, leadDelay)
             leadHandles.set(timer.id, h)
           }
@@ -52,7 +54,7 @@ export function createScheduler({ notify }: { notify: NotifyFn }) {
         if (deadlineDelay <= 0) continue
         const h = setTimeout(() => {
           deadlineHandles.delete(timer.id)
-          notify(timer, NotifyKind.Deadline)
+          fire(timer, NotifyKind.Deadline)
         }, deadlineDelay)
         deadlineHandles.set(timer.id, h)
       }
