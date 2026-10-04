@@ -21,9 +21,12 @@ const notifyEnvSchema = z.object({
   NEON_SECRET_ARN: z.string().startsWith('arn:'),
   VAPID_PUBLIC_KEY: z.string().min(1),
   VAPID_SECRET_ARN: z.string().startsWith('arn:'),
-  // The Notify Lambda schedules its own overdue nudges; the role EventBridge assumes to
-  // invoke it is passed in here, but its own ARN comes from the invocation.
+  // The Notify Lambda schedules its own overdue nudges. The role EventBridge assumes to
+  // invoke it is passed in here, along with the name of the alias nudges must target. Its
+  // own alias ARN cannot be passed (a function cannot reference its own alias in its
+  // environment), so the ARN is built from the invocation plus this name.
   SCHEDULER_ROLE_ARN: z.string().startsWith('arn:'),
+  NOTIFY_ALIAS_NAME: z.string().min(1),
 })
 
 export type AuthEnv = z.infer<typeof authEnvSchema>

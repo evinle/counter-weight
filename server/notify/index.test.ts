@@ -66,7 +66,8 @@ describe('notify handler (index)', () => {
     const handler = withDurableExecution(buildHandler(
       async () => fakeDb,
       async () => sendNotification,
-      async (selfArn) => { schedulerTargets.push(selfArn); return fakeScheduler },
+      async (target) => { schedulerTargets.push(target); return fakeScheduler },
+      () => 'live',
     ))
     return new LocalDurableTestRunner({ handlerFunction: handler })
   }
@@ -118,7 +119,7 @@ describe('notify handler (index)', () => {
     ])
   })
 
-  it('builds its scheduler to target the function ARN it was invoked as, so nudges invoke the same alias', async () => {
+  it('builds its scheduler to target the alias, so nudges invoke current code the scheduler role may invoke', async () => {
     // Arrange — activeTimer with FUTURE_DATETIME seeded in beforeEach
 
     // Act
@@ -127,7 +128,7 @@ describe('notify handler (index)', () => {
     // Assert
     expect(result.getStatus()).toBe(ExecutionStatus.SUCCEEDED)
     expect(schedulerTargets).toHaveLength(1)
-    expect(schedulerTargets[0]).toMatch(/^arn:aws:lambda:/)
+    expect(schedulerTargets[0]).toBe('arn:aws:lambda:us-east-2:123456789012:function:my-function-name:live')
   })
 
   it('sends an overdue nudge after the durable wait for an overdue payload', async () => {
