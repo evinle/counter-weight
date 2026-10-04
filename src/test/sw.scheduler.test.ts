@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createScheduler, NotifyKind } from '../sw.scheduler'
+import { createScheduler, localNotificationTag, NotifyKind } from '../sw.scheduler'
 import type { SyncTimerEntry } from '../sw.scheduler'
 
 const NOW = new Date('2026-06-19T12:00:00.000Z')
@@ -80,5 +80,12 @@ describe('deadline scheduling', () => {
     vi.advanceTimersByTime(60_000)
 
     expect(notify).not.toHaveBeenCalled()
+  })
+})
+
+describe('localNotificationTag', () => {
+  it('names a local notification after its timer and kind', () => {
+    expect(localNotificationTag(12, NotifyKind.Lead)).toBe('12-lead')
+    expect(localNotificationTag(12, NotifyKind.Deadline)).toBe('12-deadline')
   })
 })

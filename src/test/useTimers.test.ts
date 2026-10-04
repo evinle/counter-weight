@@ -406,19 +406,40 @@ describe('notification slot', () => {
 
   it('completes even when the notification tray cannot be read', async () => {
     // Arrange
-    const failing = {
-      ...tray.registration,
-      getNotifications: async (): Promise<never> => {
-        throw new Error('getNotifications unsupported')
-      },
-    }
-    vi.stubGlobal('navigator', { serviceWorker: { ready: Promise.resolve(failing) } })
+    tray.failReads()
     const id = await createSyncedTimer('srv-1')
 
     // Act
     await completeTimer(id)
 
     // Assert
+    expect((await db.timers.get(id))?.status).toBe('completed')
+  })
+
+  it('completes when the browser has no service worker', async () => {
+    // Arrange
+    vi.stubGlobal('navigator', {})
+    const id = await createSyncedTimer('srv-1')
+
+    // Act
+    await completeTimer(id)
+
+    // Assert
+    expect((await db.timers.get(id))?.status).toBe('completed')
+  })
+
+  it('still closes the other notifications when one will not close', async () => {
+    // Arrange
+    const id = await createSyncedTimer('srv-1')
+    tray.seed({ title: 'Stuck', tag: 'srv-1' })
+    tray.seed({ title: 'Stale', tag: 'srv-1' })
+    tray.makeUnclosable('Stuck')
+
+    // Act
+    await completeTimer(id)
+
+    // Assert
+    await vi.waitFor(() => expect(tray.open.map((entry) => entry.title)).toEqual(['Stuck']))
     expect((await db.timers.get(id))?.status).toBe('completed')
   })
 

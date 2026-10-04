@@ -13,10 +13,14 @@ beforeEach(() => {
   });
 });
 
+function deadlinePush(serverId = "timer-1", title = "Standup") {
+  return { serverId, title, emoji: "", kind: "deadline" };
+}
+
 describe("createPushHandler", () => {
   it("shows a deadline push as a notification in the timer's slot", async () => {
     // Arrange
-    const data = { serverId: "timer-1", title: "Standup", emoji: "⏰", kind: "deadline" };
+    const data = { ...deadlinePush(), emoji: "⏰" };
 
     // Act
     await handlePush(data);
@@ -29,16 +33,10 @@ describe("createPushHandler", () => {
 
   it("replaces the timer's earlier notification with the newer one", async () => {
     // Arrange
-    await handlePush({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's up" });
 
     // Act
-    await handlePush({
-      serverId: "timer-1",
-      title: "Standup",
-      emoji: "",
-      kind: "overdue",
-      overdueBy: "15m",
-    });
+    await handlePush({ ...deadlinePush(), kind: "overdue", overdueBy: "15m" });
 
     // Assert
     expect(tray.open).toEqual([
@@ -50,10 +48,10 @@ describe("createPushHandler", () => {
 describe("createPushHandler (separate slots and best-effort clean-up)", () => {
   it("keeps a separate notification for each timer", async () => {
     // Arrange
-    await handlePush({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    tray.seed({ title: "Standup", tag: "timer-1" });
 
     // Act
-    await handlePush({ serverId: "timer-2", title: "Laundry", emoji: "", kind: "deadline" });
+    await handlePush(deadlinePush("timer-2", "Laundry"));
 
     // Assert
     expect(tray.open.map((entry) => entry.tag)).toEqual(["timer-1", "timer-2"]);
@@ -61,19 +59,10 @@ describe("createPushHandler (separate slots and best-effort clean-up)", () => {
 
   it("still shows the notification when the tray cannot be read", async () => {
     // Arrange
-    const failingRead = {
-      ...tray.registration,
-      async getNotifications(): Promise<never> {
-        throw new Error("getNotifications unsupported");
-      },
-    };
-    const handle = createPushHandler({
-      registration: failingRead,
-      hasVisibleClient: async () => false,
-    });
+    tray.failReads();
 
     // Act
-    await handle({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    await handlePush(deadlinePush());
 
     // Assert
     expect(tray.open.map((entry) => entry.title)).toEqual(["Standup"]);
@@ -83,26 +72,12 @@ describe("createPushHandler (separate slots and best-effort clean-up)", () => {
 describe("createPushHandler (a notification that will not close)", () => {
   it("still shows the new notification and closes the rest of the old ones", async () => {
     // Arrange
-    await tray.registration.showNotification("Stuck", { tag: "timer-1" });
-    await tray.registration.showNotification("Stale", { tag: "timer-1" });
-    const [, ...others] = await tray.registration.getNotifications({ tag: "timer-1" });
-    const handle = createPushHandler({
-      registration: {
-        ...tray.registration,
-        getNotifications: async () => [
-          {
-            close() {
-              throw new Error("close failed");
-            },
-          },
-          ...others,
-        ],
-      },
-      hasVisibleClient: async () => false,
-    });
+    tray.seed({ title: "Stuck", tag: "timer-1" });
+    tray.seed({ title: "Stale", tag: "timer-1" });
+    tray.makeUnclosable("Stuck");
 
     // Act
-    await handle({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    await handlePush(deadlinePush());
 
     // Assert
     expect(tray.open.map((entry) => entry.title)).toEqual(["Stuck", "Standup"]);
@@ -126,7 +101,7 @@ describe("createPushHandler (guards and failures)", () => {
     });
 
     // Act
-    await handle({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    await handle(deadlinePush());
 
     // Assert
     expect(tray.open).toEqual([]);
@@ -134,7 +109,7 @@ describe("createPushHandler (guards and failures)", () => {
 
   it("keeps the earlier notification and surfaces the error when showing fails", async () => {
     // Arrange
-    await handlePush({ serverId: "timer-1", title: "Standup", emoji: "", kind: "lead" });
+    tray.seed({ title: "Standup", tag: "timer-1", body: "Time's almost up" });
     const handle = createPushHandler({
       registration: {
         ...tray.registration,
@@ -146,7 +121,7 @@ describe("createPushHandler (guards and failures)", () => {
     });
 
     // Act
-    const result = handle({ serverId: "timer-1", title: "Standup", emoji: "", kind: "deadline" });
+    const result = handle(deadlinePush());
 
     // Assert
     await expect(result).rejects.toThrow("show failed");

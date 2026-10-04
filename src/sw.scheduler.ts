@@ -5,6 +5,12 @@ export const NotifyKind = {
 
 export type NotifyKind = (typeof NotifyKind)[keyof typeof NotifyKind]
 
+// The tray tag for a notification the on-device scheduler shows. Server pushes use the
+// timer's serverId instead.
+export function localNotificationTag(id: number, kind: NotifyKind): string {
+  return `${id}-${kind}`
+}
+
 export type SyncTimerEntry = {
   id: number
   serverId: string | null
